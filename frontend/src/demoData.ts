@@ -10,11 +10,19 @@ export const demoDashboardData: DashboardData = {
   optionalProvidersMissing: ["CBOE VIX direct feed", "premium options sentiment"],
   errors: ["Backend API unavailable; rendering deterministic demo snapshot."],
   freshness: [
-    { name: "ETF prices", latestDate: "2026-06-24", status: "fresh", lagDays: 1, note: "Stooq/Yahoo proxy feed" },
-    { name: "FRED macro", latestDate: "2026-06-01", status: "stale", lagDays: 24, note: "Monthly CPI and unemployment cadence" },
-    { name: "CBOE volatility", latestDate: null, status: "no_key", lagDays: null, note: "Optional provider not configured" },
-    { name: "Commodities", latestDate: "2026-06-23", status: "partial", lagDays: 2, note: "Copper proxy missing latest close" }
+    { name: "ETF prices", latestDate: "2026-06-24", status: "fresh", lagDays: 1, note: "Demo seed modeled after liquid ETF close data; source label: demo_seed." },
+    { name: "FRED macro", latestDate: "2026-06-01", status: "stale", lagDays: 24, note: "Monthly CPI/unemployment cadence; source label: demo_seed." },
+    { name: "CBOE volatility", latestDate: null, status: "no_key", lagDays: null, note: "Optional live provider not configured; VIX shown from deterministic proxy." },
+    { name: "Commodities", latestDate: "2026-06-23", status: "partial", lagDays: 2, note: "ETF/ETN proxies from demo_seed; copper proxy missing latest close." }
   ],
+  provenance: {
+    mode: "demo",
+    description: "Deterministic seeded snapshot for product demos and tests. Values are internally consistent examples, not investment data.",
+    generatedAt: "2026-06-25T08:30:00-04:00",
+    selectedDate: "2026-06-24",
+    sources: ["demo_seed ETF closes", "demo_seed Treasury and FRED-style macro observations", "proxy volatility and breadth calculations"],
+    freshnessPolicy: "Daily market feeds are treated as fresh within two calendar days; monthly macro series may lag by design."
+  },
   regime: {
     label: "mixed_transition",
     displayLabel: "Mixed Transition",
@@ -66,6 +74,14 @@ export const demoDashboardData: DashboardData = {
     { date: "2026-06-14", SPY: 102.7, QQQ: 103.9, IWM: 100.3, DIA: 101.7 },
     { date: "2026-06-21", SPY: 103.0, QQQ: 104.4, IWM: 100.5, DIA: 102.0 },
     { date: "2026-06-24", SPY: 103.28, QQQ: 104.91, IWM: 100.74, DIA: 102.16 }
+  ],
+  historicalRegimes: [
+    { date: "2026-01-31", displayLabel: "Risk-On Growth", riskScore: 72, growthScore: 69, inflationScore: 42, ratesPressureScore: 38, note: "Broad equity participation and lower volatility supported a high-confidence risk-on read." },
+    { date: "2026-02-28", displayLabel: "Goldilocks", riskScore: 68, growthScore: 65, inflationScore: 45, ratesPressureScore: 44, note: "Growth leadership persisted while inflation-sensitive inputs remained contained." },
+    { date: "2026-03-31", displayLabel: "Mixed Transition", riskScore: 56, growthScore: 59, inflationScore: 51, ratesPressureScore: 55, note: "Small-cap lag and a firmer yield curve started to dilute the risk-on signal." },
+    { date: "2026-04-30", displayLabel: "Defensive Tilt", riskScore: 43, growthScore: 48, inflationScore: 57, ratesPressureScore: 63, note: "Higher yields and defensive sector leadership pushed the dashboard toward caution." },
+    { date: "2026-05-31", displayLabel: "Mixed Transition", riskScore: 53, growthScore: 60, inflationScore: 52, ratesPressureScore: 57, note: "Technology leadership improved, but breadth and rates were not fully confirming." },
+    { date: "2026-06-24", displayLabel: "Mixed Transition", riskScore: 58, growthScore: 64, inflationScore: 54, ratesPressureScore: 61, note: "Large-cap growth remains constructive while rates and commodities keep pressure elevated." }
   ],
   rates: {
     fedFundsRate: 4.62,
