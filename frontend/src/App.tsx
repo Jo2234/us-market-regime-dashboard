@@ -1,7 +1,7 @@
 import { AlertTriangle, BarChart3, CalendarDays, Download, RefreshCw, ServerCrash, WifiOff } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { fetchDashboardData } from "./api";
-import type { ChartPoint, DashboardData, FreshnessSource, RangeKey, RegimeSignal, RiskAssetMetric, YieldPoint } from "./types";
+import type { ChartPoint, DashboardData, FreshnessSource, HistoricalRegimePoint, RangeKey, RegimeSignal, RiskAssetMetric, YieldPoint } from "./types";
 import {
   downloadDashboardCsv,
   formatDate,
@@ -91,6 +91,7 @@ export default function App() {
       />
 
       <StatusStrip data={data} error={error} />
+      <ProvenancePanel data={data} />
 
       <section className="dashboard-grid first-row">
         <RegimeCard data={data} />
@@ -112,6 +113,10 @@ export default function App() {
       <section className="dashboard-grid fourth-row">
         <SignalTable signals={data.signals} />
         <AnalystNote data={data} />
+      </section>
+
+      <section className="dashboard-grid fifth-row">
+        <RegimeHistoryChart data={data.historicalRegimes ?? []} />
       </section>
     </main>
   );
@@ -221,6 +226,35 @@ function FreshnessBadge({ source }: { source: FreshnessSource }) {
       <span>{source.name}</span>
       <strong>{formatDate(source.latestDate)}</strong>
     </div>
+  );
+}
+
+function ProvenancePanel({ data }: { data: DashboardData }) {
+  const provenance = data.provenance;
+  if (!provenance) {
+    return null;
+  }
+
+  return (
+    <section className="provenance-panel" aria-label="Data provenance and freshness policy">
+      <div>
+        <span className={`mode-chip ${provenance.mode}`}>{provenance.mode}</span>
+        <strong>Data provenance</strong>
+        <p>{provenance.description}</p>
+      </div>
+      <div>
+        <span>Selected {formatDate(provenance.selectedDate)}</span>
+        <span>Generated {formatDateTime(provenance.generatedAt)}</span>
+        <span>{provenance.freshnessPolicy}</span>
+      </div>
+      {provenance.sources.length > 0 && (
+        <ul>
+          {provenance.sources.slice(0, 4).map((source) => (
+            <li key={source}>{source}</li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -624,6 +658,81 @@ function SignalTable({ signals }: { signals: RegimeSignal[] }) {
             ))}
           </tbody>
         </table>
+      </div>
+    </article>
+  );
+}
+
+function RegimeHistoryChart({ data }: { data: HistoricalRegimePoint[] }) {
+  if (data.length === 0) {
+    return <EmptyState title="Regime history unavailable" body="Historical regime points will appear when the API returns backfilled classifications." />;
+  }
+
+  const metrics = [
+    ["riskScore", "Risk", "#17744e"],
+    ["growthScore", "Growth", "#2563eb"],
+    ["inflationScore", "Inflation", "#b45309"],
+    ["ratesPressureScore", "Rates", "#b5443a"]
+  ] as const;
+  const width = 900;
+  const height = 260;
+  const pad = 36;
+  const xFor = (index: number) => pad + (index / Math.max(1, data.length - 1)) * (width - pad * 2);
+  const yFor = (value: number) => height - pad - (value / 100) * (height - pad * 2);
+
+  return (
+    <article className="panel history-panel">
+      <div className="panel-header">
+        <div>
+          <span className="eyebrow">Explainability</span>
+          <h2>Historical Regime Scores</h2>
+        </div>
+        <div className="legend">
+          {metrics.map(([, label, color]) => (
+            <span key={label}>
+              <i style={{ background: color }} />
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+      <svg className="history-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Historical regime scores chart">
+        {[0, 50, 100].map((tick) => (
+          <g key={tick}>
+            <line x1={pad} x2={width - pad} y1={yFor(tick)} y2={yFor(tick)} className="grid-line" />
+            <text x={8} y={yFor(tick) + 4} className="axis-label">
+              {tick}
+            </text>
+          </g>
+        ))}
+        {metrics.map(([key, label, color]) => (
+          <polyline
+            key={key}
+            fill="none"
+            stroke={color}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-label={`${label} score history`}
+            points={data.map((point, index) => `${xFor(index)},${yFor(point[key])}`).join(" ")}
+          />
+        ))}
+        {data.map((point, index) => (
+          <g key={point.date}>
+            <text x={xFor(index)} y={height - 10} textAnchor="middle" className="axis-label">
+              {point.date.slice(5)}
+            </text>
+          </g>
+        ))}
+      </svg>
+      <div className="history-notes">
+        {data.slice(-3).map((point) => (
+          <div key={point.date}>
+            <strong>{point.displayLabel}</strong>
+            <span>{formatDate(point.date)}</span>
+            <p>{point.note}</p>
+          </div>
+        ))}
       </div>
     </article>
   );
