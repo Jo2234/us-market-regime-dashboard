@@ -25,7 +25,10 @@ class YieldCurveResponse(BaseModel):
 
 class FreshnessResponse(BaseModel):
     overall_latest_date: str | None
+    generated_at: str | None = None
+    as_of_date: str | None = None
     stale_after_days: int
+    freshness_policy: str | None = None
     sources: list[dict[str, Any]]
     instruments: list[dict[str, Any]]
 
