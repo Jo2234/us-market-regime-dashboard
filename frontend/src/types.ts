@@ -25,6 +25,25 @@ export interface RegimeSnapshot {
   limitations: string[];
 }
 
+export interface DataProvenance {
+  mode: "live" | "demo" | "fallback";
+  description: string;
+  generatedAt: string;
+  selectedDate: string;
+  sources: string[];
+  freshnessPolicy: string;
+}
+
+export interface HistoricalRegimePoint {
+  date: string;
+  displayLabel: string;
+  riskScore: number;
+  growthScore: number;
+  inflationScore: number;
+  ratesPressureScore: number;
+  note: string;
+}
+
 export interface IndexReturn {
   symbol: string;
   name: string;
@@ -101,6 +120,8 @@ export interface DashboardData {
   optionalProvidersMissing: string[];
   errors: string[];
   freshness: FreshnessSource[];
+  provenance?: DataProvenance;
+  historicalRegimes?: HistoricalRegimePoint[];
   regime: RegimeSnapshot;
   indices: IndexReturn[];
   sectors: SectorPerformance[];
