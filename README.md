@@ -2,6 +2,19 @@
 
 Compact market dashboard API with seeded market data, return calculations, volatility, yield curve, freshness checks, and transparent regime classification.
 
+## What It Demonstrates
+
+- Market-regime classification with visible inputs instead of opaque labels.
+- Seeded deterministic data for repeatable local demos and tests.
+- API endpoints for sector returns, volatility, yield curve state, data freshness, and CSV exports.
+- A small frontend surface that makes the regime, market internals, and freshness state easy to inspect.
+
+## Quick Proof
+
+- `GET /data/freshness` exposes whether the demo data is current enough for the dashboard.
+- `GET /export/sectors.csv` and `GET /export/series/{symbol}.csv` make the underlying data downloadable.
+- Backend tests cover the API and seeded data behavior; root tests cover broader project behavior.
+
 ## Run
 
 ```bash
