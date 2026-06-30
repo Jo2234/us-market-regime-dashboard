@@ -10,6 +10,8 @@ describe("demo dashboard data", () => {
     expect(demoDashboardData.commodities.length).toBeGreaterThanOrEqual(3);
     expect(demoDashboardData.volatility.length).toBeGreaterThanOrEqual(1);
     expect(demoDashboardData.signals.length).toBeGreaterThanOrEqual(6);
+    expect(demoDashboardData.historicalRegimes?.length).toBeGreaterThanOrEqual(6);
+    expect(demoDashboardData.provenance?.sources).toContain("demo_seed ETF closes");
     expect(demoDashboardData.analystNote.bullets.length).toBeGreaterThanOrEqual(5);
   });
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -143,12 +143,14 @@ def data_freshness(conn) -> dict:
     latest_dates = [date.fromisoformat(row["latest_date"]) for row in rows if row["latest_date"]]
     overall_latest = max(latest_dates).isoformat() if latest_dates else None
     today = date.today()
+    generated_at = datetime.now(timezone.utc).isoformat()
     instruments = []
     source_latest: dict[str, date] = {}
     for row in rows:
         latest = date.fromisoformat(row["latest_date"]) if row["latest_date"] else None
         age_days = (today - latest).days if latest else None
         is_stale = age_days is None or age_days > settings.stale_after_days
+        status = "stale" if is_stale else "fresh"
         instruments.append(
             {
                 "symbol": row["symbol"],
@@ -158,15 +160,26 @@ def data_freshness(conn) -> dict:
                 "latest_date": latest.isoformat() if latest else None,
                 "age_days": age_days,
                 "is_stale": is_stale,
+                "status": status,
+                "freshness_policy": f"stale after {settings.stale_after_days} calendar days",
             }
         )
         if latest and (row["source"] not in source_latest or latest > source_latest[row["source"]]):
             source_latest[row["source"]] = latest
     return {
         "overall_latest_date": overall_latest,
+        "generated_at": generated_at,
+        "as_of_date": today.isoformat(),
         "stale_after_days": settings.stale_after_days,
+        "freshness_policy": f"Instrument/source rows are stale when latest_date is more than {settings.stale_after_days} calendar days before as_of_date.",
         "sources": [
-            {"source": source, "latest_date": latest.isoformat(), "age_days": (today - latest).days}
+            {
+                "source": source,
+                "latest_date": latest.isoformat(),
+                "age_days": (today - latest).days,
+                "is_stale": (today - latest).days > settings.stale_after_days,
+                "status": "stale" if (today - latest).days > settings.stale_after_days else "fresh",
+            }
             for source, latest in sorted(source_latest.items())
         ],
         "instruments": instruments,

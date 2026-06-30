@@ -60,7 +60,8 @@ def test_freshness_endpoint_identifies_stale_sources(seeded_conn):
     assert response.status_code == 200
     payload = response.json()
     assert payload["overall_latest_date"] is not None
-    assert any(item["source"] == "demo_seed" for item in payload["sources"])
+    assert payload["freshness_policy"].startswith("Instrument/source rows are stale")
+    assert any(item["source"] == "demo_seed" and item["status"] in {"fresh", "stale"} for item in payload["sources"])
 
 
 def test_sector_csv_export_returns_flat_download(seeded_conn):

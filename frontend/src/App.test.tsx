@@ -27,6 +27,8 @@ describe("App dashboard states", () => {
     expect(screen.getByText("Partial snapshot: at least one feed is delayed or missing latest observations.")).toBeInTheDocument();
     expect(screen.getByText("Optional provider not configured: CBOE VIX direct feed.")).toBeInTheDocument();
     expect(screen.getByText("Optional provider not configured: premium options sentiment.")).toBeInTheDocument();
+    expect(screen.getByText("Data provenance")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Historical Regime Scores" })).toBeInTheDocument();
   });
 
   it("shows an explicit fallback when freshness metadata is missing", async () => {

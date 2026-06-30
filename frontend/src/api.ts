@@ -24,12 +24,12 @@ export async function fetchDashboardData(date: string, range: RangeKey): Promise
     }
 
     const data = (await response.json()) as DashboardData;
-    return {
+    return withLiveProvenance({
       ...data,
       sourceMode: "api",
       apiBaseUrl: API_BASE_URL,
       errors: data.errors ?? []
-    };
+    });
   } catch (error) {
     if (DISABLE_DEMO_FALLBACK) {
       throw error;
@@ -45,6 +45,32 @@ function markDemo(data: DashboardData, message: string): DashboardData {
     ...data,
     sourceMode: "demo",
     apiBaseUrl: API_BASE_URL,
+    provenance: {
+      ...data.provenance,
+      mode: message.startsWith("Backend API unavailable") ? "fallback" : "demo",
+      description: data.provenance?.description ?? "Deterministic demo snapshot.",
+      generatedAt: data.generatedAt,
+      selectedDate: data.selectedDate,
+      sources: data.provenance?.sources ?? [],
+      freshnessPolicy: data.provenance?.freshnessPolicy ?? "Demo freshness is derived from embedded source dates."
+    },
     errors: [message, ...data.errors.filter((item) => item !== message)]
+  };
+}
+
+function withLiveProvenance(data: DashboardData): DashboardData {
+  if (data.provenance) return data;
+
+  const sourceNames = data.freshness.map((source) => `${source.name}${source.latestDate ? ` (${source.latestDate})` : ""}`);
+  return {
+    ...data,
+    provenance: {
+      mode: "live",
+      description: "Live API response assembled from backend market, macro, rates, volatility, and regime analytics endpoints.",
+      generatedAt: data.generatedAt,
+      selectedDate: data.selectedDate,
+      sources: sourceNames,
+      freshnessPolicy: "Freshness is reported per source by the backend; stale/partial flags are surfaced without hiding delayed feeds."
+    }
   };
 }

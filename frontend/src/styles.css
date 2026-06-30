@@ -271,6 +271,61 @@ h1 {
   border-left-color: var(--neutral);
 }
 
+.provenance-panel {
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(260px, 0.9fr) minmax(260px, 1fr);
+  gap: 10px;
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.provenance-panel div,
+.provenance-panel ul {
+  min-width: 0;
+  margin: 0;
+}
+
+.provenance-panel div {
+  display: grid;
+  gap: 4px;
+}
+
+.provenance-panel p,
+.provenance-panel span,
+.provenance-panel li {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.provenance-panel ul {
+  padding-left: 18px;
+}
+
+.mode-chip {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mode-chip.live {
+  color: var(--positive);
+  background: rgba(23, 116, 78, 0.1);
+}
+
+.mode-chip.demo,
+.mode-chip.fallback {
+  color: var(--amber);
+  background: rgba(180, 83, 9, 0.1);
+}
+
 .banner-list {
   display: grid;
   gap: 8px;
@@ -319,6 +374,10 @@ h1 {
 
 .fourth-row {
   grid-template-columns: minmax(620px, 1.15fr) minmax(380px, 0.85fr);
+}
+
+.fifth-row {
+  grid-template-columns: 1fr;
 }
 
 .panel,
@@ -619,7 +678,8 @@ tbody th small {
 }
 
 .line-chart,
-.yield-chart {
+.yield-chart,
+.history-chart {
   width: 100%;
   display: block;
 }
@@ -630,6 +690,34 @@ tbody th small {
 
 .yield-chart {
   min-height: 190px;
+}
+
+.history-chart {
+  min-height: 260px;
+}
+
+.history-notes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.history-notes div {
+  min-width: 0;
+  padding: 9px;
+  background: #f8fafc;
+  border: 1px solid #edf1f5;
+  border-radius: 7px;
+}
+
+.history-notes span,
+.history-notes p {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .grid-line {
@@ -820,6 +908,8 @@ tbody th small {
   .second-row,
   .third-row,
   .fourth-row,
+  .fifth-row,
+  .provenance-panel,
   .status-strip {
     grid-template-columns: 1fr;
   }
@@ -872,6 +962,7 @@ tbody th small {
   .score-grid,
   .signal-split,
   .compact-kpis,
+  .history-notes,
   .loading-grid {
     grid-template-columns: 1fr;
   }
