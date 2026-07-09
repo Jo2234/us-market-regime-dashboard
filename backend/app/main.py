@@ -39,3 +39,12 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://johan-vaz-site.vercel.app", "http://localhost:3000", "http://localhost:5173"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
