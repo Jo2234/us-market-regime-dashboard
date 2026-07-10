@@ -48,12 +48,12 @@ export function heatColor(value: number): string {
   const clipped = Math.max(-8, Math.min(8, value));
   const intensity = Math.abs(clipped) / 8;
   if (clipped > 0.05) {
-    return `rgba(23, 116, 78, ${0.18 + intensity * 0.62})`;
+    return `color-mix(in srgb, var(--positive) ${18 + intensity * 62}%, transparent)`;
   }
   if (clipped < -0.05) {
-    return `rgba(181, 68, 58, ${0.18 + intensity * 0.62})`;
+    return `color-mix(in srgb, var(--negative) ${18 + intensity * 62}%, transparent)`;
   }
-  return "rgba(107, 114, 128, 0.14)";
+  return "color-mix(in srgb, var(--faint) 14%, transparent)";
 }
 
 export function downloadDashboardCsv(data: DashboardData): void {
