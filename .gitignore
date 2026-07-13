@@ -11,3 +11,5 @@ dist/
 *.db
 .DS_Store
 
+.vercel
+.env*
