@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, CalendarDays, Download, RefreshCw, ServerCrash, WifiOff } from "lucide-react";
+import { AlertTriangle, CalendarDays, Download, RefreshCw, ServerCrash, WifiOff } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { fetchDashboardData } from "./api";
 import type { ChartPoint, DashboardData, FreshnessSource, HistoricalRegimePoint, RangeKey, RegimeSignal, RiskAssetMetric, YieldPoint } from "./types";
@@ -17,10 +17,10 @@ import {
 type SeriesKey = Exclude<keyof ChartPoint, "date">;
 
 const seriesColors: Record<SeriesKey, string> = {
-  SPY: "#2563eb",
-  QQQ: "#7c3aed",
-  IWM: "#b45309",
-  DIA: "#0f766e"
+  SPY: "var(--chart-spy)",
+  QQQ: "var(--chart-qqq)",
+  IWM: "var(--chart-iwm)",
+  DIA: "var(--chart-dia)"
 };
 
 const metricTooltips = {
@@ -79,6 +79,7 @@ export default function App() {
 
   return (
     <main className="app-shell">
+      <Masthead />
       <TopBar
         data={data}
         range={range}
@@ -118,7 +119,35 @@ export default function App() {
       <section className="dashboard-grid fifth-row">
         <RegimeHistoryChart data={data.historicalRegimes ?? []} />
       </section>
+
+      <SiteFooter />
     </main>
+  );
+}
+
+function Masthead() {
+  return (
+    <div className="masthead" aria-label="Vaz Research publication">
+      <span>Vaz Research</span>
+      <span aria-hidden="true">·</span>
+      <span>US Market Regime Dashboard</span>
+    </div>
+  );
+}
+
+function SiteFooter() {
+  return (
+    <footer className="site-footer">
+      <span>Johan Vaz</span>
+      <span aria-hidden="true">·</span>
+      <a href="https://johan-vaz-site.vercel.app" target="_blank" rel="noreferrer">
+        johan-vaz-site.vercel.app
+      </a>
+      <span aria-hidden="true">·</span>
+      <a href="https://github.com/Jo2234/us-market-regime-dashboard" target="_blank" rel="noreferrer">
+        source on GitHub
+      </a>
+    </footer>
   );
 }
 
@@ -146,11 +175,9 @@ function TopBar({
   return (
     <header className="top-bar">
       <div className="brand-block">
-        <div className="brand-mark" aria-hidden="true">
-          <BarChart3 size={18} />
-        </div>
         <div>
-          <h1>US Market Regime</h1>
+          <span className="publication-kicker">Market Intelligence</span>
+          <h1>US Market Regime Dashboard</h1>
           <p>{data.sourceMode === "api" ? `API: ${data.apiBaseUrl}` : "Demo fallback data"}</p>
         </div>
       </div>
@@ -571,11 +598,11 @@ function YieldCurve({ points }: { points: YieldPoint[] }) {
       <text x={width - pad} y={18} textAnchor="end" className="axis-label axis-title">
         Yield (%)
       </text>
-      <polyline points={lineFor("previousYield")} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="4 4" />
-      <polyline points={lineFor("yield")} fill="none" stroke="#0f766e" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={lineFor("previousYield")} fill="none" stroke="var(--chart-previous)" strokeWidth="2" strokeDasharray="4 4" />
+      <polyline points={lineFor("yield")} fill="none" stroke="var(--positive)" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
       {points.map((point, index) => (
         <g key={point.maturity}>
-          <circle cx={xFor(index)} cy={yFor(point.yield)} r="4" fill="#0f766e" />
+          <circle cx={xFor(index)} cy={yFor(point.yield)} r="4" fill="var(--positive)" />
           <text x={xFor(index)} y={height - 8} textAnchor="middle" className="axis-label">
             {point.maturity}
           </text>
@@ -669,10 +696,10 @@ function RegimeHistoryChart({ data }: { data: HistoricalRegimePoint[] }) {
   }
 
   const metrics = [
-    ["riskScore", "Risk", "#17744e"],
-    ["growthScore", "Growth", "#2563eb"],
-    ["inflationScore", "Inflation", "#b45309"],
-    ["ratesPressureScore", "Rates", "#b5443a"]
+    ["riskScore", "Risk", "var(--positive)"],
+    ["growthScore", "Growth", "var(--chart-spy)"],
+    ["inflationScore", "Inflation", "var(--chart-iwm)"],
+    ["ratesPressureScore", "Rates", "var(--negative)"]
   ] as const;
   const width = 900;
   const height = 260;
@@ -771,12 +798,14 @@ function AnalystNote({ data }: { data: DashboardData }) {
 function LoadingState() {
   return (
     <main className="app-shell loading-shell">
+      <Masthead />
       <div className="top-bar skeleton-block" />
       <div className="loading-grid">
         {Array.from({ length: 9 }, (_, index) => (
           <div className="panel skeleton-block" key={index} />
         ))}
       </div>
+      <SiteFooter />
     </main>
   );
 }
@@ -784,13 +813,17 @@ function LoadingState() {
 function FatalErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <main className="app-shell centered-state">
-      <ServerCrash size={30} />
-      <h1>Data source error</h1>
-      <p>{message}</p>
-      <button className="command-button" type="button" onClick={onRetry}>
-        <RefreshCw size={16} />
-        Retry
-      </button>
+      <Masthead />
+      <section className="fatal-card">
+        <ServerCrash size={30} />
+        <h1>Data source error</h1>
+        <p>{message}</p>
+        <button className="command-button" type="button" onClick={onRetry}>
+          <RefreshCw size={16} />
+          Retry
+        </button>
+      </section>
+      <SiteFooter />
     </main>
   );
 }
