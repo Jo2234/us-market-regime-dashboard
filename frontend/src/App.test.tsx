@@ -60,3 +60,20 @@ describe("App dashboard states", () => {
     expect(await screen.findByRole("heading", { name: "Mixed Transition" })).toBeInTheDocument();
   });
 });
+
+it("renders unavailable measurements and does not invent a previous yield curve", async () => {
+  mockedFetchDashboardData.mockResolvedValue({
+    ...demoDashboardData,
+    sourceMode: "api",
+    performanceSeries: [], historicalRegimes: [], breadth: [], sectors: [], indices: [], volatility: [],
+    rates: { fedFundsRate: null, cpiYoY: null, unemploymentRate: null, tenTwoSpread: null,
+      points: [{ maturity: "10Y", years: 10, yield: 3.33 }] }
+  });
+  render(<App />);
+  expect(await screen.findByText("Performance chart unavailable")).toBeInTheDocument();
+  expect(screen.getByText("Regime history unavailable")).toBeInTheDocument();
+  expect(screen.getByText("Sector heatmap unavailable")).toBeInTheDocument();
+  expect(screen.getAllByText("n/a").length).toBeGreaterThan(0);
+  const yieldChart = screen.getByRole("img", { name: "Treasury yield curve" });
+  expect(yieldChart.querySelectorAll("polyline")).toHaveLength(1);
+});
