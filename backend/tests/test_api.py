@@ -97,3 +97,46 @@ def test_series_csv_export_respects_filters(seeded_conn):
     assert response.headers["content-type"].startswith("text/csv")
     assert response.text.splitlines()[0].startswith("date,open,high,low,close,adjusted_close")
     assert "2026-01-05" in response.text
+
+
+def test_summary_uses_requested_observation_date_and_revised_inputs(seeded_conn):
+    from datetime import date
+    from app.api.routes import dashboard_summary
+    from app.services.regime import classify_regime
+
+    early = dashboard_summary(date(2026, 6, 1), seeded_conn)
+    later = dashboard_summary(date(2026, 6, 28), seeded_conn)
+    assert early["as_of"] == "2026-06-01"
+    assert later["as_of"] == "2026-06-25"
+    assert later["major_indices"][0]["date"] == later["as_of"]
+    assert max(row["date"] for row in later["performance_series"]) == later["as_of"]
+    assert all(row["date"] <= later["as_of"] for row in later["historical_regimes"])
+
+    seeded_conn.execute(
+        "UPDATE market_prices SET adjusted_close = adjusted_close / 2 WHERE instrument_id = 'SPY' AND date = '2026-06-25'"
+    )
+    revised = dashboard_summary(date(2026, 6, 25), seeded_conn)
+    expected = classify_regime(seeded_conn, date(2026, 6, 25))
+    assert revised["regime"] == expected
+    assert revised["regime"]["risk_score"] != later["regime"]["risk_score"]
+
+
+def test_summary_supplies_full_sectors_macros_and_selected_performance_window(seeded_conn):
+    from datetime import date
+    from app.api.routes import dashboard_summary
+    from app.services import analytics
+
+    result = dashboard_summary(date(2026, 6, 1), seeded_conn, range_="1w")
+    assert len(result["sectors"]) == 11
+    assert len(result["performance_series"]) == 6
+    assert result["performance_series"][0]["SPY"] == 100
+    assert result["performance_series"][-1]["date"] == "2026-06-01"
+    assert result["macro_summary"]["CPI_YOY"] == analytics.latest_macro_value(seeded_conn, "CPI_YOY", date(2026, 6, 1))
+    assert result["sectors"] == analytics.sector_performance(seeded_conn, ("1d", "1w", "1m", "3m", "ytd", "1y"), date(2026, 6, 1))
+
+
+def test_summary_before_any_observation_returns_not_found(seeded_conn):
+    app = build_app()
+    app.dependency_overrides[get_db] = lambda: seeded_conn
+    response = TestClient(app).get("/dashboard/summary?date=2000-01-01")
+    assert response.status_code == 404
