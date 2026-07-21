@@ -57,3 +57,11 @@ Each mode includes provenance text, source labels, generated/selected dates, and
 ## Historical Regime Explainability
 
 The demo UI includes a historical regime score chart covering risk, growth, inflation, and rates-pressure components. It is a compact explainability aid: the score paths show why a label moved toward risk-on, mixed-transition, or defensive-tilt instead of presenting only the latest label. When the live API later returns backfilled regime classifications, the optional `historicalRegimes` field can be populated without changing existing dashboard sections.
+
+## API snapshot consistency
+
+The summary resolves the selected date to the latest available SPY observation and recomputes the regime from current stored inputs on every request. Other summary blocks use that same observation cutoff; an older saved snapshot is never reused as the current regime. Saved classifications remain available as history. After revising historical input observations, rerun `/regime/recalculate` to refresh that stored history.
+
+The API now supplies all eleven sectors, actual stored macro observations, indexed major-index performance for the selected return range, and available saved regime history. The frontend constructs its API view solely from these response fields. Missing measurements display `n/a`, unsupported breadth is marked unavailable, and a previous yield curve is drawn only when supplied. Embedded fixtures are used only in explicit demo or fallback mode. The default production `/api` base resolves against the page origin; absolute API base overrides continue to work.
+
+Regime backfills load market and macro history once per request, then apply the same classification rules with a date cutoff for each snapshot. Prior-snapshot change notes remain sequential and deterministic.
