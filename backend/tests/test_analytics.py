@@ -40,3 +40,11 @@ def test_drawdown_calculation():
     )
 
     assert analytics.max_drawdown(frame, lookback=5) == pytest.approx(-0.2)
+
+
+def test_monthly_return_uses_21_observed_sessions(empty_conn):
+    insert_price_path(empty_conn, "SPY", list(range(100, 122)))
+
+    frame = analytics._price_frame(empty_conn, "SPY")
+
+    assert analytics.period_return(frame, "1m") == pytest.approx(0.21)
