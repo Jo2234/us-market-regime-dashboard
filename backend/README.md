@@ -1,18 +1,20 @@
 # US Market Regime Dashboard Backend
 
-FastAPI backend for Project 2. It provides seeded demo data, optional public ingestion hooks, analytics, regime classification, and freshness APIs.
+FastAPI backend for the US Market Regime Dashboard. It provides seeded demo data, optional public ingestion hooks, analytics, regime classification, and freshness APIs.
 
 ## Setup
 
+Start from the repository root:
+
 ```bash
-cd projects/us-market-regime-dashboard/backend
+cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-PYTHONPATH=. uvicorn app.main:app --reload
+python -m pip install -r requirements.txt
+PYTHONPATH=. python -m uvicorn app.main:app --reload --port 8000
 ```
 
-The API seeds a deterministic SQLite demo database at `../data/market_regime.sqlite3` on startup.
+The API seeds a deterministic SQLite demo database at `data/market_regime.sqlite3` relative to the repository root on startup; `MARKET_REGIME_DATABASE_PATH` can override that location.
 
 ## API
 
@@ -25,7 +27,7 @@ The API seeds a deterministic SQLite demo database at `../data/market_regime.sql
 - `GET /export/sectors.csv?windows=1d,1m`
 - `GET /export/series/{symbol}.csv?start=YYYY-MM-DD&end=YYYY-MM-DD`
 
-`../main.py` is a compatibility entrypoint for root-level smoke tests and legacy `backend.main:app` imports. New backend code should import from the `app` package.
+The application entrypoint is `app.main:app`. Import analytics and regime calculations directly from `app.services`; tests use isolated seeded database fixtures.
 
 ## Formulas
 
@@ -38,7 +40,9 @@ The API seeds a deterministic SQLite demo database at `../data/market_regime.sql
 
 ## Tests
 
+With the virtual environment active, start from the repository root:
+
 ```bash
-cd projects/us-market-regime-dashboard/backend
-PYTHONPATH=. pytest
+cd backend
+PYTHONPATH=. python -m pytest tests
 ```

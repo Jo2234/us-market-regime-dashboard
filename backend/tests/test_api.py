@@ -13,10 +13,11 @@ def build_app() -> FastAPI:
 
 
 def test_summary_endpoint_returns_required_sections(seeded_conn):
+    from app.main import app
+
     def override_db():
         yield seeded_conn
 
-    app = build_app()
     app.dependency_overrides[get_db] = override_db
     try:
         response = TestClient(app).get("/dashboard/summary")
@@ -26,6 +27,8 @@ def test_summary_endpoint_returns_required_sections(seeded_conn):
     assert response.status_code == 200
     payload = response.json()
     assert {"regime", "major_indices", "sector_leaders", "rates_summary", "data_freshness"} <= payload.keys()
+    assert payload["major_indices"]
+    assert payload["data_freshness"]
     assert payload["regime"]["summary"] == payload["analyst_summary"]
 
 
