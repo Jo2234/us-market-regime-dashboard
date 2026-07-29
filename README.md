@@ -17,7 +17,7 @@ Compact market dashboard API with seeded market data, return calculations, volat
 
 ## Run
 
-Use Python 3.11+ and Node.js 22+. Start from the repository root.
+Use Python 3.11+ and Node.js 22 LTS (22.12 or newer). Start from the repository root.
 
 Install the backend dependencies and start the API:
 
@@ -91,3 +91,7 @@ The summary resolves the selected date to the latest available SPY observation a
 The API now supplies all eleven sectors, actual stored macro observations, indexed major-index performance for the selected return range, and available saved regime history. The frontend constructs its API view solely from these response fields. Missing measurements display `n/a`, unsupported breadth is marked unavailable, and a previous yield curve is drawn only when supplied. Embedded fixtures are used only in explicit demo or fallback mode. The default production `/api` base resolves against the page origin; absolute API base overrides continue to work.
 
 Regime backfills load market and macro history once per request, then apply the same classification rules with a date cutoff for each snapshot. Prior-snapshot change notes remain sequential and deterministic.
+
+## License
+
+Project code is available under the [MIT License](LICENSE). Third-party dependencies retain their own licenses.
