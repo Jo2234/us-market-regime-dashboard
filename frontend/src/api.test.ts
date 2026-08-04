@@ -66,6 +66,31 @@ describe("production request routing", () => {
 });
 
 describe("API provenance", () => {
+  it.each([
+    { sources: ["demo_seed"], mode: "demo" },
+    { sources: ["fred", "yahoo_finance"], mode: "api" },
+    { sources: ["demo_seed", "fred"], mode: "mixed" },
+    { sources: [], mode: "api" }
+  ])("classifies $sources without confusing API transport with live data", async ({ sources, mode }) => {
+    const api = await productionApi();
+    const input = summary();
+    input.data_freshness.sources = sources.map(source => ({ source }));
+    input.data_freshness.instruments = sources.map(source => ({
+      source, asset_class: "macro", latest_date: input.as_of, age_days: 0, is_stale: false
+    }));
+    const data = api.adaptBackendSummary(input);
+    expect(data.sourceMode).toBe("api");
+    expect(data.provenance?.mode).toBe(mode);
+    expect(data.provenance?.sources).toEqual(sources);
+    if (!sources.length) expect(data.provenance?.description).toContain("source metadata was not supplied");
+    if (!sources.includes("demo_seed")) {
+      expect(data.freshness.map(item => item.note).join(" ")).not.toContain("demo_seed");
+    }
+    // Older API responses may omit the aggregate list but still identify each instrument.
+    delete input.data_freshness.sources;
+    expect(api.adaptBackendSummary(input).provenance?.mode).toBe(mode);
+  });
+
   it("never fills missing API sections or measurements with demo data", async () => {
     const api = await productionApi();
     const data = api.adaptBackendSummary(summary());
