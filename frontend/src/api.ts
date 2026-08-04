@@ -60,8 +60,10 @@ type BackendSummary = {
   data_freshness: {
     generated_at: string;
     freshness_policy: string;
+    sources?: Array<{ source: string }>;
     instruments: Array<{
       asset_class: string;
+      source?: string;
       latest_date: string | null;
       age_days: number | null;
       is_stale: boolean;
@@ -117,6 +119,12 @@ function markDemo(data: DashboardData, message: string): DashboardData {
 
 export function adaptBackendSummary(payload: BackendSummary): DashboardData {
   const freshness = adaptFreshness(payload.data_freshness.instruments);
+  const sources = sourceLabels([
+    ...(payload.data_freshness.sources ?? []),
+    ...payload.data_freshness.instruments
+  ]);
+  const hasDemoSource = sources.some(source => source.toLowerCase() === "demo_seed");
+  const onlyDemoSources = hasDemoSource && sources.every(source => source.toLowerCase() === "demo_seed");
   const sectorUpdates = payload.sectors ?? [...payload.sector_leaders, ...payload.sector_laggards];
   const sectorNames: Record<string, string> = {
     XLK: "Technology", XLF: "Financials", XLE: "Energy", XLV: "Health Care", XLY: "Cons. Disc.",
@@ -149,11 +157,17 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
     errors: [],
     freshness,
     provenance: {
-      mode: "live",
-      description: "API response computed from deterministic market, macro, rates, volatility, and regime analytics data.",
+      mode: onlyDemoSources ? "demo" : hasDemoSource ? "mixed" : "api",
+      description: onlyDemoSources
+        ? "Deterministic demo_seed observations served by the API. Values are generated examples, not live market data."
+        : hasDemoSource
+          ? "API observations include demo_seed examples alongside other reported sources."
+          : sources.length
+            ? "API observations from the reported sources below. See source dates for freshness."
+            : "API observations; source metadata was not supplied. Live market provenance is unverified.",
       generatedAt: payload.data_freshness.generated_at,
       selectedDate: payload.as_of,
-      sources: freshness.map((source) => `${source.name}${source.latestDate ? ` (${source.latestDate})` : ""}`),
+      sources,
       freshnessPolicy: payload.data_freshness.freshness_policy
     },
     regime: {
@@ -226,6 +240,12 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
   };
 }
 
+function sourceLabels(rows: Array<{ source?: string }>): string[] {
+  return [...new Set(rows.map(row => row.source)
+    .filter((source): source is string => typeof source === "string" && source.trim().length > 0)
+    .map(source => source.trim()))];
+}
+
 function adaptFreshness(rows: BackendSummary["data_freshness"]["instruments"]): FreshnessSource[] {
   const labels: Record<string, string> = {
     equity_index: "Equity indices",
@@ -241,12 +261,13 @@ function adaptFreshness(rows: BackendSummary["data_freshness"]["instruments"]): 
     const dates = items.flatMap((item) => item.latest_date ? [item.latest_date] : []).sort();
     const lagDays = items.reduce<number | null>((largest, item) => item.age_days === null ? largest : Math.max(largest ?? 0, item.age_days), null);
     const stale = items.some((item) => item.is_stale);
+    const sources = sourceLabels(items);
     return {
       name: labels[assetClass] ?? titleCase(assetClass),
       latestDate: dates[dates.length - 1] ?? null,
       status: stale ? "stale" : "fresh",
       lagDays,
-      note: "Deterministic demo_seed observations served by FastAPI."
+      note: sources.length ? `Reported sources: ${sources.join(", ")}.` : "Source metadata was not supplied by the API."
     };
   });
 }

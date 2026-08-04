@@ -265,7 +265,9 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
   return (
     <section className="provenance-panel" aria-label="Data provenance and freshness policy">
       <div>
-        <span className={`mode-chip ${provenance.mode}`}>{provenance.mode}</span>
+        <span className={`mode-chip ${provenance.mode}`}>
+          {{ api: "API data", demo: "Demo data", mixed: "Mixed sources", fallback: "Demo fallback" }[provenance.mode]}
+        </span>
         <strong>Data provenance</strong>
         <p>{provenance.description}</p>
       </div>

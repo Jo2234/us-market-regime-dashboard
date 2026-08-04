@@ -26,7 +26,7 @@ export interface RegimeSnapshot {
 }
 
 export interface DataProvenance {
-  mode: "live" | "demo" | "fallback";
+  mode: "api" | "demo" | "mixed" | "fallback";
   description: string;
   generatedAt: string;
   selectedDate: string;
