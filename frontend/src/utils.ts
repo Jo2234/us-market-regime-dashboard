@@ -52,10 +52,10 @@ export function heatColor(value: number | null): string {
   const clipped = Math.max(-8, Math.min(8, value));
   const intensity = Math.abs(clipped) / 8;
   if (clipped > 0.05) {
-    return `color-mix(in srgb, var(--positive) ${18 + intensity * 62}%, transparent)`;
+    return `color-mix(in srgb, var(--positive) ${8 + intensity * 28}%, transparent)`;
   }
   if (clipped < -0.05) {
-    return `color-mix(in srgb, var(--negative) ${18 + intensity * 62}%, transparent)`;
+    return `color-mix(in srgb, var(--negative) ${8 + intensity * 28}%, transparent)`;
   }
   return "color-mix(in srgb, var(--faint) 14%, transparent)";
 }
