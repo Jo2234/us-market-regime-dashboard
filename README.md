@@ -95,3 +95,20 @@ Regime backfills load market and macro history once per request, then apply the 
 ## License
 
 Project code is available under the [MIT License](LICENSE). Third-party dependencies retain their own licenses.
+
+## Exploring the interface
+
+The overview leads with the current classification, model scores and the resolved snapshot date. Use the section links to compare markets, inspect rule evidence, review stored history or audit source dates. Generated demo data remains identified above the overview; the source section retains the full provenance and coverage details.
+
+- Choose a snapshot date and export its metrics with **Export CSV**. If the requested date has no observation, the interface identifies the date actually returned.
+- Change the period beside **Major Indices**; its legend buttons show or hide individual series. Period controls remain available when a selection has no data. Embedded fallback data uses a fixed fixture, as disclosed beside the chart.
+- Filter **Regime Signal Table** by category. Raw values, supplied weights and evidence remain visible, with contained horizontal scrolling on narrow screens.
+- **View snapshot** opens the date of a stored classification. A single history observation is shown as points, with no implied trend.
+
+For development on a custom port, the Vite server can proxy same-origin `/api` requests to the local backend. From the repository root, with the backend on port 5303:
+
+```bash
+VITE_API_BASE_URL=/api DEV_API_TARGET=http://127.0.0.1:5303 npm run dev --prefix frontend -- --port 4303
+```
+
+The proxy is development-only; its default target is `http://127.0.0.1:8000`. Production routing and calculations are unchanged.
