@@ -12,6 +12,7 @@ def _signal(name: str, passed: bool, value: float | None, threshold: str, eviden
     return {
         "name": name,
         "passed": passed,
+        "available": value is not None,
         "value": analytics._rounded(value, 6),
         "threshold": threshold,
         "evidence": evidence,
@@ -78,8 +79,8 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
         _signal("copper_up_more_than_5pct_1m", bool(cper_1m and cper_1m > 0.05), cper_1m, "> 5%", "CPER 1-month return."),
         _signal("cpi_above_target", bool(cpi and cpi["value"] > 2.5), cpi["value"] if cpi else None, "> 2.5%", "Latest CPI year-over-year observation."),
         _signal("ten_year_rising_sharply_1m", bool(dgs10_change and dgs10_change > 0.25), dgs10_change, "> 0.25 percentage points", "10-year Treasury yield change over roughly 21 trading days."),
-        _signal("two_year_rising_sharply_1m", bool(dgs2_change and dgs2_change > 0.25), dgs2_change, "> 0.25 percentage points", "2-year Treasury yield change over roughly 21 trading days."),
-        _signal("yield_curve_inverted", bool(spread_10y_2y is not None and spread_10y_2y < 0), spread_10y_2y, "< 0", "10-year Treasury yield minus 2-year Treasury yield."),
+        _signal("two_year_rising_sharply_1m", bool(dgs2_change and dgs2_change > 0.25), dgs2_change, "> 0.25 percentage points", "2-year futures-implied yield change over roughly 21 trading days."),
+        _signal("yield_curve_inverted", bool(spread_10y_2y is not None and spread_10y_2y < 0), spread_10y_2y, "< 0", "10-year Treasury yield minus 2-year futures-implied yield (not a cash Treasury spread)."),
     ]
     signal_by_name = {item["name"]: item for item in signals}
 
@@ -123,6 +124,9 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
     confidence_points = max(abs(risk_score), inflation_score, rates_pressure_score)
     confidence = "high" if confidence_points >= 3 else "medium" if confidence_points >= 2 else "low"
 
+    if cpi is None and confidence == "high":
+        confidence = "medium"
+
     previous = load_previous_regime(conn, observed_date)
     change_note = "No prior regime snapshot is available."
     if previous and previous["date"] != observed_date.isoformat():
@@ -133,7 +137,7 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
             change_note = f"Regime label is unchanged; risk score moved {risk_delta:+.1f}."
 
     positive = [item for item in signals if item["passed"]][:5]
-    negative = [item for item in signals if not item["passed"]][:5]
+    negative = [item for item in signals if item["available"] and not item["passed"]][:5]
     summary = deterministic_summary(label, confidence, positive, negative, curve, observed_date, change_note)
     return {
         "id": str(uuid5(NAMESPACE_URL, f"regime:{observed_date.isoformat()}")),
@@ -150,7 +154,9 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
             "all": signals,
             "what_changed": change_note,
             "data_limitations": [
-                "Demo mode uses ETF proxies and generated historical data until public ingestion is configured.",
+                "Yahoo Finance daily bars are unofficial and may be delayed or revised. ETF adjusted closes drive returns; prices use raw closes.",
+                "2Y uses 2YY=F yield futures. The 10Y-2Y spread mixes a cash index and futures-implied yield; contract rolls may affect changes.",
+                "CPI, Fed funds and unemployment are unavailable from this Yahoo feed. The CPI signal is unavailable and contributes no inflation point; model coverage is incomplete.",
                 "Signals are daily and do not represent real-time market conditions.",
             ],
         },
@@ -174,7 +180,7 @@ def deterministic_summary(
     return (
         f"As of {observed_date.isoformat()}, the dashboard classifies the market as {label} "
         f"with {confidence} confidence. The strongest confirming evidence is {leadership}. "
-        f"The main watch item is {watch}. The 10Y-2Y Treasury spread is {spread_text}. "
+        f"The main watch item is {watch}. The 10Y minus 2Y futures-implied spread is {spread_text}. "
         f"{change_note} This note is deterministic and only uses computed dashboard metrics."
     )
 
