@@ -26,7 +26,8 @@ export interface RegimeSnapshot {
 }
 
 export interface DataProvenance {
-  mode: "api" | "demo" | "mixed" | "fallback";
+  mode: "api" | "demo" | "mixed" | "fallback" | "live" | "snapshot";
+  observations?: Array<{ symbol: string; ticker: string; date: string | null }>;
   description: string;
   generatedAt: string;
   selectedDate: string;
@@ -72,6 +73,8 @@ export interface ChartPoint {
 }
 
 export interface YieldPoint {
+  date?: string;
+  ticker?: string;
   maturity: string;
   years: number;
   yield: number;
