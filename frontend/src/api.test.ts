@@ -25,10 +25,10 @@ afterEach(() => {
   vi.resetModules();
 });
 
-async function productionApi(base = "") {
+async function productionApi(base = "", demo = "false") {
   vi.stubEnv("PROD", true);
   vi.stubEnv("VITE_API_BASE_URL", base);
-  vi.stubEnv("VITE_USE_DEMO_DATA", "false");
+  vi.stubEnv("VITE_USE_DEMO_DATA", demo);
   vi.stubEnv("VITE_DISABLE_DEMO_FALLBACK", "false");
   return import("./api");
 }
@@ -55,13 +55,13 @@ describe("production request routing", () => {
     expect(fetch.mock.calls[0][0]).toBe("https://api.example.test/v1/dashboard/summary?range=1m");
   });
 
-  it("falls back on network and URL configuration failures", async () => {
+  it("rejects network and URL failures without synthetic fallback", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     let api = await productionApi();
-    expect((await api.fetchDashboardData("", "1M")).provenance?.mode).toBe("fallback");
+    await expect(api.fetchDashboardData("", "1M")).rejects.toThrow("Live data unavailable");
     vi.resetModules();
     api = await productionApi("http://[");
-    expect((await api.fetchDashboardData("", "1M")).provenance?.mode).toBe("fallback");
+    await expect(api.fetchDashboardData("", "1M")).rejects.toThrow("Live data unavailable");
   });
 });
 
@@ -122,4 +122,31 @@ describe("API provenance", () => {
     expect(data.rates.points[0].previousYield).toBeUndefined();
     expect(data.performanceSeries).toEqual(input.performance_series);
   });
+});
+
+it("uses raw close as price and keeps the labelled snapshot and 5Y maturity", async () => {
+  const api = await productionApi();
+  const input = summary();
+  Object.assign(input, { data_mode: "snapshot" });
+  input.major_indices = [{ symbol: "SPY", value: 98, price: 100, returns: { "1m": 0.02 }, volatility: {}, drawdown_52w: null }];
+  input.rates_summary.maturities = [{ symbol: "DGS2", value: 4.5 }, { symbol: "DGS5", value: 5.068 }];
+  const data = api.adaptBackendSummary(input);
+  expect(data.indices[0].price).toBe(100);
+  expect(data.indices[0].monthReturn).toBe(2);
+  expect(data.provenance?.mode).toBe("snapshot");
+  expect(data.rates.points.map(point => point.maturity)).toEqual(["2Y*", "5Y"]);
+});
+
+it("does not enable embedded demo data in a production build", async () => {
+  const api = await productionApi("", "true");
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+  await expect(api.fetchDashboardData("", "1M")).rejects.toThrow("Live data unavailable");
+});
+
+it("rejects synthetic API observations in production", async () => {
+  const input = summary();
+  input.data_freshness.sources = [{ source: "demo_seed" }];
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => input }));
+  const api = await productionApi();
+  await expect(api.fetchDashboardData("", "1M")).rejects.toThrow("synthetic data");
 });
