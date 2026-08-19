@@ -43,11 +43,11 @@ const seriesColors: Record<SeriesKey, string> = {
 };
 
 const metricTooltips = {
-  spyMonth: "SPY one-month price return for the selected market date.",
+  spyMonth: "SPY one-month adjusted-close return for the selected market date.",
   qqqVsSpy:
     "QQQ one-month return minus SPY one-month return, in percentage points.",
   tenTwo:
-    "10-year Treasury yield minus 2-year Treasury yield, shown in basis points.",
+    "10-year Treasury yield minus 2-year futures-implied yield, shown in basis points.",
   vix: "Current VIX level; falling VIX is treated as supportive for risk appetite.",
 };
 
@@ -144,6 +144,8 @@ export default function App() {
         >
           {
             {
+              live: `Live · Yahoo Finance · as of ${data.selectedDate}`,
+              snapshot: `Snapshot · as of ${data.selectedDate}`,
               api: "API data",
               demo: "Generated demo data",
               mixed: "Mixed sources",
@@ -475,6 +477,8 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
         <span className={`mode-chip ${provenance.mode}`}>
           {
             {
+              live: `Live · Yahoo Finance · as of ${data.selectedDate}`,
+              snapshot: `Snapshot · as of ${data.selectedDate}`,
               api: "API data",
               demo: "Demo data",
               mixed: "Mixed sources",
@@ -489,12 +493,17 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
             : "Demo fallback data"}
         </p>
         <p>{provenance.description}</p>
+        <p>Price = unadjusted last daily close. Returns and indexed charts use Yahoo adjusted closes (splits and distributions). 1D uses the previous observation; 1W, 1M, 3M and 1Y use the close on or before the same calendar date earlier (7 days, 1 month, 3 months, 1 year). YTD starts at the last close of the prior year. Month-end dates clamp to the last day of the target month. Missing history displays n/a.</p>
+        <p>Yahoo is an unofficial data service and may rate-limit. Instance and CDN caches last 15 minutes; the CDN may serve an older response for another hour while refreshing. A scheduled Yahoo snapshot is the labelled fallback. Observation dates are preserved.</p>
       </div>
       <div>
         <span>Selected {formatDate(provenance.selectedDate)}</span>
         <span>Generated {formatDateTime(provenance.generatedAt)}</span>
         <span>{provenance.freshnessPolicy}</span>
       </div>
+      {provenance.observations && <ul aria-label="Series observation dates">
+        {provenance.observations.map(item => <li key={item.symbol}>{item.symbol} · {item.ticker} · {item.date ?? "unavailable"}</li>)}
+      </ul>}
       {provenance.sources.length > 0 && (
         <ul>
           {provenance.sources.map((source) => (
@@ -605,7 +614,7 @@ function MarketSummary({ data }: { data: DashboardData }) {
           </dd>
         </div>
         <div>
-          <dt title={metricTooltips.tenTwo}>10Y - 2Y</dt>
+          <dt title={metricTooltips.tenTwo}>10Y - 2Y*</dt>
           <dd className={performanceClass(data.rates.tenTwoSpread)}>
             {formatNumber(
               data.rates.tenTwoSpread === null
@@ -942,10 +951,12 @@ function YieldCurvePanel({ data }: { data: DashboardData }) {
               : data.rates.tenTwoSpread * 100,
             0,
           )}{" "}
-          bps 10Y-2Y
+          bps 10Y-2Y*
         </span>
       </div>
       <YieldCurve points={points} />
+      <p className="chart-note">*2Y is futures-implied (Yahoo 2YY=F), not a cash Treasury yield. The 10Y−2Y spread mixes these bases. 3M uses the ^IRX discount yield. All yields are in percent.</p>
+      <p className="chart-note">{points.map(point => `${point.maturity} ${point.yield.toFixed(2)}%${point.date ? ` (${point.date})` : ""}`).join(" · ")}</p>
       <div className="legend yield-legend">
         <span>
           <i style={{ background: "var(--positive)" }} />
@@ -1424,7 +1435,7 @@ function FatalErrorState({
       <Masthead />
       <section className="fatal-card">
         <ServerCrash size={30} />
-        <h1>Data source error</h1>
+        <h1>Live data unavailable</h1>
         <p>{message}</p>
         <button className="command-button" type="button" onClick={onRetry}>
           <RefreshCw size={16} />
