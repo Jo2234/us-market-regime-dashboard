@@ -6,10 +6,22 @@ from typing import Any
 
 import pandas as pd
 
-from app.data.instruments import COMMODITY_SYMBOLS, INDEX_SYMBOLS, RATE_SYMBOLS, SECTOR_SYMBOLS
+from app.data.instruments import COMMODITY_SYMBOLS, INDEX_SYMBOLS, RATE_SYMBOLS, SECTOR_SYMBOLS, provenance
 
 
-WINDOW_TRADING_DAYS = {"1d": 1, "1w": 5, "1m": 21, "3m": 63, "1y": 252}
+def calendar_anchor(observed: date, window: str) -> pd.Timestamp:
+    current = pd.Timestamp(observed)
+    if window == "ytd":
+        return pd.Timestamp(year=observed.year - 1, month=12, day=31)
+    offsets = {"1w": pd.DateOffset(weeks=1), "1m": pd.DateOffset(months=1),
+               "3m": pd.DateOffset(months=3), "1y": pd.DateOffset(years=1)}
+    return current - offsets[window]
+
+
+def baseline_rows(work: pd.DataFrame, window: str) -> pd.DataFrame:
+    if window == "1d":
+        return work.iloc[:-1]
+    return work[work["date"] <= calendar_anchor(work.iloc[-1]["date"].date(), window)]
 
 
 class MarketHistory:
@@ -122,6 +134,8 @@ def price_series(conn, symbol: str, start: date | None = None, end: date | None 
                 "daily_return": _rounded(row.daily_return, 6),
                 "volume": None if pd.isna(row.volume) else int(row.volume),
                 "source": row.source,
+                "observation_date": row.date.date().isoformat(),
+                **provenance(symbol),
             }
             for row in frame.itertuples()
         ]
@@ -131,6 +145,8 @@ def price_series(conn, symbol: str, start: date | None = None, end: date | None 
             "date": row.date.date().isoformat(),
             "value": _rounded(row.value),
             "source": row.source,
+            "observation_date": row.date.date().isoformat(),
+            **provenance(symbol),
         }
         for row in macro.itertuples()
     ]
@@ -151,17 +167,10 @@ def period_return(frame: pd.DataFrame, window: str, as_of: date | None = None) -
     if work.empty:
         return None
     current = float(work.iloc[-1]["value"])
-    if window == "ytd":
-        year = work.iloc[-1]["date"].year
-        year_rows = work[work["date"].dt.year == year]
-        if year_rows.empty:
-            return None
-        base = float(year_rows.iloc[0]["value"])
-    else:
-        offset = WINDOW_TRADING_DAYS[window]
-        if len(work) <= offset:
-            return None
-        base = float(work.iloc[-offset - 1]["value"])
+    bases = baseline_rows(work, window)
+    if bases.empty:
+        return None
+    base = float(bases.iloc[-1]["value"])
     if base == 0:
         return None
     return current / base - 1.0
@@ -209,6 +218,12 @@ def instrument_snapshot(conn, symbol: str, as_of: date | None = None) -> dict[st
         "symbol": symbol,
         "date": latest["date"].date().isoformat(),
         "value": _rounded(latest["value"]),
+        "price": _rounded(latest["close"]),
+        "adjusted_close": _rounded(latest["value"]),
+        "price_basis": "unadjusted_close",
+        "return_basis": "adjusted_close",
+        "observation_date": latest["date"].date().isoformat(),
+        **provenance(symbol),
         "returns": {window: _rounded(period_return(frame, window, as_of), 6) for window in windows},
         "volatility": {
             "20d": _rounded(rolling_volatility(frame, 20, as_of), 6),
@@ -229,14 +244,15 @@ def sector_performance(conn, windows: tuple[str, ...], as_of: date | None = None
     for symbol in SECTOR_SYMBOLS:
         frame = _price_frame(conn, symbol, end=as_of)
         returns = {window: _rounded(period_return(frame, window, as_of), 6) for window in windows}
-        relative = {
-            window: _rounded(
-                (period_return(frame, window, as_of) or 0.0) - (period_return(spy, window, as_of) or 0.0),
-                6,
-            )
-            for window in windows
-        }
-        rows.append({"symbol": symbol, "returns": returns, "relative_to_spy": relative})
+        spy_returns = {window: period_return(spy, window, as_of) for window in windows}
+        relative = {window: _rounded(returns[window] - spy_returns[window], 6)
+                    if returns[window] is not None and spy_returns[window] is not None else None
+                    for window in windows}
+        observed = frame.iloc[-1]["date"].date().isoformat() if not frame.empty else None
+        rows.append({"symbol": symbol, "returns": returns, "relative_to_spy": relative,
+                     "date": observed, "observation_date": observed,
+                     "source": frame.iloc[-1]["source"] if not frame.empty else None,
+                     "return_basis": "adjusted_close", **provenance(symbol)})
     primary_window = "1m" if "1m" in windows else windows[0]
     rows.sort(key=lambda item: item["returns"].get(primary_window) if item["returns"].get(primary_window) is not None else -999)
     return list(reversed(rows))
@@ -247,7 +263,7 @@ def latest_macro_value(conn, symbol: str, as_of: date | None = None) -> dict[str
     if frame.empty:
         return None
     row = frame.iloc[-1]
-    return {"symbol": symbol, "date": row["date"].date().isoformat(), "value": _rounded(row["value"]), "source": row["source"]}
+    return {"symbol": symbol, "date": row["date"].date().isoformat(), "value": _rounded(row["value"]), "source": row["source"], "observation_date": row["date"].date().isoformat(), **provenance(symbol)}
 
 
 def macro_change(conn, symbol: str, periods: int = 21, as_of: date | None = None) -> float | None:
@@ -273,7 +289,13 @@ def yield_curve(conn, as_of: date | None = None) -> dict[str, Any]:
     if "DGS30" in values and "DGS10" in values:
         spreads["30y_10y"] = _rounded(values["DGS30"] - values["DGS10"])
     latest_curve_date = max((item["date"] for item in maturities), default=None)
-    return {"date": latest_curve_date, "maturities": maturities, "spreads": spreads}
+    return {"date": latest_curve_date, "maturities": maturities, "spreads": spreads,
+            "units": "percent", "spread_metadata": {
+                "10y_2y": {"label": "10Y Treasury minus 2Y futures-implied yield", "unit": "percentage_points",
+                            "is_cash_treasury_spread": False,
+                            "observation_dates": {s: next((m["date"] for m in maturities if m["symbol"] == s), None) for s in ("DGS10", "DGS2")}},
+                "10y_3m": {"label": "10Y Treasury minus 3M discount yield", "unit": "percentage_points"},
+            }}
 
 
 def dashboard_market_blocks(conn, as_of: date | None = None) -> dict[str, Any]:
@@ -299,10 +321,16 @@ def indexed_performance(conn, as_of: date, window: str = "1m") -> list[dict[str,
             return []
         columns[symbol] = frame.set_index("date")["value"]
     frame = pd.DataFrame(columns).dropna()
-    if window == "ytd":
-        frame = frame[frame.index.year == as_of.year]
+    if frame.empty:
+        return []
+    if window == "1d":
+        frame = frame.tail(2)
     else:
-        frame = frame.tail(WINDOW_TRADING_DAYS[window] + 1)
+        anchor = calendar_anchor(frame.index[-1].date(), window)
+        bases = frame[frame.index <= anchor]
+        if bases.empty:
+            return []
+        frame = frame[frame.index >= bases.index[-1]]
     if frame.empty or (frame.iloc[0] == 0).any():
         return []
     indexed = frame.div(frame.iloc[0]).mul(100)

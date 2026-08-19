@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from datetime import date, timedelta
+from dataclasses import replace
 from uuid import uuid5, NAMESPACE_URL
 
 from app.core.config import get_settings
@@ -38,7 +39,7 @@ def _stable_id(*parts: object) -> str:
 
 
 def _latest_business_day(today: date | None = None) -> date:
-    current = today or date.today()
+    current = today or date(2025, 12, 31)
     while current.weekday() >= 5:
         current -= timedelta(days=1)
     return current
@@ -119,6 +120,7 @@ def _rate_value(symbol: str, phase: str, day_index: int, total: int) -> float:
     values = {
         "DGS3MO": two_year - 0.25,
         "DGS2": two_year,
+        "DGS5": (two_year + ten_year) / 2,
         "DGS10": ten_year,
         "DGS30": ten_year + 0.35,
     }
@@ -132,7 +134,7 @@ def seed_demo_data(conn, today: date | None = None) -> None:
     rates-pressure, and mixed periods so regime tests and UI states are useful in
     local demo mode. Ingestion from public providers can upsert over this data.
     """
-    upsert_instruments(conn, INSTRUMENTS)
+    upsert_instruments(conn, [replace(item, source="demo_seed") for item in INSTRUMENTS])
     existing = conn.execute("SELECT COUNT(*) AS count FROM market_prices").fetchone()["count"]
     if existing:
         return
