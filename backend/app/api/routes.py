@@ -18,12 +18,26 @@ from app.api.schemas import (
 )
 from app.data import database
 from app.services import analytics, regime
+from app.services.market_data import get_snapshot, populate_database, demo_enabled, delivery_metadata, DataUnavailable
+from app.services.calendar import latest_completed_session, missed_sessions
+from app.data.instruments import provenance
 
 router = APIRouter()
 
 
 def get_db():
-    with database.session() as conn:
+    # A fresh in-memory database cannot inherit synthetic rows from an old /tmp DB.
+    with database.session(":memory:") as conn:
+        database.init_schema(conn)
+        if demo_enabled():
+            from app.data.seed import seed_demo_data
+            seed_demo_data(conn)
+        else:
+            try:
+                snapshot, mode = get_snapshot()
+            except DataUnavailable as exc:
+                raise HTTPException(status_code=503, detail=str(exc)) from exc
+            populate_database(conn, snapshot, mode)
         yield conn
 
 
@@ -54,6 +68,9 @@ def dashboard_summary(
     blocks = analytics.dashboard_market_blocks(history, observed_date)
     return {
         "as_of": snapshot["date"],
+        "data_mode": delivery_metadata(conn)["mode"],
+        "fetched_at": delivery_metadata(conn)["fetched_at"],
+        "currency_summary": analytics.instrument_snapshot(history, "DXY", observed_date),
         "regime": snapshot,
         "major_indices": blocks["indices"],
         "performance_series": analytics.indexed_performance(history, observed_date, range_),
@@ -79,18 +96,18 @@ def series(symbol: str, start: date | None = None, end: date | None = None, conn
     rows = analytics.price_series(conn, symbol.upper(), start, end)
     if not rows:
         raise HTTPException(status_code=404, detail=f"No series data found for {symbol.upper()}")
-    return {"symbol": symbol.upper(), "start": start.isoformat() if start else None, "end": end.isoformat() if end else None, "data": rows}
+    return {"data_mode": delivery_metadata(conn)["mode"], "fetched_at": delivery_metadata(conn)["fetched_at"], "symbol": symbol.upper(), "start": start.isoformat() if start else None, "end": end.isoformat() if end else None, "data": rows}
 
 
 @router.get("/sectors/performance", response_model=SectorPerformanceResponse)
 def sectors_performance(windows: str = "1d,1w,1m,3m,ytd,1y", date_: Annotated[date | None, Query(alias="date")] = None, conn=Depends(get_db)):
     parsed = _parse_windows(windows)
-    return {"windows": parsed, "sectors": analytics.sector_performance(conn, parsed, date_)}
+    return {"data_mode": delivery_metadata(conn)["mode"], "fetched_at": delivery_metadata(conn)["fetched_at"], "windows": parsed, "sectors": analytics.sector_performance(conn, parsed, date_)}
 
 
 @router.get("/rates/yield-curve", response_model=YieldCurveResponse)
 def rates_yield_curve(date_: Annotated[date | None, Query(alias="date")] = None, conn=Depends(get_db)):
-    return analytics.yield_curve(conn, date_)
+    return {**analytics.yield_curve(conn, date_), "data_mode": delivery_metadata(conn)["mode"]}
 
 
 @router.post("/regime/recalculate", response_model=RecalculateResponse)
@@ -159,14 +176,16 @@ def data_freshness(conn) -> dict:
     ).fetchall()
     latest_dates = [date.fromisoformat(row["latest_date"]) for row in rows if row["latest_date"]]
     overall_latest = max(latest_dates).isoformat() if latest_dates else None
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
+    expected = latest_completed_session()
     generated_at = datetime.now(timezone.utc).isoformat()
     instruments = []
     source_latest: dict[str, date] = {}
     for row in rows:
         latest = date.fromisoformat(row["latest_date"]) if row["latest_date"] else None
         age_days = (today - latest).days if latest else None
-        is_stale = age_days is None or age_days > settings.stale_after_days
+        missed = missed_sessions(latest, expected) if latest else None
+        is_stale = missed is not None and missed > 0
         status = "stale" if is_stale else "fresh"
         instruments.append(
             {
@@ -177,25 +196,30 @@ def data_freshness(conn) -> dict:
                 "latest_date": latest.isoformat() if latest else None,
                 "age_days": age_days,
                 "is_stale": is_stale,
-                "status": status,
-                "freshness_policy": f"stale after {settings.stale_after_days} calendar days",
+                "status": status if latest else "unavailable",
+                "missing_sessions": missed,
+                **provenance(row["symbol"]),
+                "freshness_policy": "Stale if behind the latest completed NYSE session (30-minute close grace).",
             }
         )
-        if latest and (row["source"] not in source_latest or latest > source_latest[row["source"]]):
+        if latest and (row["source"] not in source_latest or latest < source_latest[row["source"]]):
             source_latest[row["source"]] = latest
     return {
         "overall_latest_date": overall_latest,
         "generated_at": generated_at,
-        "as_of_date": today.isoformat(),
+        "as_of_date": overall_latest,
+        "expected_session_date": expected.isoformat(),
+        "data_mode": delivery_metadata(conn)["mode"],
+        "fetched_at": delivery_metadata(conn)["fetched_at"],
         "stale_after_days": settings.stale_after_days,
-        "freshness_policy": f"Instrument/source rows are stale when latest_date is more than {settings.stale_after_days} calendar days before as_of_date.",
+        "freshness_policy": "Instrument/source rows are stale when behind the latest completed NYSE session, with a 30-minute close grace; weekends, US market holidays and early closes are respected. Unavailable macro series have no Yahoo equivalent. Source status uses the oldest observation.",
         "sources": [
             {
                 "source": source,
                 "latest_date": latest.isoformat(),
                 "age_days": (today - latest).days,
-                "is_stale": (today - latest).days > settings.stale_after_days,
-                "status": "stale" if (today - latest).days > settings.stale_after_days else "fresh",
+                "is_stale": missed_sessions(latest, expected) > 0,
+                "status": "stale" if missed_sessions(latest, expected) > 0 else "fresh",
             }
             for source, latest in sorted(source_latest.items())
         ],

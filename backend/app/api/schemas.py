@@ -6,6 +6,8 @@ from pydantic import BaseModel
 
 
 class SeriesResponse(BaseModel):
+    data_mode: str | None = None
+    fetched_at: str | None = None
     symbol: str
     start: str | None
     end: str | None
@@ -13,17 +15,25 @@ class SeriesResponse(BaseModel):
 
 
 class SectorPerformanceResponse(BaseModel):
+    data_mode: str | None = None
+    fetched_at: str | None = None
     windows: tuple[str, ...]
     sectors: list[dict[str, Any]]
 
 
 class YieldCurveResponse(BaseModel):
+    data_mode: str | None = None
+    spread_metadata: dict[str, Any] = {}
+    units: str = "percent"
     date: str | None
     maturities: list[dict[str, Any]]
     spreads: dict[str, float | None]
 
 
 class FreshnessResponse(BaseModel):
+    expected_session_date: str | None = None
+    data_mode: str | None = None
+    fetched_at: str | None = None
     overall_latest_date: str | None
     generated_at: str | None = None
     as_of_date: str | None = None
@@ -34,6 +44,9 @@ class FreshnessResponse(BaseModel):
 
 
 class DashboardSummaryResponse(BaseModel):
+    data_mode: str | None = None
+    fetched_at: str | None = None
+    currency_summary: dict[str, Any] = {}
     as_of: str
     regime: dict[str, Any]
     major_indices: list[dict[str, Any]]
