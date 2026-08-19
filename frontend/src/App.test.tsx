@@ -93,7 +93,7 @@ describe("App dashboard states", () => {
     render(<App />);
 
     expect(
-      await screen.findByRole("heading", { name: "Data source error" }),
+      await screen.findByRole("heading", { name: "Live data unavailable" }),
     ).toBeInTheDocument();
     expect(screen.getByText("API returned 500")).toBeInTheDocument();
 
@@ -195,4 +195,17 @@ it("makes a single stored history observation visible without implying a trend",
   expect(
     screen.getByText(/a trend needs at least two observations/i),
   ).toBeInTheDocument();
+});
+
+it.each(["live", "snapshot"] as const)("renders the %s chip with the real date", async mode => {
+  mockedFetchDashboardData.mockResolvedValue({
+    ...demoDashboardData,
+    sourceMode: "api",
+    selectedDate: "2026-09-28",
+    provenance: { ...demoDashboardData.provenance!, mode },
+  });
+  render(<App />);
+  const label = mode === "live" ? "Live · Yahoo Finance · as of 2026-09-28" : "Snapshot · as of 2026-09-28";
+  expect((await screen.findAllByText(label)).length).toBeGreaterThan(0);
+  expect(screen.getByText(/2Y is futures-implied/)).toBeInTheDocument();
 });

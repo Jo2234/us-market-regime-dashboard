@@ -1,16 +1,15 @@
-import { demoDashboardData } from "./demoData";
 import type { DashboardData, FreshnessSource, RangeKey, RegimeSignal, ChartPoint } from "./types";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
   (import.meta.env.PROD ? "/api" : "http://localhost:8000");
-const USE_DEMO_DATA = import.meta.env.VITE_USE_DEMO_DATA === "true";
-const DISABLE_DEMO_FALLBACK = import.meta.env.VITE_DISABLE_DEMO_FALLBACK === "true";
+const USE_DEMO_DATA = !import.meta.env.PROD && import.meta.env.DEV && import.meta.env.VITE_USE_DEMO_DATA === "true";
 
 type BackendInstrument = {
   symbol: string;
   available?: boolean;
   value: number;
+  price?: number;
   returns: Record<string, number | null>;
   volatility: Record<string, number | null>;
   drawdown_52w: number | null;
@@ -19,12 +18,15 @@ type BackendInstrument = {
 type BackendSignal = {
   name: string;
   passed: boolean;
+  available?: boolean;
   value: number | null;
   evidence: string;
 };
 
 type BackendSummary = {
   as_of: string;
+  data_mode?: "live" | "snapshot" | "demo";
+  fetched_at?: string;
   regime: {
     regime_label: string;
     confidence: "low" | "medium" | "high";
@@ -51,7 +53,7 @@ type BackendSummary = {
   sector_leaders: Array<{ symbol: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
   sector_laggards: Array<{ symbol: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
   rates_summary: {
-    maturities: Array<{ symbol: string; value: number }>;
+    maturities: Array<{ symbol: string; value: number; yahoo_ticker?: string; date?: string }>;
     spreads: Record<string, number | null>;
   };
   commodities_summary: BackendInstrument[];
@@ -63,6 +65,8 @@ type BackendSummary = {
     sources?: Array<{ source: string }>;
     instruments: Array<{
       asset_class: string;
+      symbol?: string;
+      yahoo_ticker?: string | null;
       source?: string;
       latest_date: string | null;
       age_days: number | null;
@@ -73,6 +77,7 @@ type BackendSummary = {
 
 export async function fetchDashboardData(date: string, range: RangeKey): Promise<DashboardData> {
   if (USE_DEMO_DATA) {
+    const { demoDashboardData } = await import("./demoData");
     return markDemo(demoDashboardData, "Demo mode enabled with VITE_USE_DEMO_DATA=true.");
   }
 
@@ -88,14 +93,15 @@ export async function fetchDashboardData(date: string, range: RangeKey): Promise
       throw new Error(`API returned ${response.status}`);
     }
 
-    return adaptBackendSummary((await response.json()) as BackendSummary);
-  } catch (error) {
-    if (DISABLE_DEMO_FALLBACK) {
-      throw error;
+    const payload = (await response.json()) as BackendSummary;
+    const sources = [...(payload.data_freshness.sources ?? []), ...payload.data_freshness.instruments];
+    if (import.meta.env.PROD && (payload.data_mode === "demo" || sources.some(item => item.source === "demo_seed"))) {
+      throw new Error("The API returned synthetic data; production requires real market observations");
     }
-
+    return adaptBackendSummary(payload);
+  } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown API error";
-    return markDemo(demoDashboardData, `Backend API unavailable (${message}); demo fallback rendered.`);
+    throw new Error(`Live data unavailable (${message}). Please retry later.`);
   }
 }
 
@@ -106,7 +112,7 @@ function markDemo(data: DashboardData, message: string): DashboardData {
     apiBaseUrl: API_BASE_URL,
     provenance: {
       ...data.provenance,
-      mode: message.startsWith("Backend API unavailable") ? "fallback" : "demo",
+      mode: "demo",
       description: data.provenance?.description ?? "Deterministic demo snapshot.",
       generatedAt: data.generatedAt,
       selectedDate: data.selectedDate,
@@ -133,7 +139,8 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
   const names: Record<string, string> = { SPY: "S&P 500", QQQ: "Nasdaq 100", IWM: "Russell 2000", DIA: "Dow Industrials" };
   const maturities: Record<string, [string, number]> = {
     DGS3MO: ["3M", 0.25],
-    DGS2: ["2Y", 2],
+    DGS2: ["2Y*", 2],
+    DGS5: ["5Y", 5],
     DGS10: ["10Y", 10],
     DGS30: ["30Y", 30]
   };
@@ -153,12 +160,16 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
     apiBaseUrl: API_BASE_URL,
     stale: freshness.some((item) => item.status === "stale"),
     partial: true,
-    optionalProvidersMissing: ["Market breadth feed"],
+    optionalProvidersMissing: ["Market breadth feed", "CPI, unemployment and Fed funds (no Yahoo equivalent)"],
     errors: [],
     freshness,
     provenance: {
-      mode: onlyDemoSources ? "demo" : hasDemoSource ? "mixed" : "api",
-      description: onlyDemoSources
+      mode: payload.data_mode === "snapshot" ? "snapshot" : payload.data_mode === "live" ? "live" : onlyDemoSources ? "demo" : hasDemoSource ? "mixed" : "api",
+      description: payload.data_mode === "snapshot"
+        ? "Yahoo could not be refreshed. Showing a last-known-good Yahoo snapshot with its original observation dates."
+        : payload.data_mode === "live"
+          ? "Daily closes fetched from Yahoo Finance. Prices are unadjusted closes; returns use adjusted closes. Live describes the feed, not intraday quotes."
+          : onlyDemoSources
         ? "Deterministic demo_seed observations served by the API. Values are generated examples, not live market data."
         : hasDemoSource
           ? "API observations include demo_seed examples alongside other reported sources."
@@ -168,6 +179,7 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
       generatedAt: payload.data_freshness.generated_at,
       selectedDate: payload.as_of,
       sources,
+      observations: payload.data_freshness.instruments.filter(item => item.yahoo_ticker).map(item => ({ symbol: item.symbol ?? "", ticker: item.yahoo_ticker!, date: item.latest_date })),
       freshnessPolicy: payload.data_freshness.freshness_policy
     },
     regime: {
@@ -187,7 +199,7 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
     indices: payload.major_indices.filter((item) => item.available !== false).map((item) => ({
       symbol: item.symbol,
       name: names[item.symbol] ?? item.symbol,
-      price: item.value,
+      price: item.price ?? item.value,
       dayReturn: percent(item.returns["1d"]),
       monthReturn: percent(item.returns["1m"]),
       ytdReturn: percent(item.returns.ytd),
@@ -212,24 +224,24 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
       tenTwoSpread: payload.rates_summary.spreads["10y_2y"] ?? null,
       points: payload.rates_summary.maturities.flatMap((item) => {
         const maturity = maturities[item.symbol];
-        return maturity ? [{ maturity: maturity[0], years: maturity[1], yield: item.value }] : [];
+        return maturity ? [{ maturity: maturity[0], years: maturity[1], yield: item.value, date: item.date, ticker: item.yahoo_ticker }] : [];
       })
     },
     commodities: payload.commodities_summary.filter((item) => item.available !== false).map((item) => ({
       symbol: item.symbol,
       name: ({ USO: "Crude oil proxy", GLD: "Gold", CPER: "Copper" } as Record<string, string>)[item.symbol] ?? item.symbol,
-      value: item.value,
+      value: item.price ?? item.value,
       dayChange: percent(item.returns["1d"]),
       monthReturn: percent(item.returns["1m"]),
-      signal: "Deterministic API market proxy"
+      signal: "Yahoo Finance daily ETF close"
     })),
     volatility: payload.volatility_summary.available === false ? [] : [{
       symbol: payload.volatility_summary.symbol,
-      name: "CBOE VIX proxy",
-      value: payload.volatility_summary.value,
+      name: "CBOE Volatility Index",
+      value: payload.volatility_summary.price ?? payload.volatility_summary.value,
       dayChange: percent(payload.volatility_summary.returns["1d"]),
       monthReturn: percent(payload.volatility_summary.returns["1m"]),
-      signal: "Deterministic API volatility proxy"
+      signal: "Yahoo Finance · ^VIX daily close"
     }],
     signals: payload.regime.signals.all.map(adaptSignal),
     analystNote: {
@@ -264,8 +276,8 @@ function adaptFreshness(rows: BackendSummary["data_freshness"]["instruments"]): 
     const sources = sourceLabels(items);
     return {
       name: labels[assetClass] ?? titleCase(assetClass),
-      latestDate: dates[dates.length - 1] ?? null,
-      status: stale ? "stale" : "fresh",
+      latestDate: dates[0] ?? null,
+      status: dates.length < items.length ? "partial" : stale ? "stale" : "fresh",
       lagDays,
       note: sources.length ? `Reported sources: ${sources.join(", ")}.` : "Source metadata was not supplied by the API."
     };
@@ -282,7 +294,7 @@ function adaptSignal(signal: BackendSignal): RegimeSignal {
     name: titleCase(name),
     category,
     value: signal.value === null ? "n/a" : String(signal.value),
-    direction: signal.passed ? "positive" : "negative",
+    direction: signal.available === false || signal.value === null ? "neutral" : signal.passed ? "positive" : "negative",
     weight: 1,
     evidence: signal.evidence
   };

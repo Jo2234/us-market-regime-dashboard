@@ -80,3 +80,13 @@ def insert_macro_path(conn, symbol: str, values: list[float], start: date = date
             }
         )
     insert_macro_rows(conn, rows)
+
+
+@pytest.fixture(autouse=True)
+def prohibit_network(monkeypatch):
+    """Unit tests must use fixtures/MockTransport, never Yahoo or other networks."""
+    import socket
+    def blocked(*args, **kwargs):
+        raise AssertionError("Network access is forbidden in unit tests")
+    monkeypatch.setattr(socket.socket, "connect", blocked)
+    monkeypatch.setattr(socket, "create_connection", blocked)

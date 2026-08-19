@@ -1,0 +1,104 @@
+"""Per-instance cache with a validated, committed last-known-good fallback."""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import math
+import os
+import threading
+import time
+from datetime import date
+from pathlib import Path
+
+from app.data import database
+from app.data.instruments import YAHOO_TICKERS, PRICE_SYMBOLS
+from app.ingestion.yahoo import fetch_snapshot
+from app.services.calendar import latest_completed_session
+
+SNAPSHOT_PATH = Path(__file__).resolve().parents[1] / "data" / "yahoo_snapshot.json"
+_lock = threading.Lock()
+_cached: dict | None = None
+_cached_mode = "snapshot"
+_expires = 0.0
+_last_good: dict | None = None
+
+
+class DataUnavailable(RuntimeError):
+    pass
+
+
+def validate_snapshot(snapshot: dict) -> dict:
+    if snapshot.get("version") != 1 or set(snapshot.get("series", {})) != set(YAHOO_TICKERS):
+        raise ValueError("Snapshot has incomplete instrument coverage")
+    cutoff = latest_completed_session()
+    for symbol, series in snapshot["series"].items():
+        if series.get("source") != "yahoo_finance" or series.get("yahoo_ticker") != YAHOO_TICKERS[symbol]:
+            raise ValueError(f"Invalid provenance for {symbol}")
+        bars = series["bars"]
+        if len(bars) < 260:
+            raise ValueError(f"Insufficient history for {symbol}")
+        dates = [bar["date"] for bar in bars]
+        if dates != sorted(set(dates)) or date.fromisoformat(dates[-1]) > cutoff:
+            raise ValueError(f"Invalid observation dates for {symbol}")
+        for bar in bars:
+            for field in (["close", "adjusted_close"] if symbol in PRICE_SYMBOLS else ["close"]):
+                value = bar[field]
+                if not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+                    raise ValueError(f"Invalid {field} for {symbol}")
+    return snapshot
+
+
+def get_snapshot() -> tuple[dict, str]:
+    global _cached, _cached_mode, _expires, _last_good
+    with _lock:
+        if _cached is not None and time.monotonic() < _expires:
+            return _cached, _cached_mode
+        try:
+            if os.getenv("MARKET_REGIME_SNAPSHOT_ONLY") == "1":
+                raise DataUnavailable("Snapshot-only mode enabled")
+            snapshot = validate_snapshot(asyncio.run(fetch_snapshot()))
+            _last_good = snapshot
+            mode = "live"
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Live Yahoo data unavailable (%s)", type(exc).__name__)
+            candidates = [_last_good] if _last_good else []
+            try:
+                candidates.append(validate_snapshot(json.loads(SNAPSHOT_PATH.read_text())))
+            except (OSError, ValueError, KeyError, TypeError):
+                pass
+            if not candidates:
+                raise DataUnavailable("Live data unavailable; no valid Yahoo snapshot is available") from exc
+            snapshot = max(candidates, key=lambda item: min(s["bars"][-1]["date"] for s in item["series"].values()))
+            mode = "snapshot"
+        _cached, _cached_mode = snapshot, mode
+        _expires = time.monotonic() + (900 if mode == "live" else 60)
+        return snapshot, mode
+
+
+def populate_database(conn, snapshot: dict, mode: str):
+    database.upsert_instruments(conn)
+    prices, rates = [], []
+    for symbol, series in snapshot["series"].items():
+        for bar in series["bars"]:
+            common = {"id": f"{symbol}:{bar['date']}", "instrument_id": symbol, "date": bar["date"], "source": series["source"]}
+            if symbol in PRICE_SYMBOLS:
+                prices.append({**bar, **common})
+            else:
+                rates.append({**common, "value": bar["close"]})
+    database.insert_price_rows(conn, prices)
+    database.insert_macro_rows(conn, rates)
+    conn.execute("CREATE TABLE delivery_metadata (mode TEXT, fetched_at TEXT)")
+    conn.execute("INSERT INTO delivery_metadata VALUES (?, ?)", (mode, snapshot["fetched_at"]))
+
+
+def delivery_metadata(conn):
+    exists = conn.execute("SELECT name FROM sqlite_master WHERE name = 'delivery_metadata'").fetchone()
+    if exists:
+        return dict(conn.execute("SELECT * FROM delivery_metadata").fetchone())
+    return {"mode": "demo", "fetched_at": None}
+
+
+def demo_enabled() -> bool:
+    # Vercel (including previews) and explicit production environments fail closed.
+    return os.getenv("MARKET_REGIME_DEMO_MODE") == "1" and not os.getenv("VERCEL") and os.getenv("ENVIRONMENT", "").lower() != "production"
