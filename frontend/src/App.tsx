@@ -972,15 +972,15 @@ function YieldCurvePanel({ data }: { data: DashboardData }) {
       <dl className="compact-kpis">
         <div>
           <dt>Fed Funds</dt>
-          <dd>{formatNumber(data.rates.fedFundsRate, 2)}%</dd>
+          <dd>{data.rates.fedFundsRate === null ? "n/a" : `${formatNumber(data.rates.fedFundsRate, 2)}%`}</dd>
         </div>
         <div>
           <dt>CPI YoY</dt>
-          <dd>{formatNumber(data.rates.cpiYoY, 1)}%</dd>
+          <dd>{data.rates.cpiYoY === null ? "n/a" : `${formatNumber(data.rates.cpiYoY, 1)}%`}</dd>
         </div>
         <div>
           <dt>Unemp.</dt>
-          <dd>{formatNumber(data.rates.unemploymentRate, 1)}%</dd>
+          <dd>{data.rates.unemploymentRate === null ? "n/a" : `${formatNumber(data.rates.unemploymentRate, 1)}%`}</dd>
         </div>
       </dl>
     </article>
