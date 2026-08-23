@@ -18,6 +18,7 @@ def main():
     if args.record_fixtures:
         args.record_fixtures.mkdir(parents=True, exist_ok=True)
     snapshot = validate_snapshot(asyncio.run(fetch_snapshot(fixture_dir=args.record_fixtures)))
+    snapshot.pop("_telemetry", None)
     if SNAPSHOT_PATH.exists():
         previous = json.loads(SNAPSHOT_PATH.read_text())
         if previous["series"] == snapshot["series"]:
