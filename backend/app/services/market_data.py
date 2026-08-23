@@ -11,6 +11,7 @@ import time
 from datetime import date
 from pathlib import Path
 
+from app.core.telemetry import log_event
 from app.data import database
 from app.data.instruments import YAHOO_TICKERS, PRICE_SYMBOLS
 from app.ingestion.yahoo import fetch_snapshot
@@ -53,7 +54,7 @@ def get_snapshot() -> tuple[dict, str]:
     global _cached, _cached_mode, _expires, _last_good
     with _lock:
         if _cached is not None and time.monotonic() < _expires:
-            return _cached, _cached_mode
+            return {**_cached, "_delivery": {"cache": "hit" if _cached_mode == "live" else "stale", "fetch_ms": 0.0}}, _cached_mode
         try:
             if os.getenv("MARKET_REGIME_SNAPSHOT_ONLY") == "1":
                 raise DataUnavailable("Snapshot-only mode enabled")
@@ -73,7 +74,8 @@ def get_snapshot() -> tuple[dict, str]:
             mode = "snapshot"
         _cached, _cached_mode = snapshot, mode
         _expires = time.monotonic() + (900 if mode == "live" else 60)
-        return snapshot, mode
+        log_event("market_cache", cache="miss" if mode == "live" else "stale", mode=mode)
+        return {**snapshot, "_delivery": {"cache": "miss" if mode == "live" else "stale", "fetch_ms": snapshot.get("_telemetry", {}).get("fetch_ms", 0.0)}}, mode
 
 
 def populate_database(conn, snapshot: dict, mode: str):
@@ -88,14 +90,15 @@ def populate_database(conn, snapshot: dict, mode: str):
                 rates.append({**common, "value": bar["close"]})
     database.insert_price_rows(conn, prices)
     database.insert_macro_rows(conn, rates)
-    conn.execute("CREATE TABLE delivery_metadata (mode TEXT, fetched_at TEXT)")
-    conn.execute("INSERT INTO delivery_metadata VALUES (?, ?)", (mode, snapshot["fetched_at"]))
+    conn.execute("CREATE TABLE delivery_metadata (mode TEXT, fetched_at TEXT, telemetry TEXT)")
+    conn.execute("INSERT INTO delivery_metadata VALUES (?, ?, ?)", (mode, snapshot["fetched_at"], json.dumps({**snapshot.get("_telemetry", {}), **snapshot.get("_delivery", {})})))
 
 
 def delivery_metadata(conn):
     exists = conn.execute("SELECT name FROM sqlite_master WHERE name = 'delivery_metadata'").fetchone()
     if exists:
-        return dict(conn.execute("SELECT * FROM delivery_metadata").fetchone())
+        metadata = dict(conn.execute("SELECT * FROM delivery_metadata").fetchone())
+        return {**metadata, **json.loads(metadata.pop("telemetry"))}
     return {"mode": "demo", "fetched_at": None}
 
 
