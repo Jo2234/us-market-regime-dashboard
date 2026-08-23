@@ -33,6 +33,10 @@ If Yahoo fails, the API serves the newest validated last-known-good dataset from
 
 `.github/workflows/refresh-market-data.yml` refreshes the committed snapshot on weekdays at 22:35 UTC, after the US close in both EST and EDT. It can also be dispatched manually. It commits as `github-actions[bot]` only if observations changed, rejects regressing dates, and leaves the previous file intact if Yahoo fails. GitHub schedules may be delayed and Yahoo may rate-limit or change its undocumented endpoint. An unchanged holiday dataset does not produce a timestamp-only commit. The snapshot is bundled in the Vercel Python function. `MARKET_REGIME_SNAPSHOT_ONLY=1` can explicitly select snapshots if a hosting network cannot reach Yahoo.
 
+## Deployment verification
+
+On 2026-09-29, the production Vercel function successfully fetched Yahoo directly (`data_mode: live`); no Vercel settings change or snapshot-primary switch was needed. `scripts/verify_live_data.py` matched SPY 765.61, QQQ 736.53, calendar 1M adjusted returns −0.2390% / +2.9127%, and all five yields for the completed 2026-09-28 session. GitHub Actions also successfully refreshed the snapshot. These are dated checks, not a promise of future Yahoo availability.
+
 ## Run
 
 Use Python 3.11+ and Node.js 22.12+:
