@@ -1,5 +1,6 @@
 from app.core import telemetry
 import time
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
         delivery = getattr(request.state, "market_delivery", {})
         response.headers["Server-Timing"] = f'app;dur={elapsed:.2f}, import;dur={telemetry.IMPORT_MS:.2f}, yahoo;dur={delivery.get("fetch_ms", 0):.2f}'
         response.headers["X-Market-Cache"] = delivery.get("cache", "none")
+        response.headers["X-Market-Revision"] = os.getenv("VERCEL_GIT_COMMIT_SHA", "local")
         response.headers["X-Market-Instance"] = telemetry.INSTANCE_ID
         response.headers["X-Market-Request"] = str(count)
         telemetry.log_event("api_request", instance=telemetry.INSTANCE_ID, request=count, app_ms=round(elapsed, 2))
