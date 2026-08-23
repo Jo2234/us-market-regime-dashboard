@@ -54,9 +54,9 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
     curve = analytics.yield_curve(source, observed_date)
     spread_10y_2y = curve["spreads"].get("10y_2y")
 
-    spy_latest = float(spy.iloc[-1]["value"])
+    spy_latest = float(spy[-1]["value"])
     spy_ma50 = analytics.moving_average(spy, 50, observed_date)
-    vix_latest = float(vix.iloc[-1]["value"]) if not vix.empty else None
+    vix_latest = float(vix[-1]["value"]) if vix else None
     vix_avg_63 = analytics.moving_average(vix, 63, observed_date)
     qqq_minus_spy = None if qqq_1m is None or spy_1m is None else qqq_1m - spy_1m
     iwm_minus_spy = None if iwm_1m is None or spy_1m is None else iwm_1m - spy_1m
@@ -188,9 +188,9 @@ def deterministic_summary(
 def recalculate_regimes(conn, as_of: date | None = None, trailing_days: int = 260) -> dict[str, Any]:
     history = analytics.MarketHistory(conn)
     frame = analytics._price_frame(history, "SPY", end=as_of)
-    if frame.empty:
+    if not frame:
         raise ValueError("No SPY data is available to recalculate regimes")
-    dates = [item.date() for item in frame["date"].tail(trailing_days)]
+    dates = [item["date"] for item in frame[-trailing_days:]]
     count = 0
     latest_snapshot = None
     for observed_date in dates:
