@@ -17,7 +17,8 @@ import httpx
 from app.data.instruments import YAHOO_TICKERS, PRICE_SYMBOLS
 from app.services.calendar import latest_completed_session
 
-USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+# Keep the minimal browser User-Agent verified against Yahoo from Vercel.
+USER_AGENT = "Mozilla/5.0"
 
 
 class YahooUnavailable(RuntimeError):
@@ -63,13 +64,14 @@ def normalize_chart(symbol: str, payload: dict, cutoff: date) -> list[dict]:
 
 async def fetch_chart(client: httpx.AsyncClient, ticker: str, *, stats=None, history_range="2y") -> dict:
     stats = stats if stats is not None else {}
-    stats.update(attempts=0, retries=0, http_429=0, http_401=0, http_5xx=0)
+    stats.update(attempts=0, responses=0, retries=0, http_429=0, http_401=0, http_5xx=0)
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(ticker, safe='')}"
     for attempt in range(3):
         try:
             stats["attempts"] += 1
             stats["retries"] = attempt
             response = await client.get(url, params={"range": history_range, "interval": "1d"})
+            stats["responses"] += 1
             stats["http_429"] += response.status_code == 429
             stats["http_401"] += response.status_code == 401
             stats["http_5xx"] += response.status_code >= 500
@@ -124,7 +126,7 @@ async def fetch_snapshot(*, fixture_dir=None, history_range="2y") -> dict:
         failure = exc
     finally:
         telemetry["fetch_ms"] = round((time.perf_counter() - started) * 1000, 2)
-        for key in ("attempts", "retries", "http_429", "http_401", "http_5xx"):
+        for key in ("attempts", "responses", "retries", "http_429", "http_401", "http_5xx"):
             telemetry[key] = sum(stats.get(key, 0) for stats in telemetry["symbols"].values())
         telemetry["ok"] = failure is None
         log_event("yahoo_fetch", **telemetry)
