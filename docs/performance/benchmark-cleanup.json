@@ -1,0 +1,8 @@
+{
+  "removed": [
+    "MARKET_REGIME_BENCHMARK_TOKEN",
+    "MARKET_REGIME_BENCHMARK_EXPIRES"
+  ],
+  "verified_absent": true,
+  "at": "2026-09-29T13:54:51.727804+00:00"
+}

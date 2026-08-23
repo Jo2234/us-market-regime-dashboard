@@ -1,0 +1,1977 @@
+[
+  {
+    "round": 1,
+    "deployment_id": "dpl_F9M4WKKKs2NNTWKZqpMTWZ1QaQB2",
+    "deployment_url": "https://market-regime-dashboard-mu.vercel.app",
+    "sha": "56bcf7b",
+    "samples": [
+      {
+        "kind": "cold",
+        "elapsed_ms": 1789.2,
+        "fetch_ms": 393.65,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:50:39.362547+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 393.65,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "age": "0",
+          "server-timing": "app;dur=819.42, import;dur=536.34, yahoo;dur=393.65",
+          "x-market-instance": "6a60eda4db86",
+          "x-market-request": "1",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "warm_hit",
+        "elapsed_ms": 674.74,
+        "fetch_ms": 0.0,
+        "cache": "hit",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:50:39.362547+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 0.0,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "hit",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "server-timing": "app;dur=358.45, import;dur=536.34, yahoo;dur=0.00",
+          "x-market-instance": "6a60eda4db86",
+          "x-market-request": "2",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "warm_miss",
+        "elapsed_ms": 1227.09,
+        "fetch_ms": 313.44,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:50:41.320897+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 313.44,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "server-timing": "app;dur=702.14, import;dur=536.34, yahoo;dur=313.44",
+          "x-market-instance": "6a60eda4db86",
+          "x-market-request": "3",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "cdn_hit",
+        "elapsed_ms": 15.3,
+        "fetch_ms": 393.65,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:50:39.362547+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 393.65,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "age": "2",
+          "server-timing": "app;dur=819.42, import;dur=536.34, yahoo;dur=393.65",
+          "x-market-instance": "6a60eda4db86",
+          "x-market-request": "1",
+          "x-vercel-cache": "HIT"
+        }
+      },
+      {
+        "kind": "short_history",
+        "elapsed_ms": 600.0,
+        "fetch_ms": 266.75,
+        "cache": null,
+        "data_mode": null,
+        "fetched_at": null,
+        "diagnostics": {
+          "symbols": {
+            "SPY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 258.28
+            },
+            "QQQ": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 105.53
+            },
+            "IWM": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 75.96
+            },
+            "DIA": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 82.34
+            },
+            "XLK": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 129.93
+            },
+            "XLF": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 85.09
+            },
+            "XLE": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 24.32
+            },
+            "XLV": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 85.42
+            },
+            "XLY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 6.18
+            },
+            "XLP": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 5.43
+            },
+            "XLI": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 4.97
+            },
+            "XLB": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 5.51
+            },
+            "XLU": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 5.57
+            },
+            "XLRE": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 5.11
+            },
+            "XLC": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 5.01
+            },
+            "USO": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 6.43
+            },
+            "GLD": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 9.41
+            },
+            "CPER": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 43.74
+            },
+            "VIX": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 33.76
+            },
+            "DXY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 50.56
+            },
+            "DGS3MO": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 31.17
+            },
+            "DGS2": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 73.08
+            },
+            "DGS5": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 41.28
+            },
+            "DGS10": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 38.09
+            },
+            "DGS30": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 65.22
+            }
+          },
+          "history_range": "5d",
+          "fetch_ms": 266.75,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true
+        },
+        "headers": {
+          "server-timing": "app;dur=269.64, import;dur=536.34, yahoo;dur=0.00",
+          "x-market-instance": "6a60eda4db86",
+          "x-market-request": "4",
+          "x-vercel-cache": "MISS"
+        }
+      }
+    ]
+  },
+  {
+    "round": 2,
+    "deployment_id": "dpl_37LsNtP1ZonEE77mUKJ2SZcKR45N",
+    "deployment_url": "https://market-regime-dashboard-mu.vercel.app",
+    "sha": "56bcf7b",
+    "samples": [
+      {
+        "kind": "cold",
+        "elapsed_ms": 1633.14,
+        "fetch_ms": 382.07,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:51:22.768195+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 382.07,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "age": "0",
+          "server-timing": "app;dur=788.66, import;dur=514.87, yahoo;dur=382.07",
+          "x-market-instance": "7a6b7966c062",
+          "x-market-request": "1",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "warm_hit",
+        "elapsed_ms": 884.95,
+        "fetch_ms": 0.0,
+        "cache": "hit",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:51:22.768195+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 0.0,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "hit",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "server-timing": "app;dur=348.89, import;dur=514.87, yahoo;dur=0.00",
+          "x-market-instance": "7a6b7966c062",
+          "x-market-request": "2",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "warm_miss",
+        "elapsed_ms": 1227.14,
+        "fetch_ms": 319.57,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:51:25.041127+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 319.57,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "server-timing": "app;dur=679.54, import;dur=514.87, yahoo;dur=319.57",
+          "x-market-instance": "7a6b7966c062",
+          "x-market-request": "3",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "cdn_hit",
+        "elapsed_ms": 407.74,
+        "fetch_ms": 382.07,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:51:22.768195+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 382.07,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "age": "3",
+          "server-timing": "app;dur=788.66, import;dur=514.87, yahoo;dur=382.07",
+          "x-market-instance": "7a6b7966c062",
+          "x-market-request": "1",
+          "x-vercel-cache": "HIT"
+        }
+      },
+      {
+        "kind": "short_history",
+        "elapsed_ms": 819.29,
+        "fetch_ms": 259.33,
+        "cache": null,
+        "data_mode": null,
+        "fetched_at": null,
+        "diagnostics": {
+          "symbols": {
+            "SPY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 72.93
+            },
+            "QQQ": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 68.21
+            },
+            "IWM": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 77.09
+            },
+            "DIA": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 84.41
+            },
+            "XLK": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 80.94
+            },
+            "XLF": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 80.48
+            },
+            "XLE": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 86.81
+            },
+            "XLV": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 139.98
+            },
+            "XLY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 64.76
+            },
+            "XLP": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 51.44
+            },
+            "XLI": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 60.16
+            },
+            "XLB": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 79.73
+            },
+            "XLU": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 51.54
+            },
+            "XLRE": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 56.1
+            },
+            "XLC": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 70.22
+            },
+            "USO": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 48.61
+            },
+            "GLD": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 34.26
+            },
+            "CPER": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 65.4
+            },
+            "VIX": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 44.4
+            },
+            "DXY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 76.58
+            },
+            "DGS3MO": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 62.45
+            },
+            "DGS2": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 30.96
+            },
+            "DGS5": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 43.67
+            },
+            "DGS10": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 31.78
+            },
+            "DGS30": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 77.44
+            }
+          },
+          "history_range": "5d",
+          "fetch_ms": 259.33,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true
+        },
+        "headers": {
+          "server-timing": "app;dur=262.30, import;dur=514.87, yahoo;dur=0.00",
+          "x-market-instance": "7a6b7966c062",
+          "x-market-request": "4",
+          "x-vercel-cache": "MISS"
+        }
+      }
+    ]
+  },
+  {
+    "round": 3,
+    "deployment_id": "dpl_AkbU3sjamRhdtuvhZDDVZ1wDAWf9",
+    "deployment_url": "https://market-regime-dashboard-mu.vercel.app",
+    "sha": "56bcf7b",
+    "samples": [
+      {
+        "kind": "cold",
+        "elapsed_ms": 1544.51,
+        "fetch_ms": 363.29,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:52:07.371630+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 363.29,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "age": "0",
+          "server-timing": "app;dur=784.30, import;dur=518.75, yahoo;dur=363.29",
+          "x-market-instance": "46d9772be80a",
+          "x-market-request": "1",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "warm_hit",
+        "elapsed_ms": 870.62,
+        "fetch_ms": 0.0,
+        "cache": "hit",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:52:07.371630+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 0.0,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "hit",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "server-timing": "app;dur=364.61, import;dur=518.75, yahoo;dur=0.00",
+          "x-market-instance": "46d9772be80a",
+          "x-market-request": "2",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "warm_miss",
+        "elapsed_ms": 1222.73,
+        "fetch_ms": 327.57,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:52:09.605287+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 327.57,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "server-timing": "app;dur=717.91, import;dur=518.75, yahoo;dur=327.57",
+          "x-market-instance": "46d9772be80a",
+          "x-market-request": "3",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "cdn_hit",
+        "elapsed_ms": 19.63,
+        "fetch_ms": 363.29,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:52:07.371630+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 363.29,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "age": "2",
+          "server-timing": "app;dur=784.30, import;dur=518.75, yahoo;dur=363.29",
+          "x-market-instance": "46d9772be80a",
+          "x-market-request": "1",
+          "x-vercel-cache": "HIT"
+        }
+      },
+      {
+        "kind": "short_history",
+        "elapsed_ms": 593.22,
+        "fetch_ms": 275.07,
+        "cache": null,
+        "data_mode": null,
+        "fetched_at": null,
+        "diagnostics": {
+          "symbols": {
+            "SPY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 98.0
+            },
+            "QQQ": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 86.9
+            },
+            "IWM": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 94.79
+            },
+            "DIA": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 98.16
+            },
+            "XLK": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 74.39
+            },
+            "XLF": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 234.1
+            },
+            "XLE": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 77.7
+            },
+            "XLV": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 74.57
+            },
+            "XLY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 60.69
+            },
+            "XLP": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 78.59
+            },
+            "XLI": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 61.03
+            },
+            "XLB": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 92.17
+            },
+            "XLU": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 105.14
+            },
+            "XLRE": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 41.78
+            },
+            "XLC": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 43.89
+            },
+            "USO": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 33.44
+            },
+            "GLD": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 38.2
+            },
+            "CPER": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 64.84
+            },
+            "VIX": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 32.05
+            },
+            "DXY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 52.65
+            },
+            "DGS3MO": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 33.93
+            },
+            "DGS2": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 32.19
+            },
+            "DGS5": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 78.24
+            },
+            "DGS10": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 72.36
+            },
+            "DGS30": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 65.18
+            }
+          },
+          "history_range": "5d",
+          "fetch_ms": 275.07,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true
+        },
+        "headers": {
+          "server-timing": "app;dur=278.09, import;dur=518.75, yahoo;dur=0.00",
+          "x-market-instance": "46d9772be80a",
+          "x-market-request": "4",
+          "x-vercel-cache": "MISS"
+        }
+      }
+    ]
+  },
+  {
+    "round": 4,
+    "deployment_id": "dpl_NgmzMrmvnZ8TFWH2jEfLSAhp44jK",
+    "deployment_url": "https://market-regime-dashboard-mu.vercel.app",
+    "sha": "56bcf7b",
+    "samples": [
+      {
+        "kind": "cold",
+        "elapsed_ms": 1503.7,
+        "fetch_ms": 401.25,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:52:54.485656+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 401.25,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "age": "0",
+          "server-timing": "app;dur=810.85, import;dur=520.31, yahoo;dur=401.25",
+          "x-market-instance": "0c4780b0a085",
+          "x-market-request": "1",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "warm_hit",
+        "elapsed_ms": 708.59,
+        "fetch_ms": 0.0,
+        "cache": "hit",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:52:54.485656+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 0.0,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "hit",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "server-timing": "app;dur=350.52, import;dur=520.31, yahoo;dur=0.00",
+          "x-market-instance": "0c4780b0a085",
+          "x-market-request": "2",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "warm_miss",
+        "elapsed_ms": 1245.14,
+        "fetch_ms": 366.7,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:52:56.473636+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 366.7,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "server-timing": "app;dur=742.96, import;dur=520.31, yahoo;dur=366.70",
+          "x-market-instance": "0c4780b0a085",
+          "x-market-request": "3",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "cdn_hit",
+        "elapsed_ms": 296.98,
+        "fetch_ms": 401.25,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:52:54.485656+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 401.25,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "age": "2",
+          "server-timing": "app;dur=810.85, import;dur=520.31, yahoo;dur=401.25",
+          "x-market-instance": "0c4780b0a085",
+          "x-market-request": "1",
+          "x-vercel-cache": "HIT"
+        }
+      },
+      {
+        "kind": "short_history",
+        "elapsed_ms": 524.16,
+        "fetch_ms": 237.04,
+        "cache": null,
+        "data_mode": null,
+        "fetched_at": null,
+        "diagnostics": {
+          "symbols": {
+            "SPY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 96.98
+            },
+            "QQQ": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 111.76
+            },
+            "IWM": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 78.68
+            },
+            "DIA": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 89.48
+            },
+            "XLK": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 82.86
+            },
+            "XLF": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 91.69
+            },
+            "XLE": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 85.24
+            },
+            "XLV": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 82.89
+            },
+            "XLY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 52.74
+            },
+            "XLP": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 82.22
+            },
+            "XLI": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 67.34
+            },
+            "XLB": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 62.87
+            },
+            "XLU": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 66.63
+            },
+            "XLRE": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 81.51
+            },
+            "XLC": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 73.36
+            },
+            "USO": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 45.18
+            },
+            "GLD": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 41.2
+            },
+            "CPER": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 35.46
+            },
+            "VIX": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 43.36
+            },
+            "DXY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 37.75
+            },
+            "DGS3MO": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 30.92
+            },
+            "DGS2": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 47.01
+            },
+            "DGS5": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 32.06
+            },
+            "DGS10": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 39.93
+            },
+            "DGS30": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 52.12
+            }
+          },
+          "history_range": "5d",
+          "fetch_ms": 237.04,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true
+        },
+        "headers": {
+          "server-timing": "app;dur=240.43, import;dur=520.31, yahoo;dur=0.00",
+          "x-market-instance": "0c4780b0a085",
+          "x-market-request": "4",
+          "x-vercel-cache": "MISS"
+        }
+      }
+    ]
+  },
+  {
+    "round": 5,
+    "deployment_id": "dpl_B6uLKVTKRq6Mz3x3pgKX8CvvD5wQ",
+    "deployment_url": "https://market-regime-dashboard-mu.vercel.app",
+    "sha": "56bcf7b",
+    "samples": [
+      {
+        "kind": "cold",
+        "elapsed_ms": 1551.84,
+        "fetch_ms": 385.18,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:53:44.428162+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 385.18,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "age": "0",
+          "server-timing": "app;dur=804.63, import;dur=509.95, yahoo;dur=385.18",
+          "x-market-instance": "a35ff6cb9f09",
+          "x-market-request": "1",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "warm_hit",
+        "elapsed_ms": 837.72,
+        "fetch_ms": 0.0,
+        "cache": "hit",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:53:44.428162+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 0.0,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "hit",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "server-timing": "app;dur=347.21, import;dur=509.95, yahoo;dur=0.00",
+          "x-market-instance": "a35ff6cb9f09",
+          "x-market-request": "2",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "warm_miss",
+        "elapsed_ms": 929.79,
+        "fetch_ms": 313.51,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:53:46.337834+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 313.51,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "server-timing": "app;dur=681.14, import;dur=509.95, yahoo;dur=313.51",
+          "x-market-instance": "a35ff6cb9f09",
+          "x-market-request": "3",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "cdn_hit",
+        "elapsed_ms": 13.1,
+        "fetch_ms": 385.18,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:53:44.428162+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 385.18,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "cache": "miss",
+          "retry_after_seconds": 0
+        },
+        "headers": {
+          "age": "2",
+          "server-timing": "app;dur=804.63, import;dur=509.95, yahoo;dur=385.18",
+          "x-market-instance": "a35ff6cb9f09",
+          "x-market-request": "1",
+          "x-vercel-cache": "HIT"
+        }
+      },
+      {
+        "kind": "short_history",
+        "elapsed_ms": 475.16,
+        "fetch_ms": 218.97,
+        "cache": null,
+        "data_mode": null,
+        "fetched_at": null,
+        "diagnostics": {
+          "symbols": {
+            "SPY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 75.97
+            },
+            "QQQ": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 75.53
+            },
+            "IWM": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 75.33
+            },
+            "DIA": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 83.74
+            },
+            "XLK": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 80.33
+            },
+            "XLF": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 91.34
+            },
+            "XLE": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 77.48
+            },
+            "XLV": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 88.61
+            },
+            "XLY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 9.15
+            },
+            "XLP": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 51.76
+            },
+            "XLI": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 64.69
+            },
+            "XLB": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 103.1
+            },
+            "XLU": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 57.94
+            },
+            "XLRE": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 92.02
+            },
+            "XLC": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 44.67
+            },
+            "USO": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 62.74
+            },
+            "GLD": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 39.23
+            },
+            "CPER": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 41.07
+            },
+            "VIX": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 44.0
+            },
+            "DXY": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 72.28
+            },
+            "DGS3MO": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 32.48
+            },
+            "DGS2": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 34.36
+            },
+            "DGS5": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 38.92
+            },
+            "DGS10": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 40.1
+            },
+            "DGS30": {
+              "attempts": 1,
+              "responses": 1,
+              "retries": 0,
+              "http_429": 0,
+              "http_401": 0,
+              "http_5xx": 0,
+              "ok": true,
+              "ms": 35.4
+            }
+          },
+          "history_range": "5d",
+          "fetch_ms": 218.97,
+          "attempts": 25,
+          "responses": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true
+        },
+        "headers": {
+          "server-timing": "app;dur=222.29, import;dur=509.95, yahoo;dur=0.00",
+          "x-market-instance": "a35ff6cb9f09",
+          "x-market-request": "4",
+          "x-vercel-cache": "MISS"
+        }
+      }
+    ]
+  }
+]

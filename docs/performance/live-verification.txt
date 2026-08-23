@@ -1,0 +1,11 @@
+API mode: live | as of 2026-09-28 | completed-session cutoff 2026-09-28
+Ticker     Metric    Yahoo date  API date    API         Yahoo       Check
+SPY        price     2026-09-28  2026-09-28   765.61000   765.60999  PASS
+SPY        1M %      2026-09-28  2026-09-28    -0.23900    -0.23901  PASS
+QQQ        price     2026-09-28  2026-09-28   736.53000   736.53003  PASS
+QQQ        1M %      2026-09-28  2026-09-28     2.91270     2.91270  PASS
+^IRX       yield %   2026-09-28  2026-09-28     4.05700     4.05700  PASS
+2YY=F      yield %   2026-09-28  2026-09-28     4.50000     4.50000  PASS
+^FVX       yield %   2026-09-28  2026-09-28     5.06800     5.06800  PASS
+^TNX       yield %   2026-09-28  2026-09-28     5.24000     5.24000  PASS
+^TYX       yield %   2026-09-28  2026-09-28     5.56100     5.56100  PASS
