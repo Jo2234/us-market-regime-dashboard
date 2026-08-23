@@ -50,32 +50,56 @@ def validate_snapshot(snapshot: dict) -> dict:
     return snapshot
 
 
-def get_snapshot() -> tuple[dict, str]:
+def _fallback():
+    candidates = [_last_good] if _last_good else []
+    try:
+        candidates.append(validate_snapshot(json.loads(SNAPSHOT_PATH.read_text())))
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    if not candidates:
+        raise DataUnavailable("Live data unavailable; no valid Yahoo snapshot is available")
+    return max(candidates, key=lambda item: min(s["bars"][-1]["date"] for s in item["series"].values()))
+
+
+def get_snapshot(*, cached_only=False) -> tuple[dict, str]:
     global _cached, _cached_mode, _expires, _last_good
+    # Bootstrap must not wait behind a slow refresh holding the single-flight lock.
+    if cached_only:
+        snapshot = _cached or _fallback()
+        mode = _cached_mode if _cached and time.monotonic() < _expires else "snapshot"
+        return {**snapshot, "_delivery": {"cache": "hit" if mode == "live" else "stale", "fetch_ms": 0.0,
+                "refresh_pending": True, "retry_after_seconds": 0}}, mode
     with _lock:
-        if _cached is not None and time.monotonic() < _expires:
-            return {**_cached, "_delivery": {"cache": "hit" if _cached_mode == "live" else "stale", "fetch_ms": 0.0}}, _cached_mode
+        remaining = max(0, math.ceil(_expires - time.monotonic()))
+        if remaining:
+            if _cached is None:
+                raise DataUnavailable("Live data unavailable; retry after the refresh cooldown")
+            cache = "hit" if _cached_mode == "live" else "stale"
+            log_event("market_cache", cache=cache, mode=_cached_mode)
+            return {**_cached, "_delivery": {"cache": cache, "fetch_ms": 0.0,
+                    "retry_after_seconds": remaining if _cached_mode == "snapshot" else 0}}, _cached_mode
+        stats = {}
         try:
             if os.getenv("MARKET_REGIME_SNAPSHOT_ONLY") == "1":
                 raise DataUnavailable("Snapshot-only mode enabled")
             snapshot = validate_snapshot(asyncio.run(fetch_snapshot()))
+            stats = snapshot.get("_telemetry", {})
             _last_good = snapshot
             mode = "live"
         except Exception as exc:
             logging.getLogger(__name__).warning("Live Yahoo data unavailable (%s)", type(exc).__name__)
-            candidates = [_last_good] if _last_good else []
-            try:
-                candidates.append(validate_snapshot(json.loads(SNAPSHOT_PATH.read_text())))
-            except (OSError, ValueError, KeyError, TypeError):
-                pass
-            if not candidates:
-                raise DataUnavailable("Live data unavailable; no valid Yahoo snapshot is available") from exc
-            snapshot = max(candidates, key=lambda item: min(s["bars"][-1]["date"] for s in item["series"].values()))
+            stats = getattr(exc, "telemetry", {})
+            # Failed refreshes have the SAME cooldown as successful ones, even if
+            # there is no usable fallback. Visitors cannot bypass it with a query.
+            _expires = time.monotonic() + 900
+            snapshot = _fallback()
             mode = "snapshot"
-        _cached, _cached_mode = snapshot, mode
-        _expires = time.monotonic() + (900 if mode == "live" else 60)
-        log_event("market_cache", cache="miss" if mode == "live" else "stale", mode=mode)
-        return {**snapshot, "_delivery": {"cache": "miss" if mode == "live" else "stale", "fetch_ms": snapshot.get("_telemetry", {}).get("fetch_ms", 0.0)}}, mode
+        _cached, _cached_mode = {**snapshot, "_telemetry": stats}, mode
+        _expires = time.monotonic() + 900
+        cache = "miss" if mode == "live" else "stale"
+        log_event("market_cache", cache=cache, mode=mode)
+        return {**snapshot, "_telemetry": stats, "_delivery": {"cache": cache,
+                "fetch_ms": stats.get("fetch_ms", 0.0), "retry_after_seconds": 900 if mode == "snapshot" else 0}}, mode
 
 
 def populate_database(conn, snapshot: dict, mode: str):
@@ -98,7 +122,8 @@ def delivery_metadata(conn):
     exists = conn.execute("SELECT name FROM sqlite_master WHERE name = 'delivery_metadata'").fetchone()
     if exists:
         metadata = dict(conn.execute("SELECT * FROM delivery_metadata").fetchone())
-        return {**metadata, **json.loads(metadata.pop("telemetry"))}
+        stats = json.loads(metadata.pop("telemetry"))
+        return {**metadata, **stats}
     return {"mode": "demo", "fetched_at": None}
 
 

@@ -1,3 +1,5 @@
 -r ../requirements.txt
 uvicorn[standard]>=0.30
 pytest>=8.0
+pandas>=2.2,<3
+exchange-calendars>=4.5,<5
