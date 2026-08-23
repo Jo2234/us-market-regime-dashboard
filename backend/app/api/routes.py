@@ -231,28 +231,3 @@ def data_freshness(conn) -> dict:
         ],
         "instruments": instruments,
     }
-
-
-@router.post("/diagnostics/benchmark", include_in_schema=False)
-def benchmark(request: Request, kind: str = "hit"):
-    """Opt-in operator measurement; disabled without a deployment-specific secret."""
-    import hmac
-    import os
-    import time
-    from app.services import market_data
-    secret = os.getenv("MARKET_REGIME_BENCHMARK_TOKEN", "")
-    expiry = float(os.getenv("MARKET_REGIME_BENCHMARK_EXPIRES", "0"))
-    if not secret or time.time() > expiry or not hmac.compare_digest(request.headers.get("authorization", ""), f"Bearer {secret}"):
-        raise HTTPException(404)
-    if kind not in {"hit", "miss", "short"}:
-        raise HTTPException(422)
-    if kind == "short":
-        import asyncio
-        snapshot = asyncio.run(market_data.fetch_snapshot(history_range="5d"))
-        return snapshot["_telemetry"]
-    if kind == "miss":
-        with market_data._lock:
-            market_data._expires = 0
-    connection = get_db(request)
-    with __import__("contextlib").closing(connection):
-        return dashboard_summary(None, next(connection), "1m")
