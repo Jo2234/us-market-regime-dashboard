@@ -147,7 +147,7 @@ export default function App() {
         </a>
       </nav>
       <div className="refresh-status" role="status" aria-live="polite" aria-atomic="true">
-        <span>{data.fetchedAt ? `Last updated ${formatDateTime(data.fetchedAt)}` : "Last update time unavailable"} · Yahoo Finance · as of {data.selectedDate}</span>
+        <span>{data.fetchedAt ? `Last updated ${formatDateTime(data.fetchedAt)}` : "Last update time unavailable"} · Yahoo Finance · as of <time className="observation-date" dateTime={data.selectedDate}>{data.selectedDate}</time></span>
         <span className={error || data.provenance?.mode === "snapshot" ? "refresh-warning" : ""}>
           {loading ? "Updating with the latest numbers…" : error || data.provenance?.mode === "snapshot"
             ? `Showing close of ${data.selectedDate}; live refresh unavailable, retrying automatically.`

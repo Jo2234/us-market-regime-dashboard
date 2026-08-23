@@ -1495,7 +1495,7 @@ tbody tr:last-child th {
 .skeleton-dashboard { display: grid; gap: 24px; }
 .skeleton-card { display: flex; flex-direction: column; gap: 18px; padding: 24px; }
 .skeleton-card .eyebrow { color: var(--soft); font-size: 11px; letter-spacing: .1em; }
-.skeleton-line, .skeleton-title, .skeleton-chart { display: block; border-radius: 3px; background: linear-gradient(100deg, var(--wash) 25%, var(--border) 45%, var(--wash) 65%); background-size: 300% 100%; animation: shimmer 2s ease-in-out infinite; }
+.skeleton-line, .skeleton-title, .skeleton-chart { display: block; border-radius: 3px; background: linear-gradient(100deg, var(--wash) 25%, var(--rule) 45%, var(--wash) 65%); background-size: 300% 100%; animation: shimmer 2s ease-in-out infinite; }
 .skeleton-line { height: 12px; width: 92%; }
 .skeleton-line:nth-child(even) { width: 72%; }
 .skeleton-title { width: 55%; height: 38px; }
@@ -1509,8 +1509,11 @@ tbody tr:last-child th {
   .skeleton-indices { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .skeleton-card { padding: 18px; }
   .skeleton-title { width: 80%; }
-  .refresh-status { min-height: 92px; font-size: 11px; }
+  .refresh-status { display: grid; grid-template-rows: 36px 54px; min-height: 120px; font-size: 11px; }
+  .data-notice p { min-height: 66px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .skeleton-line, .skeleton-title, .skeleton-chart, .spinning { animation: none !important; }
 }
+
+.observation-date { white-space: nowrap; }
