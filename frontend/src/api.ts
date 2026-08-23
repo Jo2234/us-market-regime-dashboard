@@ -219,7 +219,7 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
     provenance: {
       mode: payload.data_mode === "snapshot" ? "snapshot" : payload.data_mode === "live" ? "live" : onlyDemoSources ? "demo" : hasDemoSource ? "mixed" : "api",
       description: payload.data_mode === "snapshot"
-        ? "Yahoo could not be refreshed. Showing a last-known-good Yahoo snapshot with its original observation dates."
+        ? "Saved Yahoo Finance daily closes with their original observation dates. Live refresh is pending or unavailable."
         : payload.data_mode === "live"
           ? "Daily closes fetched from Yahoo Finance. Prices are unadjusted closes; returns use adjusted closes. Live describes the feed, not intraday quotes."
           : onlyDemoSources
