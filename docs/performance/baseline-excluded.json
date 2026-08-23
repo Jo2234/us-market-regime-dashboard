@@ -1,0 +1,108 @@
+[
+  {
+    "round": 5,
+    "deployment_id": "dpl_DbMsVi3ZzroR7jc9TpLKbbBuUGNW",
+    "deployment_url": "https://market-regime-dashboard-mu.vercel.app",
+    "sha": "d4c8ef3",
+    "samples": [
+      {
+        "kind": "cold",
+        "elapsed_ms": 424.91,
+        "fetch_ms": 935.73,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:42:45.349252+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 935.73,
+          "attempts": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "cache": "miss"
+        },
+        "headers": {
+          "age": "40",
+          "server-timing": "app;dur=1649.28, import;dur=3294.31",
+          "x-market-instance": "b0b7b24e21ff",
+          "x-market-request": "1",
+          "x-vercel-cache": "HIT"
+        }
+      },
+      {
+        "kind": "warm_hit",
+        "elapsed_ms": 4717.33,
+        "fetch_ms": 801.03,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:43:30.748790+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 801.03,
+          "attempts": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "cache": "miss"
+        },
+        "headers": {
+          "server-timing": "app;dur=1197.45, import;dur=2128.50",
+          "x-market-instance": "e3db278ec61c",
+          "x-market-request": "1",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "warm_miss",
+        "elapsed_ms": 1409.22,
+        "fetch_ms": 436.72,
+        "cache": "miss",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:43:32.504350+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 436.72,
+          "attempts": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "cache": "miss"
+        },
+        "headers": {
+          "server-timing": "app;dur=795.19, import;dur=2128.50",
+          "x-market-instance": "e3db278ec61c",
+          "x-market-request": "2",
+          "x-vercel-cache": "MISS"
+        }
+      },
+      {
+        "kind": "cdn_hit",
+        "elapsed_ms": 922.18,
+        "fetch_ms": 0.0,
+        "cache": "hit",
+        "data_mode": "live",
+        "fetched_at": "2026-09-29T13:43:32.504350+00:00",
+        "diagnostics": {
+          "history_range": "2y",
+          "fetch_ms": 0.0,
+          "attempts": 25,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "cache": "hit"
+        },
+        "headers": {
+          "age": "0",
+          "server-timing": "app;dur=345.04, import;dur=2128.50",
+          "x-market-instance": "e3db278ec61c",
+          "x-market-request": "3",
+          "x-vercel-cache": "MISS"
+        }
+      }
+    ]
+  }
+]
