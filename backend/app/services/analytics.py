@@ -1,338 +1,217 @@
 from __future__ import annotations
 
+import calendar
 import math
-from datetime import date, datetime
+import statistics
+from datetime import date, datetime, timedelta
 from typing import Any
-
-import pandas as pd
 
 from app.data.instruments import COMMODITY_SYMBOLS, INDEX_SYMBOLS, RATE_SYMBOLS, SECTOR_SYMBOLS, provenance
 
 
-def calendar_anchor(observed: date, window: str) -> pd.Timestamp:
-    current = pd.Timestamp(observed)
-    if window == "ytd":
-        return pd.Timestamp(year=observed.year - 1, month=12, day=31)
-    offsets = {"1w": pd.DateOffset(weeks=1), "1m": pd.DateOffset(months=1),
-               "3m": pd.DateOffset(months=3), "1y": pd.DateOffset(years=1)}
-    return current - offsets[window]
-
-
-def baseline_rows(work: pd.DataFrame, window: str) -> pd.DataFrame:
-    if window == "1d":
-        return work.iloc[:-1]
-    return work[work["date"] <= calendar_anchor(work.iloc[-1]["date"].date(), window)]
-
-
-class MarketHistory:
-    """Request-local price and macro frames, loaded once for a historical backfill."""
-
-    def __init__(self, conn):
-        prices = pd.read_sql_query(
-            "SELECT i.symbol, p.* FROM market_prices p JOIN instruments i ON i.id = p.instrument_id ORDER BY p.date",
-            conn, parse_dates=["date"],
-        )
-        macro = pd.read_sql_query(
-            "SELECT i.symbol, m.date, m.value, m.source FROM macro_observations m "
-            "JOIN instruments i ON i.id = m.instrument_id ORDER BY m.date",
-            conn, parse_dates=["date"],
-        )
-        self.prices = {symbol: frame.drop(columns="symbol").reset_index(drop=True)
-                       for symbol, frame in prices.groupby("symbol")}
-        self.macro = {symbol: frame.drop(columns="symbol").reset_index(drop=True)
-                      for symbol, frame in macro.groupby("symbol")}
-
-    @staticmethod
-    def select(frames, symbol, start, end):
-        frame = frames.get(symbol.upper())
-        if frame is None:
-            return pd.DataFrame()
-        # SQL slices before calculating daily returns; preserve that same contract.
-        if start:
-            frame = frame[frame["date"] >= pd.Timestamp(start)]
-        if end:
-            frame = frame[frame["date"] <= pd.Timestamp(end)]
-        return frame.copy()
-
-
 def parse_date(value: str | date | None) -> date | None:
-    if value is None or isinstance(value, date):
-        return value
-    return datetime.strptime(value, "%Y-%m-%d").date()
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    return value if isinstance(value, date) else date.fromisoformat(value[:10])
 
 
-def _price_frame(conn, symbol: str, start: date | None = None, end: date | None = None) -> pd.DataFrame:
-    if isinstance(conn, MarketHistory):
-        return _with_price_metrics(conn.select(conn.prices, symbol, start, end))
-    query = """
-        SELECT p.date, p.open, p.high, p.low, p.close, p.adjusted_close, p.volume, p.source
-        FROM market_prices p
-        JOIN instruments i ON i.id = p.instrument_id
-        WHERE i.symbol = ?
-    """
-    params: list[Any] = [symbol.upper()]
-    if start:
-        query += " AND p.date >= ?"
-        params.append(start.isoformat())
-    if end:
-        query += " AND p.date <= ?"
-        params.append(end.isoformat())
-    query += " ORDER BY p.date"
-    frame = pd.read_sql_query(query, conn, params=params, parse_dates=["date"])
-    return _with_price_metrics(frame)
+def calendar_anchor(observed: date, window: str) -> date:
+    if window == "1w":
+        return observed - timedelta(days=7)
+    if window == "ytd":
+        return date(observed.year - 1, 12, 31)
+    months = {"1m": 1, "3m": 3, "1y": 12}[window]
+    index = observed.year * 12 + observed.month - 1 - months
+    year, month = divmod(index, 12)
+    return date(year, month + 1, min(observed.day, calendar.monthrange(year, month + 1)[1]))
 
 
-def _with_price_metrics(frame: pd.DataFrame) -> pd.DataFrame:
-    if frame.empty:
-        return frame
-    frame["value"] = frame["adjusted_close"].fillna(frame["close"])
-    frame["daily_return"] = frame["value"].pct_change()
+def _records(frame):
+    # Existing callers/tests may supply a DataFrame. Runtime paths use plain rows
+    # and never import pandas/numpy to compute a few hundred daily observations.
+    if hasattr(frame, "to_dict"):
+        return [{**row, "date": parse_date(row["date"])} for row in frame.to_dict("records")]
     return frame
 
 
-def _macro_frame(conn, symbol: str, start: date | None = None, end: date | None = None) -> pd.DataFrame:
+def _select(rows, start=None, end=None):
+    return [row for row in _records(rows) if (not start or row["date"] >= start) and (not end or row["date"] <= end)]
+
+
+class MarketHistory:
+    """Load once per request; use standard-library arithmetic for daily history."""
+    def __init__(self, conn):
+        self.prices, self.macro = {}, {}
+        for table, target in [("market_prices", self.prices), ("macro_observations", self.macro)]:
+            for record in conn.execute(f"SELECT i.symbol, p.* FROM {table} p JOIN instruments i ON i.id=p.instrument_id ORDER BY p.date"):
+                row = dict(record)
+                symbol = row.pop("symbol")
+                row["date"] = parse_date(row["date"])
+                target.setdefault(symbol, []).append(row)
+
+
+def _frame(conn, symbol, table, start=None, end=None):
     if isinstance(conn, MarketHistory):
-        return conn.select(conn.macro, symbol, start, end)
-    query = """
-        SELECT m.date, m.value, m.source
-        FROM macro_observations m
-        JOIN instruments i ON i.id = m.instrument_id
-        WHERE i.symbol = ?
-    """
-    params: list[Any] = [symbol.upper()]
-    if start:
-        query += " AND m.date >= ?"
-        params.append(start.isoformat())
-    if end:
-        query += " AND m.date <= ?"
-        params.append(end.isoformat())
-    query += " ORDER BY m.date"
-    return pd.read_sql_query(query, conn, params=params, parse_dates=["date"])
+        return _select((conn.prices if table == "market_prices" else conn.macro).get(symbol.upper(), []), start, end)
+    records = conn.execute(f"SELECT p.* FROM {table} p JOIN instruments i ON i.id=p.instrument_id WHERE i.symbol=? ORDER BY p.date", (symbol.upper(),))
+    return _select([{**dict(row), "date": parse_date(row["date"])} for row in records], start, end)
 
 
-def latest_date(conn, symbol: str = "SPY", as_of: date | None = None) -> date | None:
-    frame = _price_frame(conn, symbol, end=as_of)
-    if frame.empty:
-        frame = _macro_frame(conn, symbol, end=as_of)
-    if frame.empty:
-        return None
-    return frame.iloc[-1]["date"].date()
+def _price_frame(conn, symbol, start=None, end=None):
+    rows = _frame(conn, symbol, "market_prices", start, end)
+    result, previous = [], None
+    for row in rows:
+        value = row["adjusted_close"] if row["adjusted_close"] is not None else row["close"]
+        result.append({**row, "value": value, "daily_return": value / previous - 1 if previous else None})
+        previous = value
+    return result
 
 
-def price_series(conn, symbol: str, start: date | None = None, end: date | None = None) -> list[dict[str, Any]]:
-    frame = _price_frame(conn, symbol, start, end)
-    if not frame.empty:
-        return [
-            {
-                "date": row.date.date().isoformat(),
-                "open": _rounded(row.open),
-                "high": _rounded(row.high),
-                "low": _rounded(row.low),
-                "close": _rounded(row.close),
-                "adjusted_close": _rounded(row.adjusted_close),
-                "value": _rounded(row.value),
-                "daily_return": _rounded(row.daily_return, 6),
-                "volume": None if pd.isna(row.volume) else int(row.volume),
-                "source": row.source,
-                "observation_date": row.date.date().isoformat(),
-                **provenance(symbol),
-            }
-            for row in frame.itertuples()
-        ]
-    macro = _macro_frame(conn, symbol, start, end)
-    return [
-        {
-            "date": row.date.date().isoformat(),
-            "value": _rounded(row.value),
-            "source": row.source,
-            "observation_date": row.date.date().isoformat(),
-            **provenance(symbol),
-        }
-        for row in macro.itertuples()
-    ]
+def _macro_frame(conn, symbol, start=None, end=None):
+    return _frame(conn, symbol, "macro_observations", start, end)
 
 
-def _rounded(value: Any, digits: int = 4) -> float | None:
-    if value is None or (isinstance(value, float) and math.isnan(value)) or pd.isna(value):
+def latest_date(conn, symbol="SPY", as_of=None):
+    rows = _price_frame(conn, symbol, end=as_of) or _macro_frame(conn, symbol, end=as_of)
+    return rows[-1]["date"] if rows else None
+
+
+def _rounded(value: Any, digits: int = 4):
+    if value is None or not math.isfinite(float(value)):
         return None
     return round(float(value), digits)
 
 
-def period_return(frame: pd.DataFrame, window: str, as_of: date | None = None) -> float | None:
-    if frame.empty:
+def price_series(conn, symbol, start=None, end=None):
+    rows = _price_frame(conn, symbol, start, end)
+    if rows:
+        return [{"date": row["date"].isoformat(),
+                 **{key: _rounded(row[key], 6 if key == "daily_return" else 4) for key in ("open", "high", "low", "close", "adjusted_close", "value", "daily_return")},
+                 "volume": int(row["volume"]) if row["volume"] is not None else None,
+                 "source": row["source"], "observation_date": row["date"].isoformat(), **provenance(symbol)} for row in rows]
+    return [{"date": row["date"].isoformat(), "value": _rounded(row["value"]), "source": row["source"],
+             "observation_date": row["date"].isoformat(), **provenance(symbol)} for row in _macro_frame(conn, symbol, start, end)]
+
+
+def period_return(frame, window, as_of=None):
+    rows = _select(frame, end=as_of)
+    if not rows:
         return None
-    work = frame
-    if as_of:
-        work = frame[frame["date"].dt.date <= as_of]
-    if work.empty:
+    bases = rows[:-1] if window == "1d" else [row for row in rows if row["date"] <= calendar_anchor(rows[-1]["date"], window)]
+    if not bases or not bases[-1]["value"]:
         return None
-    current = float(work.iloc[-1]["value"])
-    bases = baseline_rows(work, window)
-    if bases.empty:
+    return rows[-1]["value"] / bases[-1]["value"] - 1
+
+
+def moving_average(frame, window, as_of=None):
+    rows = _select(frame, end=as_of)
+    return statistics.fmean(row["value"] for row in rows[-window:]) if len(rows) >= window else None
+
+
+def rolling_volatility(frame, window=20, as_of=None):
+    rows = _select(frame, end=as_of)
+    returns = [b["value"] / a["value"] - 1 for a, b in zip(rows, rows[1:])][-window:]
+    return statistics.stdev(returns) * math.sqrt(252) if len(returns) >= max(2, min(window, 5)) else None
+
+
+def max_drawdown(frame, as_of=None, lookback=252):
+    rows = _select(frame, end=as_of)[-lookback:]
+    if not rows:
         return None
-    base = float(bases.iloc[-1]["value"])
-    if base == 0:
-        return None
-    return current / base - 1.0
+    peak, drawdown = rows[0]["value"], 0.0
+    for row in rows:
+        peak = max(peak, row["value"])
+        drawdown = min(drawdown, row["value"] / peak - 1)
+    return drawdown
 
 
-def moving_average(frame: pd.DataFrame, window: int, as_of: date | None = None) -> float | None:
-    work = frame if as_of is None else frame[frame["date"].dt.date <= as_of]
-    if len(work) < window:
-        return None
-    return float(work["value"].tail(window).mean())
-
-
-def rolling_volatility(frame: pd.DataFrame, window: int = 20, as_of: date | None = None) -> float | None:
-    """Annualized rolling volatility: std(daily returns) * sqrt(252)."""
-    work = frame if as_of is None else frame[frame["date"].dt.date <= as_of]
-    returns = work["value"].pct_change().dropna().tail(window)
-    if len(returns) < max(2, min(window, 5)):
-        return None
-    return float(returns.std(ddof=1) * math.sqrt(252))
-
-
-def max_drawdown(frame: pd.DataFrame, as_of: date | None = None, lookback: int = 252) -> float | None:
-    """Current drawdown from the rolling high in the selected lookback window."""
-    work = frame if as_of is None else frame[frame["date"].dt.date <= as_of]
-    if work.empty:
-        return None
-    values = work["value"].tail(lookback)
-    peak = values.cummax()
-    drawdowns = values / peak - 1.0
-    return float(drawdowns.min())
-
-
-def returns_by_windows(conn, symbol: str, windows: tuple[str, ...], as_of: date | None = None) -> dict[str, float | None]:
+def returns_by_windows(conn, symbol, windows, as_of=None):
     frame = _price_frame(conn, symbol, end=as_of)
     return {window: _rounded(period_return(frame, window, as_of), 6) for window in windows}
 
 
-def instrument_snapshot(conn, symbol: str, as_of: date | None = None) -> dict[str, Any]:
+def instrument_snapshot(conn, symbol, as_of=None):
     frame = _price_frame(conn, symbol, end=as_of)
-    if frame.empty:
+    if not frame:
         return {"symbol": symbol, "available": False}
-    latest = frame.iloc[-1]
-    windows = ("1d", "1w", "1m", "3m", "ytd", "1y")
-    return {
-        "symbol": symbol,
-        "date": latest["date"].date().isoformat(),
-        "value": _rounded(latest["value"]),
-        "price": _rounded(latest["close"]),
-        "adjusted_close": _rounded(latest["value"]),
-        "price_basis": "unadjusted_close",
-        "return_basis": "adjusted_close",
-        "observation_date": latest["date"].date().isoformat(),
-        **provenance(symbol),
-        "returns": {window: _rounded(period_return(frame, window, as_of), 6) for window in windows},
-        "volatility": {
-            "20d": _rounded(rolling_volatility(frame, 20, as_of), 6),
-            "60d": _rounded(rolling_volatility(frame, 60, as_of), 6),
-        },
-        "drawdown_52w": _rounded(max_drawdown(frame, as_of, 252), 6),
-        "moving_averages": {
-            "50d": _rounded(moving_average(frame, 50, as_of)),
-            "200d": _rounded(moving_average(frame, 200, as_of)),
-        },
-        "source": latest["source"],
-    }
+    latest = frame[-1]
+    return {"symbol": symbol, "date": latest["date"].isoformat(), "value": _rounded(latest["value"]),
+            "price": _rounded(latest["close"]), "adjusted_close": _rounded(latest["value"]),
+            "price_basis": "unadjusted_close", "return_basis": "adjusted_close", "observation_date": latest["date"].isoformat(),
+            **provenance(symbol),
+            "returns": {w: _rounded(period_return(frame, w, as_of), 6) for w in ("1d", "1w", "1m", "3m", "ytd", "1y")},
+            "volatility": {f"{w}d": _rounded(rolling_volatility(frame, w, as_of), 6) for w in (20, 60)},
+            "drawdown_52w": _rounded(max_drawdown(frame, as_of, 252), 6),
+            "moving_averages": {f"{w}d": _rounded(moving_average(frame, w, as_of)) for w in (50, 200)}, "source": latest["source"]}
 
 
-def sector_performance(conn, windows: tuple[str, ...], as_of: date | None = None) -> list[dict[str, Any]]:
-    spy = _price_frame(conn, "SPY", end=as_of)
+def sector_performance(conn, windows, as_of=None):
+    spy_frame = _price_frame(conn, "SPY", end=as_of)
+    spy = {w: period_return(spy_frame, w, as_of) for w in windows}
     rows = []
     for symbol in SECTOR_SYMBOLS:
         frame = _price_frame(conn, symbol, end=as_of)
-        returns = {window: _rounded(period_return(frame, window, as_of), 6) for window in windows}
-        spy_returns = {window: period_return(spy, window, as_of) for window in windows}
-        relative = {window: _rounded(returns[window] - spy_returns[window], 6)
-                    if returns[window] is not None and spy_returns[window] is not None else None
-                    for window in windows}
-        observed = frame.iloc[-1]["date"].date().isoformat() if not frame.empty else None
-        rows.append({"symbol": symbol, "returns": returns, "relative_to_spy": relative,
-                     "date": observed, "observation_date": observed,
-                     "source": frame.iloc[-1]["source"] if not frame.empty else None,
+        returns = {w: _rounded(period_return(frame, w, as_of), 6) for w in windows}
+        observed = frame[-1]["date"].isoformat() if frame else None
+        relative = {w: _rounded(returns[w] - spy[w], 6)
+                    if returns[w] is not None and spy[w] is not None else None for w in windows}
+        rows.append({"symbol": symbol, "returns": returns, "relative_to_spy": relative, "date": observed,
+                     "observation_date": observed, "source": frame[-1]["source"] if frame else None,
                      "return_basis": "adjusted_close", **provenance(symbol)})
-    primary_window = "1m" if "1m" in windows else windows[0]
-    rows.sort(key=lambda item: item["returns"].get(primary_window) if item["returns"].get(primary_window) is not None else -999)
+    primary = "1m" if "1m" in windows else windows[0]
+    rows.sort(key=lambda row: row["returns"].get(primary) if row["returns"].get(primary) is not None else -999)
     return list(reversed(rows))
 
 
-def latest_macro_value(conn, symbol: str, as_of: date | None = None) -> dict[str, Any] | None:
-    frame = _macro_frame(conn, symbol, end=as_of)
-    if frame.empty:
+def latest_macro_value(conn, symbol, as_of=None):
+    rows = _macro_frame(conn, symbol, end=as_of)
+    if not rows:
         return None
-    row = frame.iloc[-1]
-    return {"symbol": symbol, "date": row["date"].date().isoformat(), "value": _rounded(row["value"]), "source": row["source"], "observation_date": row["date"].date().isoformat(), **provenance(symbol)}
+    row = rows[-1]
+    return {"symbol": symbol, "date": row["date"].isoformat(), "value": _rounded(row["value"]), "source": row["source"],
+            "observation_date": row["date"].isoformat(), **provenance(symbol)}
 
 
-def macro_change(conn, symbol: str, periods: int = 21, as_of: date | None = None) -> float | None:
-    frame = _macro_frame(conn, symbol, end=as_of)
-    if len(frame) <= periods:
-        return None
-    return float(frame.iloc[-1]["value"] - frame.iloc[-periods - 1]["value"])
+def macro_change(conn, symbol, periods=21, as_of=None):
+    rows = _macro_frame(conn, symbol, end=as_of)
+    return rows[-1]["value"] - rows[-periods - 1]["value"] if len(rows) > periods else None
 
 
-def yield_curve(conn, as_of: date | None = None) -> dict[str, Any]:
-    maturities = []
-    values: dict[str, float] = {}
-    for symbol in RATE_SYMBOLS:
-        latest = latest_macro_value(conn, symbol, as_of)
-        if latest:
-            values[symbol] = float(latest["value"])
-            maturities.append(latest)
-    spreads = {}
-    if "DGS10" in values and "DGS2" in values:
-        spreads["10y_2y"] = _rounded(values["DGS10"] - values["DGS2"])
-    if "DGS10" in values and "DGS3MO" in values:
-        spreads["10y_3m"] = _rounded(values["DGS10"] - values["DGS3MO"])
-    if "DGS30" in values and "DGS10" in values:
-        spreads["30y_10y"] = _rounded(values["DGS30"] - values["DGS10"])
-    latest_curve_date = max((item["date"] for item in maturities), default=None)
-    return {"date": latest_curve_date, "maturities": maturities, "spreads": spreads,
+def yield_curve(conn, as_of=None):
+    maturities = [row for s in RATE_SYMBOLS if (row := latest_macro_value(conn, s, as_of))]
+    values = {row["symbol"]: row["value"] for row in maturities}
+    spreads = {name: _rounded(values[a] - values[b]) for name, a, b in
+               [("10y_2y", "DGS10", "DGS2"), ("10y_3m", "DGS10", "DGS3MO"), ("30y_10y", "DGS30", "DGS10")]
+               if a in values and b in values}
+    return {"date": max((r["date"] for r in maturities), default=None), "maturities": maturities, "spreads": spreads,
             "units": "percent", "spread_metadata": {
-                "10y_2y": {"label": "10Y Treasury minus 2Y futures-implied yield", "unit": "percentage_points",
-                            "is_cash_treasury_spread": False,
-                            "observation_dates": {s: next((m["date"] for m in maturities if m["symbol"] == s), None) for s in ("DGS10", "DGS2")}},
-                "10y_3m": {"label": "10Y Treasury minus 3M discount yield", "unit": "percentage_points"},
-            }}
+                "10y_2y": {"label": "10Y Treasury minus 2Y futures-implied yield", "unit": "percentage_points", "is_cash_treasury_spread": False,
+                           "observation_dates": {s: next((m["date"] for m in maturities if m["symbol"] == s), None) for s in ("DGS10", "DGS2")}},
+                "10y_3m": {"label": "10Y Treasury minus 3M discount yield", "unit": "percentage_points"}}}
 
 
-def dashboard_market_blocks(conn, as_of: date | None = None) -> dict[str, Any]:
+def dashboard_market_blocks(conn, as_of=None):
     sectors = sector_performance(conn, ("1d", "1w", "1m", "3m", "ytd", "1y"), as_of)
-    sector_with_1m = [row for row in sectors if row["returns"].get("1m") is not None]
-    return {
-        "indices": [instrument_snapshot(conn, symbol, as_of) for symbol in INDEX_SYMBOLS],
-        "sectors": sectors,
-        "sector_leaders": sector_with_1m[:3],
-        "sector_laggards": list(reversed(sector_with_1m[-3:])),
-        "commodities": [instrument_snapshot(conn, symbol, as_of) for symbol in COMMODITY_SYMBOLS],
-        "volatility": instrument_snapshot(conn, "VIX", as_of),
-        "rates": yield_curve(conn, as_of),
-    }
+    ranked = [row for row in sectors if row["returns"].get("1m") is not None]
+    return {"indices": [instrument_snapshot(conn, s, as_of) for s in INDEX_SYMBOLS], "sectors": sectors,
+            "sector_leaders": ranked[:3], "sector_laggards": list(reversed(ranked[-3:])),
+            "commodities": [instrument_snapshot(conn, s, as_of) for s in COMMODITY_SYMBOLS],
+            "volatility": instrument_snapshot(conn, "VIX", as_of), "rates": yield_curve(conn, as_of)}
 
 
-def indexed_performance(conn, as_of: date, window: str = "1m") -> list[dict[str, Any]]:
-    """Rebase common index observations to 100 over the selected window."""
-    columns = {}
-    for symbol in INDEX_SYMBOLS:
-        frame = _price_frame(conn, symbol, end=as_of)
-        if frame.empty:
-            return []
-        columns[symbol] = frame.set_index("date")["value"]
-    frame = pd.DataFrame(columns).dropna()
-    if frame.empty:
+def indexed_performance(conn, as_of, window="1m"):
+    columns = {s: {row["date"]: row["value"] for row in _price_frame(conn, s, end=as_of)} for s in INDEX_SYMBOLS}
+    dates = sorted(set.intersection(*(set(column) for column in columns.values())))
+    if not dates:
         return []
     if window == "1d":
-        frame = frame.tail(2)
+        dates = dates[-2:]
     else:
-        anchor = calendar_anchor(frame.index[-1].date(), window)
-        bases = frame[frame.index <= anchor]
-        if bases.empty:
+        anchor = calendar_anchor(dates[-1], window)
+        bases = [day for day in dates if day <= anchor]
+        if not bases:
             return []
-        frame = frame[frame.index >= bases.index[-1]]
-    if frame.empty or (frame.iloc[0] == 0).any():
-        return []
-    indexed = frame.div(frame.iloc[0]).mul(100)
-    return [{"date": observed.date().isoformat(), **{symbol: round(value, 4) for symbol, value in row.items()}}
-            for observed, row in indexed.iterrows()]
+        dates = [day for day in dates if day >= bases[-1]]
+    return [{"date": day.isoformat(), **{s: round(column[day] / column[dates[0]] * 100, 4) for s, column in columns.items()}} for day in dates]

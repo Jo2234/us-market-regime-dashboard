@@ -27,6 +27,8 @@ type BackendSummary = {
   as_of: string;
   data_mode?: "live" | "snapshot" | "demo";
   fetched_at?: string;
+  cache?: "hit" | "miss" | "stale";
+  retry_after_seconds?: number;
   regime: {
     regime_label: string;
     confidence: "low" | "medium" | "high";
@@ -75,33 +77,81 @@ type BackendSummary = {
   };
 };
 
-export async function fetchDashboardData(date: string, range: RangeKey): Promise<DashboardData> {
+type FetchOptions = { signal?: AbortSignal; onCached?: (data: DashboardData) => void };
+const STORAGE_KEY = "market-regime-real-snapshot-v1";
+
+function verified(payload: BackendSummary): DashboardData {
+  const sources = [...(payload.data_freshness.sources ?? []), ...payload.data_freshness.instruments];
+  if (payload.data_mode === "demo" || sources.some(item => item.source === "demo_seed")) {
+    throw new Error("The API returned synthetic data; real market observations are required");
+  }
+  return adaptBackendSummary(payload);
+}
+
+export async function fetchDashboardData(date: string, range: RangeKey, options: FetchOptions = {}): Promise<DashboardData> {
   if (USE_DEMO_DATA) {
     const { demoDashboardData } = await import("./demoData");
     return markDemo(demoDashboardData, "Demo mode enabled with VITE_USE_DEMO_DATA=true.");
   }
-
+  let finished = false;
+  let bootstrap: Promise<void> | undefined;
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  options.signal?.addEventListener("abort", abort, { once: true });
+  if (options.signal?.aborted) abort();
+  const timeout = window.setTimeout(abort, 25_000);
   try {
     const url = new URL(`${API_BASE_URL}/dashboard/summary`, window.location.origin);
     if (date) url.searchParams.set("date", date);
     url.searchParams.set("range", range.toLowerCase());
-    const response = await fetch(url.toString(), {
-      headers: { Accept: "application/json" }
-    });
-
-    if (!response.ok) {
-      throw new Error(`API returned ${response.status}`);
+    const read = async (target: URL) => {
+      const response = await fetch(target.toString(), { headers: { Accept: "application/json" }, signal: controller.signal });
+      if (!response.ok) throw new Error(`API returned ${response.status}`);
+      const payload = await response.json() as BackendSummary;
+      verified(payload);
+      return payload;
+    };
+    // Development-only visual checks use the real local snapshot, never example numbers.
+    const qa = import.meta.env.DEV && import.meta.env.VITE_ENABLE_QA === "true"
+      ? new URLSearchParams(window.location.search).get("qa") : null;
+    if (qa === "error") throw new Error("Local failure simulation: the data service is unavailable");
+    if (qa === "skeleton") await new Promise(resolve => window.setTimeout(resolve, 60_000));
+    if (options.onCached) {
+      let stored = false;
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
+        if (saved?.key === `${date}:${range}` && ["live", "snapshot"].includes(saved.payload.data_mode)) {
+          options.onCached(verified(saved.payload));
+          stored = true;
+        }
+      } catch { /* Storage is optional; blocked/quota/corrupt storage cannot break live data. */ }
+      if (!stored) {
+        const cachedUrl = new URL(url); cachedUrl.searchParams.set("cached_only", "true");
+        bootstrap = read(cachedUrl).then(payload => {
+          if (!finished && !controller.signal.aborted) options.onCached?.(verified(payload));
+        }).catch(() => { /* The normal request below owns the error state. */ });
+      }
     }
-
-    const payload = (await response.json()) as BackendSummary;
-    const sources = [...(payload.data_freshness.sources ?? []), ...payload.data_freshness.instruments];
-    if (import.meta.env.PROD && (payload.data_mode === "demo" || sources.some(item => item.source === "demo_seed"))) {
-      throw new Error("The API returned synthetic data; production requires real market observations");
+    if (qa === "background" || qa === "stale") {
+      await bootstrap;
+      if (qa === "stale") throw new Error("Local failure simulation: live refresh unavailable");
+      await new Promise(resolve => window.setTimeout(resolve, 60_000));
     }
-    return adaptBackendSummary(payload);
+    const payload = await read(url);
+    finished = true;
+    if (["live", "snapshot"].includes(payload.data_mode ?? "")) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ key: `${date}:${range}`, payload })); } catch { /* Optional cache. */ }
+    }
+    return verified(payload);
   } catch (error) {
+    await bootstrap;
     const message = error instanceof Error ? error.message : "Unknown API error";
     throw new Error(`Live data unavailable (${message}). Please retry later.`);
+  } finally {
+    finished = true;
+    window.clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", abort);
+    controller.abort();
   }
 }
 
@@ -154,6 +204,9 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
       note: "Computed from stored regime classifications."
     })),
     breadth: [],
+    fetchedAt: payload.fetched_at,
+    cache: payload.cache,
+    retryAfterSeconds: payload.retry_after_seconds,
     generatedAt: payload.data_freshness.generated_at,
     selectedDate: payload.as_of,
     sourceMode: "api",
