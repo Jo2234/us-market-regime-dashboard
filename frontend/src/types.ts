@@ -114,6 +114,9 @@ export interface AnalystNote {
 }
 
 export interface DashboardData {
+  fetchedAt?: string;
+  cache?: "hit" | "miss" | "stale";
+  retryAfterSeconds?: number;
   generatedAt: string;
   selectedDate: string;
   sourceMode: "api" | "demo";

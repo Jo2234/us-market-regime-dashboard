@@ -1,29 +1,29 @@
-"""Completed US equity sessions, including holidays, DST and early closes."""
-from datetime import datetime, timedelta, timezone
+"""Completed US equity sessions from a checked-in exchange_calendars schedule."""
+import bisect
+import json
+from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
-
-import exchange_calendars as xcals
-import pandas as pd
+from pathlib import Path
 
 
-@lru_cache(maxsize=8)
-def market_calendar(year: int):
-    return xcals.get_calendar("XNYS", start=f"{year - 6}-01-01", end=f"{year + 1}-12-31")
+@lru_cache(maxsize=1)
+def _schedule():
+    payload = json.loads((Path(__file__).resolve().parents[1] / "data/nyse_sessions.json").read_text())
+    return ([date.fromisoformat(row[0]) for row in payload["sessions"]],
+            [row[1] for row in payload["sessions"]], date.fromisoformat(payload["valid_through"]))
 
 
 def latest_completed_session(now: datetime | None = None):
     now = now or datetime.now(timezone.utc)
-    calendar = market_calendar(now.year)
-    # Allow 30 minutes after the exchange close for final daily bars to settle.
-    cutoff = pd.Timestamp(now - timedelta(minutes=30))
-    completed = calendar.schedule[calendar.schedule["close"] <= cutoff]
-    return completed.index[-1].date()
+    dates, closes, valid_through = _schedule()
+    if now.date() > valid_through:
+        raise ValueError("NYSE schedule expired; run scripts/refresh_calendar.py")
+    index = bisect.bisect_right(closes, (now - timedelta(minutes=30)).timestamp()) - 1
+    if index < 0:
+        raise ValueError("No completed session in the supported calendar")
+    return dates[index]
 
 
 def missed_sessions(observed, expected) -> int:
-    if observed >= expected:
-        return 0
-    sessions = market_calendar(expected.year).sessions_in_range(
-        max(pd.Timestamp(observed), pd.Timestamp(f"{expected.year - 6}-01-01")), pd.Timestamp(expected)
-    )
-    return sum(day.date() > observed for day in sessions)
+    dates, _, _ = _schedule()
+    return max(0, bisect.bisect_right(dates, expected) - bisect.bisect_right(dates, observed))
