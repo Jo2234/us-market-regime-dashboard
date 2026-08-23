@@ -4,6 +4,9 @@ from __future__ import annotations
 import asyncio
 import math
 import os
+import time
+
+from app.core.telemetry import log_event
 from datetime import date, datetime, timezone
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
@@ -55,11 +58,18 @@ def normalize_chart(symbol: str, payload: dict, cutoff: date) -> list[dict]:
     return [bars[day] for day in sorted(bars)]
 
 
-async def fetch_chart(client: httpx.AsyncClient, ticker: str) -> dict:
+async def fetch_chart(client: httpx.AsyncClient, ticker: str, *, stats=None, history_range="2y") -> dict:
+    stats = stats if stats is not None else {}
+    stats.update(attempts=0, retries=0, http_429=0, http_401=0, http_5xx=0)
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(ticker, safe='')}"
     for attempt in range(3):
         try:
-            response = await client.get(url, params={"range": "2y", "interval": "1d"})
+            stats["attempts"] += 1
+            stats["retries"] = attempt
+            response = await client.get(url, params={"range": history_range, "interval": "1d"})
+            stats["http_429"] += response.status_code == 429
+            stats["http_401"] += response.status_code == 401
+            stats["http_5xx"] += response.status_code >= 500
             response.raise_for_status()
             return response.json()
         except (httpx.HTTPError, ValueError) as exc:
@@ -69,7 +79,9 @@ async def fetch_chart(client: httpx.AsyncClient, ticker: str) -> dict:
     raise AssertionError("unreachable")
 
 
-async def fetch_snapshot(*, fixture_dir=None) -> dict:
+async def fetch_snapshot(*, fixture_dir=None, history_range="2y") -> dict:
+    started = time.perf_counter()
+    telemetry = {"symbols": {}, "history_range": history_range}
     if os.getenv("MARKET_REGIME_FORCE_YAHOO_FAILURE") == "1":
         raise YahooUnavailable("Yahoo failure simulation enabled")
     now = datetime.now(timezone.utc)
@@ -78,8 +90,14 @@ async def fetch_snapshot(*, fixture_dir=None) -> dict:
     async with httpx.AsyncClient(headers={"User-Agent": USER_AGENT}, timeout=4, follow_redirects=True) as client:
         async def fetch_one(symbol, ticker):
             async with semaphore:
-                payload = await fetch_chart(client, ticker)
-                bars = normalize_chart(symbol, payload, cutoff)
+                stats = telemetry["symbols"][symbol] = {}
+                symbol_started = time.perf_counter()
+                try:
+                    payload = await fetch_chart(client, ticker, stats=stats, history_range=history_range)
+                    bars = normalize_chart(symbol, payload, cutoff)
+                    stats["ok"] = True
+                finally:
+                    stats["ms"] = round((time.perf_counter() - symbol_started) * 1000, 2)
                 if fixture_dir:
                     import json
                     (fixture_dir / f"{symbol}.json").write_text(json.dumps(payload, separators=(",", ":")) + "\n")
@@ -89,4 +107,9 @@ async def fetch_snapshot(*, fixture_dir=None) -> dict:
             results = await asyncio.wait_for(asyncio.gather(*(fetch_one(s, t) for s, t in YAHOO_TICKERS.items())), timeout=18)
         except TimeoutError as exc:
             raise YahooUnavailable("Yahoo batch exceeded 18 seconds") from exc
-    return {"version": 1, "fetched_at": now.isoformat(), "series": dict(results)}
+        finally:
+            telemetry["fetch_ms"] = round((time.perf_counter() - started) * 1000, 2)
+            for key in ("attempts", "retries", "http_429", "http_401", "http_5xx"):
+                telemetry[key] = sum(stats.get(key, 0) for stats in telemetry["symbols"].values())
+            log_event("yahoo_fetch", **telemetry)
+    return {"version": 1, "fetched_at": now.isoformat(), "series": dict(results), "_telemetry": telemetry}

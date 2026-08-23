@@ -1,3 +1,5 @@
+from app.core import telemetry
+import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,7 +17,15 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def cache_headers(request, call_next):
+        started = time.perf_counter()
+        telemetry.REQUEST_COUNT += 1
+        count = telemetry.REQUEST_COUNT
         response = await call_next(request)
+        elapsed = (time.perf_counter() - started) * 1000
+        response.headers["Server-Timing"] = f"app;dur={elapsed:.2f}, import;dur={telemetry.IMPORT_MS:.2f}"
+        response.headers["X-Market-Instance"] = telemetry.INSTANCE_ID
+        response.headers["X-Market-Request"] = str(count)
+        telemetry.log_event("api_request", instance=telemetry.INSTANCE_ID, request=count, app_ms=round(elapsed, 2))
         response.headers["Cache-Control"] = (
             "public, max-age=0, s-maxage=900, stale-while-revalidate=3600"
             if request.method == "GET" and response.status_code == 200
@@ -26,3 +36,5 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+telemetry.IMPORT_MS = (time.perf_counter() - telemetry.IMPORT_STARTED) * 1000
