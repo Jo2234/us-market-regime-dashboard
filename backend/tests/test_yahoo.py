@@ -128,6 +128,7 @@ def test_kill_flag_uses_file_then_503_without_snapshot(monkeypatch, tmp_path, cl
         assert response.json()["data_mode"] == "snapshot"
         assert "demo_seed" not in response.text
         monkeypatch.setattr(market_data, "_cached", None)
+        monkeypatch.setattr(market_data, "_expires", 0)
         monkeypatch.setattr(market_data, "SNAPSHOT_PATH", tmp_path / "missing.json")
         response = client.get("/api/dashboard/summary")
         assert response.status_code == 503
@@ -151,3 +152,88 @@ def test_snapshot_rejects_synthetic_and_short_history(yahoo_snapshot):
     yahoo_snapshot["series"]["SPY"]["source"] = "demo_seed"
     with pytest.raises(ValueError, match="provenance"):
         market_data.validate_snapshot(yahoo_snapshot)
+
+
+def test_standard_library_analytics_match_recorded_regression(empty_conn, yahoo_snapshot):
+    from app.services import regime
+    market_data.populate_database(empty_conn, yahoo_snapshot, "live")
+    history = analytics.MarketHistory(empty_conn)
+    expected = json.loads((FIXTURES / "analytics_regression.json").read_text())
+    for day, reference in expected.items():
+        observed = date.fromisoformat(day)
+        actual = {"blocks": analytics.dashboard_market_blocks(history, observed),
+                  "regime": regime.classify_regime(empty_conn, observed, history=history),
+                  "charts": {w: analytics.indexed_performance(history, observed, w) for w in ("1d", "1w", "1m", "3m", "ytd", "1y")}}
+        assert actual == reference
+
+
+def test_bootstrap_never_fetches_or_waits_for_refresh(monkeypatch, clear_cache):
+    def forbidden():
+        raise AssertionError("Bootstrap must not contact Yahoo")
+    monkeypatch.setattr(market_data, "fetch_snapshot", forbidden)
+    market_data._lock.acquire()
+    try:
+        snapshot, mode = market_data.get_snapshot(cached_only=True)
+    finally:
+        market_data._lock.release()
+    assert mode == "snapshot"
+    assert snapshot["_delivery"]["refresh_pending"]
+    assert all(row["source"] == "yahoo_finance" for row in snapshot["series"].values())
+
+
+def test_concurrent_visitors_share_one_refresh(monkeypatch, clear_cache, yahoo_snapshot):
+    from concurrent.futures import ThreadPoolExecutor
+    calls = []
+    async def fetch():
+        calls.append(1)
+        await asyncio.sleep(.02)
+        return copy.deepcopy(yahoo_snapshot)
+    monkeypatch.setattr(market_data, "fetch_snapshot", fetch)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda _: market_data.get_snapshot(), range(8)))
+    assert len(calls) == 1
+    assert [item[0]["_delivery"]["cache"] for item in results].count("miss") == 1
+
+
+def test_rate_limit_cooldown_and_failure_telemetry(monkeypatch, clear_cache):
+    import time
+    calls = []
+    async def fail():
+        calls.append(1)
+        raise YahooUnavailable("Rate limited", {"fetch_ms": 42, "http_429": 3, "http_401": 0, "retries": 2})
+    monkeypatch.setattr(market_data, "fetch_snapshot", fail)
+    first, mode = market_data.get_snapshot()
+    assert mode == "snapshot"
+    assert first["_delivery"]["fetch_ms"] == 42
+    assert first["_telemetry"]["http_429"] == 3
+    for _ in range(5):
+        subsequent, mode = market_data.get_snapshot()
+        assert subsequent["_delivery"]["cache"] == "stale"
+        assert subsequent["_delivery"]["fetch_ms"] == 0
+    assert len(calls) == 1
+    assert market_data._expires - time.monotonic() > 890
+
+
+def test_failed_refresh_without_fallback_also_has_cooldown(monkeypatch, clear_cache, tmp_path):
+    calls = []
+    async def fail():
+        calls.append(1)
+        raise YahooUnavailable("Unavailable")
+    monkeypatch.setattr(market_data, "fetch_snapshot", fail)
+    monkeypatch.setattr(market_data, "SNAPSHOT_PATH", tmp_path / "missing.json")
+    for _ in range(3):
+        with pytest.raises(market_data.DataUnavailable):
+            market_data.get_snapshot()
+    assert len(calls) == 1
+
+
+def test_401_fails_without_retry_and_reports_status():
+    stats = {}
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda request: httpx.Response(401))) as client:
+            await fetch_chart(client, "SPY", stats=stats)
+    with pytest.raises(YahooUnavailable):
+        asyncio.run(run())
+    assert stats["attempts"] == 1
+    assert stats["http_401"] == 1
+    assert stats["retries"] == 0
