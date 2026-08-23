@@ -44,6 +44,9 @@ class FreshnessResponse(BaseModel):
 
 
 class DashboardSummaryResponse(BaseModel):
+    fetch_ms: float = 0
+    cache: str = "stale"
+    fetch_diagnostics: dict[str, Any] = {}
     data_mode: str | None = None
     fetched_at: str | None = None
     currency_summary: dict[str, Any] = {}
