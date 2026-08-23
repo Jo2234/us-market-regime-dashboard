@@ -1,0 +1,280 @@
+{
+  "deployment": "dpl_HADHg5ZnTstZ3Yvb4fVqgSfks8Vg",
+  "sha": "1cdbc5b",
+  "note": "Full Chrome User-Agent received 429s; stopped batch and restored previously verified minimal browser User-Agent. Dashboard served real snapshot.",
+  "batches": [
+    {
+      "event": "yahoo_fetch",
+      "symbols": {
+        "SPY": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1202.42
+        },
+        "QQQ": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1201.72
+        },
+        "IWM": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1201.35
+        },
+        "DIA": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1201.01
+        },
+        "XLK": {
+          "attempts": 3,
+          "retries": 2,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1201.68
+        },
+        "XLF": {
+          "attempts": 3,
+          "retries": 2,
+          "http_429": 3,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1199.13
+        },
+        "XLE": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1199.82
+        },
+        "XLV": {
+          "attempts": 3,
+          "retries": 2,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1200.57
+        },
+        "XLY": {
+          "attempts": 1,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 0.88
+        }
+      },
+      "history_range": "5d",
+      "fetch_ms": 1209.65,
+      "attempts": 20,
+      "retries": 11,
+      "http_429": 17,
+      "http_401": 0,
+      "http_5xx": 0,
+      "ok": false
+    },
+    {
+      "event": "yahoo_fetch",
+      "symbols": {
+        "SPY": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1110.11
+        },
+        "QQQ": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1109.43
+        },
+        "IWM": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1109.07
+        },
+        "DIA": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1108.49
+        },
+        "XLK": {
+          "attempts": 1,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "ms": 42.31
+        },
+        "XLF": {
+          "attempts": 1,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ok": true,
+          "ms": 46.25
+        },
+        "XLE": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1107.42
+        },
+        "XLV": {
+          "attempts": 3,
+          "retries": 2,
+          "http_429": 3,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1106.03
+        },
+        "XLY": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1065.35
+        },
+        "XLP": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1061.44
+        },
+        "XLI": {
+          "attempts": 1,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 0.97
+        }
+      },
+      "history_range": "2y",
+      "fetch_ms": 1116.72,
+      "attempts": 20,
+      "retries": 9,
+      "http_429": 17,
+      "http_401": 0,
+      "http_5xx": 0,
+      "ok": false
+    },
+    {
+      "event": "yahoo_fetch",
+      "symbols": {
+        "SPY": {
+          "attempts": 3,
+          "retries": 2,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1193.41
+        },
+        "QQQ": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1191.55
+        },
+        "IWM": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1191.1
+        },
+        "DIA": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1190.71
+        },
+        "XLK": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1190.34
+        },
+        "XLF": {
+          "attempts": 3,
+          "retries": 2,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1190.78
+        },
+        "XLE": {
+          "attempts": 3,
+          "retries": 2,
+          "http_429": 3,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1188.22
+        },
+        "XLV": {
+          "attempts": 2,
+          "retries": 1,
+          "http_429": 2,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1189.33
+        },
+        "XLY": {
+          "attempts": 1,
+          "retries": 0,
+          "http_429": 0,
+          "http_401": 0,
+          "http_5xx": 0,
+          "ms": 1.15
+        }
+      },
+      "history_range": "2y",
+      "fetch_ms": 1252.47,
+      "attempts": 20,
+      "retries": 11,
+      "http_429": 17,
+      "http_401": 0,
+      "http_5xx": 0,
+      "ok": false
+    }
+  ]
+}
