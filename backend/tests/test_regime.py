@@ -63,10 +63,10 @@ def test_backfill_matches_sequential_classification_with_bounded_queries(seeded_
     seeded_conn.commit()
     seeded_conn.backup(reference)
     try:
-        dates = analytics._price_frame(reference, "SPY")["date"].tail(20)
+        dates = [row["date"] for row in analytics._price_frame(reference, "SPY")[-20:]]
         expected = []
         for timestamp in dates:
-            snapshot = classify_regime(reference, timestamp.date())
+            snapshot = classify_regime(reference, timestamp)
             save_regime_snapshot(reference, snapshot)
             expected.append(snapshot)
         queries = []

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchDashboardData } from "./api";
@@ -14,6 +14,7 @@ const mockedFetchDashboardData = vi.mocked(fetchDashboardData);
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.useRealTimers();
 });
 
 describe("App dashboard states", () => {
@@ -149,8 +150,9 @@ it("keeps period and series controls available when chart observations are missi
     await screen.findByRole("img", { name: "Indexed performance chart" }),
   ).toBeInTheDocument();
   expect(mockedFetchDashboardData).toHaveBeenLastCalledWith(
-    demoDashboardData.selectedDate,
+    "",
     "3M",
+    expect.objectContaining({ signal: expect.any(AbortSignal), onCached: expect.any(Function) }),
   );
   for (const name of ["QQQ", "IWM", "DIA"]) {
     await userEvent.click(screen.getByRole("button", { name }));
@@ -208,4 +210,68 @@ it.each(["live", "snapshot"] as const)("renders the %s chip with the real date",
   const label = mode === "live" ? "Live · Yahoo Finance · as of 2026-09-28" : "Snapshot · as of 2026-09-28";
   expect((await screen.findAllByText(label)).length).toBeGreaterThan(0);
   expect(screen.getByText(/2Y is futures-implied/)).toBeInTheDocument();
+});
+
+// Deferred responses exercise the visible intermediate states, not just final HTML.
+it("shows the dashboard skeleton and changes the status after four seconds", async () => {
+  vi.useFakeTimers();
+  mockedFetchDashboardData.mockImplementation(() => new Promise(() => {}));
+  render(<App />);
+  expect(screen.getByLabelText("Loading market dashboard")).toHaveAttribute("aria-busy", "true");
+  expect(screen.getByRole("status")).toHaveTextContent("Fetching the latest market data from Yahoo Finance");
+  await act(async () => { vi.advanceTimersByTime(4000); });
+  expect(screen.getByRole("status")).toHaveTextContent("Still fetching, Yahoo can be slow at times");
+  expect(screen.queryByText("$0.00")).not.toBeInTheDocument();
+  vi.useRealTimers();
+});
+
+it("renders a real cached snapshot immediately and replaces it after background refresh", async () => {
+  let finish!: (value: typeof demoDashboardData) => void;
+  const cached = { ...demoDashboardData, sourceMode: "api" as const, fetchedAt: "2026-09-29T13:00:00Z", selectedDate: "2026-09-28", provenance: { ...demoDashboardData.provenance!, mode: "snapshot" as const } };
+  mockedFetchDashboardData.mockImplementation((_date, _range, options) => {
+    options?.onCached?.(cached);
+    return new Promise(resolve => { finish = resolve; });
+  });
+  render(<App />);
+  expect(await screen.findByText("Updating with the latest numbers…")).toBeInTheDocument();
+  expect(screen.getByLabelText("Market overview")).toHaveAttribute("aria-busy", "true");
+  const live = { ...cached, provenance: { ...cached.provenance, mode: "live" as const } };
+  await act(async () => finish(live));
+  expect(screen.queryByText("Updating with the latest numbers…")).not.toBeInTheDocument();
+  expect(screen.getAllByText("Live · Yahoo Finance · as of 2026-09-28").length).toBeGreaterThan(0);
+  expect(screen.getByLabelText("Market overview")).toHaveAttribute("aria-busy", "false");
+});
+
+it("retains last data on failure and automatically retries with increasing delays", async () => {
+  vi.useFakeTimers();
+  const cached = { ...demoDashboardData, sourceMode: "api" as const, selectedDate: "2026-09-28", provenance: { ...demoDashboardData.provenance!, mode: "snapshot" as const } };
+  mockedFetchDashboardData.mockImplementation((_date, _range, options) => {
+    options?.onCached?.(cached);
+    return Promise.reject(new Error("offline"));
+  });
+  render(<App />);
+  await act(async () => {});
+  expect(screen.getByText(/Showing close of 2026-09-28; live refresh unavailable/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Refresh data" })).toBeEnabled();
+  expect(screen.getByLabelText("Market overview")).toBeInTheDocument();
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(1);
+  await act(async () => { vi.advanceTimersByTime(5000); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(2);
+  await act(async () => { vi.advanceTimersByTime(9999); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(2);
+  await act(async () => { vi.advanceTimersByTime(1); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(3);
+  vi.useRealTimers();
+});
+
+it("respects the server cooldown for a rate-limited snapshot", async () => {
+  vi.useFakeTimers();
+  mockedFetchDashboardData.mockResolvedValue({ ...demoDashboardData, retryAfterSeconds: 900, provenance: { ...demoDashboardData.provenance!, mode: "snapshot" } });
+  render(<App />);
+  await act(async () => {});
+  await act(async () => { vi.advanceTimersByTime(899_999); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(1);
+  await act(async () => { vi.advanceTimersByTime(1); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(2);
+  vi.useRealTimers();
 });
