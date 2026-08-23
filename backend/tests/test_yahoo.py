@@ -91,7 +91,8 @@ def test_calendar_windows(window, dates, expected):
     assert analytics.period_return(frame, window) == pytest.approx(expected)
 
 
-def test_live_cache_fallback_and_production_demo_guard(monkeypatch, clear_cache, yahoo_snapshot):
+def test_live_cache_fallback_and_production_demo_guard(monkeypatch, tmp_path, clear_cache, yahoo_snapshot):
+    monkeypatch.setattr(market_data, "SNAPSHOT_PATH", tmp_path / "absent.json")
     calls = []
     async def fetch():
         calls.append(True)
