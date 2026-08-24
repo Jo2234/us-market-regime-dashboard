@@ -179,3 +179,15 @@ it("never accepts a synthetic persisted snapshot when the network fails", async 
   expect(cached).not.toHaveBeenCalled();
   localStorage.clear();
 });
+
+it("preserves FRED provenance, observation cadence and per-card fallback", async () => {
+  const api = await productionApi();
+  const input = summary();
+  input.macro_summary = { FEDFUNDS: { value: 3.88, source: "fred", fred_series_id: "DFF", frequency: "daily", observation_date: "2026-09-25", mode: "snapshot" } };
+  input.data_freshness.instruments = [{ symbol: "FEDFUNDS", asset_class: "macro", source: "fred", fred_series_id: "DFF", source_url: "https://fred.stlouisfed.org/series/DFF", latest_date: "2026-09-25", age_days: 4, is_stale: false }];
+  const result = api.adaptBackendSummary(input);
+  expect(result.macro?.FEDFUNDS).toEqual(input.macro_summary.FEDFUNDS);
+  expect(result.freshness[0].status).toBe("fresh");
+  expect(result.provenance?.observations?.[0].url).toBe("https://fred.stlouisfed.org/series/DFF");
+  expect(result.optionalProvidersMissing).not.toContain("CPI, unemployment and Fed funds (no Yahoo equivalent)");
+});

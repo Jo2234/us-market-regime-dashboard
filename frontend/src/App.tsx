@@ -209,6 +209,7 @@ export default function App() {
           />
           <YieldCurvePanel data={data} />
         </div>
+        <MacroPanel data={data} loading={loading} onRefresh={() => setReloadTick(value => value + 1)} />
         <div className="dashboard-grid third-row">
           <SectorHeatmap data={data} />
           <div className="cross-asset-stack">
@@ -513,6 +514,7 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
         <p>{provenance.description}</p>
         <p>Price = unadjusted last daily close. Returns and indexed charts use Yahoo adjusted closes (splits and distributions). 1D uses the previous observation; 1W, 1M, 3M and 1Y use the close on or before the same calendar date earlier (7 days, 1 month, 3 months, 1 year). YTD starts at the last close of the prior year. Month-end dates clamp to the last day of the target month. Missing history displays n/a.</p>
         <p>Yahoo is an unofficial data service and may rate-limit. Instance and CDN caches last 15 minutes; the CDN may serve an older response for another hour while refreshing. A scheduled Yahoo snapshot is the labelled fallback. Observation dates are preserved.</p>
+        <p>Macro indicators come from FRED, with a separate six-hour cache and per-series snapshot fallback. Fed funds uses daily DFF; the monthly FEDFUNDS average is secondary context. Headline and core CPI YoY equal 100 × (this month’s seasonally adjusted index / the same month one year earlier − 1), using CPIAUCSL and CPILFESL. Monthly dates identify observation months, not release dates. Historical macro values use the latest revised vintage, not point-in-time releases.</p>
       </div>
       <div>
         <span>Selected {formatDate(provenance.selectedDate)}</span>
@@ -520,7 +522,7 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
         <span>{provenance.freshnessPolicy}</span>
       </div>
       {provenance.observations && <ul aria-label="Series observation dates">
-        {provenance.observations.map(item => <li key={item.symbol}>{item.symbol} · {item.ticker} · {item.date ?? "unavailable"}</li>)}
+        {provenance.observations.map(item => <li key={item.symbol}>{item.symbol} · {item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.ticker}</a> : item.ticker} · {item.date ?? "unavailable"}</li>)}
       </ul>}
       {provenance.sources.length > 0 && (
         <ul>
@@ -943,6 +945,32 @@ function PerformanceChart({
   );
 }
 
+function MacroPanel({ data, loading, onRefresh }: { data: DashboardData; loading: boolean; onRefresh: () => void }) {
+  const cards = [
+    ["FEDFUNDS", "Effective Fed funds", "DFF", "Daily"],
+    ["CPI_YOY", "Headline CPI YoY", "CPIAUCSL", "Monthly · seasonally adjusted"],
+    ["CORE_CPI_YOY", "Core CPI YoY", "CPILFESL", "Monthly · seasonally adjusted"],
+    ["UNRATE", "Unemployment", "UNRATE", "Monthly · seasonally adjusted"],
+  ];
+  const monthly = data.macro?.FEDFUNDS_MONTHLY;
+  return <article className="panel macro-panel" aria-labelledby="macro-title" aria-busy={loading}>
+    <div className="panel-header"><div><span className="eyebrow">The economy</span><h2 id="macro-title">Macro indicators</h2></div>
+      <button className="command-button" onClick={onRefresh} disabled={loading} aria-label="Refresh macro data"><RefreshCw size={14} className={loading ? "spinning" : ""} aria-hidden="true" />Refresh</button>
+    </div>
+    <p className="chart-note" role="status" aria-live="polite">{loading ? "Updating macro observations…" : "FRED · Daily and monthly releases, each with its own observation date."}</p>
+    <div className="macro-grid">{cards.map(([symbol, label, series, frequency]) => {
+      const item = data.macro?.[symbol];
+      return <section className="macro-card" key={symbol} aria-label={label}>
+        <h3>{label}</h3><strong className="macro-value">{item ? `${formatNumber(item.value, 2)}%` : "Unavailable"}</strong>
+        <p>{item?.observation_label ?? item?.observation_date ?? "No observation available"}</p>
+        <a href={`https://fred.stlouisfed.org/series/${series}`} target="_blank" rel="noreferrer">FRED: {series}</a><span className="macro-frequency">{frequency}</span>
+        <p className="macro-notice">{!item ? "Live refresh unavailable; retrying." : item.mode === "snapshot" ? `Snapshot · ${item.observation_label ?? item.observation_date}; live refresh unavailable, retrying.` : item.is_stale ? "Observation is behind its publication window." : "Latest supplied observation"}</p>
+        {symbol === "FEDFUNDS" && monthly && <p className="macro-secondary">Monthly average: {formatNumber(monthly.value, 2)}% · {monthly.observation_label} · <a href="https://fred.stlouisfed.org/series/FEDFUNDS" target="_blank" rel="noreferrer">FEDFUNDS</a>{monthly.mode === "snapshot" ? " · Snapshot" : ""}</p>}
+      </section>;
+    })}</div>
+  </article>;
+}
+
 function YieldCurvePanel({ data }: { data: DashboardData }) {
   const points = data.rates.points;
 
@@ -987,20 +1015,7 @@ function YieldCurvePanel({ data }: { data: DashboardData }) {
           </span>
         )}
       </div>
-      <dl className="compact-kpis">
-        <div>
-          <dt>Fed Funds</dt>
-          <dd>{data.rates.fedFundsRate === null ? "n/a" : `${formatNumber(data.rates.fedFundsRate, 2)}%`}</dd>
-        </div>
-        <div>
-          <dt>CPI YoY</dt>
-          <dd>{data.rates.cpiYoY === null ? "n/a" : `${formatNumber(data.rates.cpiYoY, 1)}%`}</dd>
-        </div>
-        <div>
-          <dt>Unemp.</dt>
-          <dd>{data.rates.unemploymentRate === null ? "n/a" : `${formatNumber(data.rates.unemploymentRate, 1)}%`}</dd>
-        </div>
-      </dl>
+
     </article>
   );
 }
@@ -1448,6 +1463,7 @@ function LoadingState({ slow }: { slow: boolean }) {
           <article className="panel skeleton-card"><span className="eyebrow">INDEX PERFORMANCE</span><span className="skeleton-chart" /></article>
           <article className="panel skeleton-card"><span className="eyebrow">TREASURY YIELD CURVE</span><span className="skeleton-chart" /></article>
         </div>
+        <article className="panel skeleton-card" aria-hidden="true"><span className="eyebrow">MACRO INDICATORS · FRED</span><div className="macro-grid">{[0, 1, 2, 3].map(i => <div key={i}><span className="skeleton-title" />{lines(3)}</div>)}</div></article>
         <article className="panel skeleton-card skeleton-table" aria-hidden="true"><span className="eyebrow">SECTOR ROTATION</span>{lines(6)}</article>
       </div>
       <SiteFooter />
