@@ -61,6 +61,7 @@ class DashboardSummaryResponse(BaseModel):
     sector_leaders: list[dict[str, Any]]
     sector_laggards: list[dict[str, Any]]
     rates_summary: dict[str, Any]
+    macro_delivery: dict[str, Any] = {}
     macro_summary: dict[str, Any]
     commodities_summary: list[dict[str, Any]]
     volatility_summary: dict[str, Any]
