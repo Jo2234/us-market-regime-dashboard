@@ -169,3 +169,30 @@ def test_kill_test_macro_only_and_regime_impact(monkeypatch, tmp_path, empty_con
         result = client.get("/api/dashboard/summary").json()
         assert result["macro_summary"]["FEDFUNDS"] is None
         assert result["major_indices"][0]["source"] == "yahoo_finance"
+
+
+def test_overall_deadline_cancels_slow_requests(monkeypatch):
+    cancelled = []
+    async def slow(client, series_id, **kwargs):
+        try:
+            await asyncio.sleep(60)
+        finally:
+            cancelled.append(series_id)
+    monkeypatch.delenv("MARKET_REGIME_FORCE_FRED_FAILURE", raising=False)
+    monkeypatch.setattr(fred, "fetch_series", slow)
+    monkeypatch.setattr(fred, "BUDGET_SECONDS", .01)
+    results, stats = asyncio.run(fred.fetch_batch(["DFF", "UNRATE"]))
+    assert results == {}
+    assert set(cancelled) == {"DFF", "UNRATE"}
+    assert all(s["error"] == "Timeout" for s in stats["symbols"].values())
+
+
+def test_malformed_snapshot_and_incomplete_latest_yoy(monkeypatch, tmp_path, fred_series):
+    path = tmp_path / "fred.json"
+    path.write_text("[]")
+    monkeypatch.setattr(macro_data, "SNAPSHOT_PATH", path)
+    assert macro_data.read_snapshot() == {}
+    series = fred_series["CPIAUCSL"]
+    series["observations"] = [r for r in series["observations"] if r["date"] != "2025-08-01"]
+    with pytest.raises(ValueError, match="Latest CPI"):
+        macro_data.validate_series("CPIAUCSL", series)
