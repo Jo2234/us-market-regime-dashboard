@@ -1,4 +1,4 @@
-import type { DashboardData, FreshnessSource, RangeKey, RegimeSignal, ChartPoint } from "./types";
+import type { DashboardData, FreshnessSource, RangeKey, RegimeSignal, ChartPoint, MacroValue } from "./types";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
@@ -51,7 +51,7 @@ type BackendSummary = {
     inflation_score: number; rates_pressure_score: number;
   }>;
   sectors?: Array<{ symbol: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
-  macro_summary?: Record<string, { value: number } | null>;
+  macro_summary?: Record<string, MacroValue | null>;
   sector_leaders: Array<{ symbol: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
   sector_laggards: Array<{ symbol: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
   rates_summary: {
@@ -69,6 +69,8 @@ type BackendSummary = {
       asset_class: string;
       symbol?: string;
       yahoo_ticker?: string | null;
+      fred_series_id?: string;
+      source_url?: string;
       source?: string;
       latest_date: string | null;
       age_days: number | null;
@@ -213,7 +215,8 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
     apiBaseUrl: API_BASE_URL,
     stale: freshness.some((item) => item.status === "stale"),
     partial: true,
-    optionalProvidersMissing: ["Market breadth feed", "CPI, unemployment and Fed funds (no Yahoo equivalent)"],
+    optionalProvidersMissing: ["Market breadth feed"],
+    macro: payload.macro_summary ?? {},
     errors: [],
     freshness,
     provenance: {
@@ -232,7 +235,7 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
       generatedAt: payload.data_freshness.generated_at,
       selectedDate: payload.as_of,
       sources,
-      observations: payload.data_freshness.instruments.filter(item => item.yahoo_ticker).map(item => ({ symbol: item.symbol ?? "", ticker: item.yahoo_ticker!, date: item.latest_date })),
+      observations: payload.data_freshness.instruments.filter(item => item.yahoo_ticker || item.fred_series_id).map(item => ({ symbol: item.symbol ?? "", ticker: item.fred_series_id ? `FRED: ${item.fred_series_id}` : item.yahoo_ticker!, date: item.latest_date, url: item.source_url })),
       freshnessPolicy: payload.data_freshness.freshness_policy
     },
     regime: {
