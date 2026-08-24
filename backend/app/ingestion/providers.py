@@ -3,6 +3,8 @@ from __future__ import annotations
 import csv
 import io
 import json
+import math
+import os
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -77,9 +79,9 @@ def normalize_price_rows(symbol: str, rows: Iterable[dict[str, object]], source:
 def normalize_macro_rows(symbol: str, rows: Iterable[dict[str, object]], source: str) -> list[NormalizedMacroObservation]:
     observations: dict[date, NormalizedMacroObservation] = {}
     for row in rows:
-        date_value = row.get("date") or row.get("DATE")
-        value = _float_or_none(row.get("value") or row.get("VALUE") or row.get(symbol))
-        if not date_value or value is None:
+        date_value = row.get("date") or row.get("DATE") or row.get("observation_date")
+        value = _float_or_none(next((row[key] for key in ("value", "VALUE", symbol) if key in row), None))
+        if not date_value or value is None or not math.isfinite(value):
             continue
         observed_date = _parse_date(str(date_value))
         observations[observed_date] = NormalizedMacroObservation(symbol.upper(), observed_date, value, source)
@@ -105,6 +107,7 @@ def fetch_fred_series(series_id: str, api_key: str | None = None) -> list[Normal
     If no API key is provided, this uses FRED's CSV download endpoint where
     available. With an API key, it uses FRED's observations JSON endpoint.
     """
+    api_key = api_key or os.getenv("FRED_API_KEY")
     if api_key:
         query = urllib.parse.urlencode(
             {
