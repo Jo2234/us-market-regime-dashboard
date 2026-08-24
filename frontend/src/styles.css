@@ -1517,3 +1517,16 @@ tbody tr:last-child th {
 }
 
 .observation-date { white-space: nowrap; }
+
+.macro-panel { margin: 20px 0; }
+.macro-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+.macro-card { border-top: 1px solid var(--rule); padding-top: 16px; min-width: 0; }
+.macro-card h3 { font-size: 13px; margin: 0 0 12px; }
+.macro-value { display: block; font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.macro-card p, .macro-card a, .macro-frequency { font-size: 11px; line-height: 1.6; }
+.macro-card a { color: var(--accent); }
+.macro-frequency { display: block; color: var(--muted); }
+.macro-notice { min-height: 36px; color: var(--muted); }
+.macro-secondary { color: var(--muted); }
+@media (max-width: 850px) { .macro-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .macro-grid { gap: 16px; } .macro-value { font-size: 24px; } .macro-notice { min-height: 54px; } }

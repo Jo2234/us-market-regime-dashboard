@@ -17,7 +17,7 @@ from app.api.schemas import (
     YieldCurveResponse,
 )
 from app.data import database
-from app.services import analytics, regime
+from app.services import analytics, regime, macro_data
 from app.services.market_data import get_snapshot, populate_database, demo_enabled, delivery_metadata, DataUnavailable
 from app.services.calendar import latest_completed_session, missed_sessions
 from app.data.instruments import provenance
@@ -39,6 +39,8 @@ def get_db(request: Request, cached_only: bool = False):
                 raise HTTPException(status_code=503, detail=str(exc)) from exc
             request.state.market_delivery = snapshot.get("_delivery", {})
             populate_database(conn, snapshot, mode)
+            macro, macro_delivery = macro_data.get_snapshot(cached_only=cached_only)
+            macro_data.populate_database(conn, macro, macro_delivery)
         yield conn
 
 
@@ -88,8 +90,8 @@ def dashboard_summary(
         "sector_leaders": blocks["sector_leaders"],
         "sector_laggards": blocks["sector_laggards"],
         "rates_summary": blocks["rates"],
-        "macro_summary": {symbol: analytics.latest_macro_value(history, symbol, observed_date)
-                          for symbol in ("FEDFUNDS", "CPI_YOY", "UNRATE")},
+        "macro_summary": macro_data.summary(conn, history, observed_date),
+        "macro_delivery": macro_data.delivery_metadata(conn),
         "commodities_summary": blocks["commodities"],
         "volatility_summary": blocks["volatility"],
         "analyst_summary": snapshot["summary"],
@@ -193,6 +195,7 @@ def data_freshness(conn) -> dict:
         missed = missed_sessions(latest, expected) if latest else None
         is_stale = missed is not None and missed > 0
         status = "stale" if is_stale else "fresh"
+        macro_freshness = macro_data.freshness(row["symbol"], latest, today) if row["source"] == "fred" else {}
         instruments.append(
             {
                 "symbol": row["symbol"],
@@ -206,6 +209,7 @@ def data_freshness(conn) -> dict:
                 "missing_sessions": missed,
                 **provenance(row["symbol"]),
                 "freshness_policy": "Stale if behind the latest completed NYSE session (30-minute close grace).",
+                **macro_freshness,
             }
         )
         if latest and (row["source"] not in source_latest or latest < source_latest[row["source"]]):
@@ -218,14 +222,14 @@ def data_freshness(conn) -> dict:
         "data_mode": delivery_metadata(conn)["mode"],
         "fetched_at": delivery_metadata(conn)["fetched_at"],
         "stale_after_days": settings.stale_after_days,
-        "freshness_policy": "Instrument/source rows are stale when behind the latest completed NYSE session, with a 30-minute close grace; weekends, US market holidays and early closes are respected. Unavailable macro series have no Yahoo equivalent. Source status uses the oldest observation.",
+        "freshness_policy": "Instrument/source rows are stale when behind the latest completed NYSE session, with a 30-minute close grace; weekends, US market holidays and early closes are respected. FRED macro uses separate daily/monthly publication grace windows, reported per instrument. Source status aggregates each instrument's cadence-aware status.",
         "sources": [
             {
                 "source": source,
                 "latest_date": latest.isoformat(),
                 "age_days": (today - latest).days,
-                "is_stale": missed_sessions(latest, expected) > 0,
-                "status": "stale" if missed_sessions(latest, expected) > 0 else "fresh",
+                "is_stale": any(r["is_stale"] for r in instruments if r["source"] == source),
+                "status": "partial" if any(r["status"] == "unavailable" for r in instruments if r["source"] == source) else "stale" if any(r["is_stale"] for r in instruments if r["source"] == source) else "fresh",
             }
             for source, latest in sorted(source_latest.items())
         ],
