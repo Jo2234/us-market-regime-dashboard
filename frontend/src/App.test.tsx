@@ -275,3 +275,38 @@ it("respects the server cooldown for a rate-limited snapshot", async () => {
   expect(mockedFetchDashboardData).toHaveBeenCalledTimes(2);
   vi.useRealTimers();
 });
+
+it("renders dated FRED cards, retains snapshot values and isolates unavailable cards", async () => {
+  mockedFetchDashboardData.mockResolvedValue({
+    ...demoDashboardData,
+    macro: {
+      FEDFUNDS: { value: 3.88, source: "fred", fred_series_id: "DFF", observation_label: "2026-09-25", mode: "live" },
+      FEDFUNDS_MONTHLY: { value: 3.63, observation_label: "Aug 2026", mode: "snapshot" },
+      CPI_YOY: { value: 3.353, source: "fred", observation_label: "Aug 2026", mode: "snapshot" },
+      CORE_CPI_YOY: null,
+      UNRATE: { value: 4.1, observation_label: "Aug 2026", mode: "live" },
+    },
+  });
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Macro indicators" })).toBeInTheDocument();
+  expect(screen.getByText("3.88%")).toBeInTheDocument();
+  expect(screen.getByText("2026-09-25")).toBeInTheDocument();
+  expect(screen.getByText("3.35%")).toBeInTheDocument();
+  expect(screen.getByText("Snapshot · Aug 2026; live refresh unavailable, retrying.")).toBeInTheDocument();
+  expect(screen.getByText("Unavailable")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "FRED: DFF" })).toHaveAttribute("href", "https://fred.stlouisfed.org/series/DFF");
+  expect(screen.getByRole("button", { name: "Refresh macro data" })).toBeEnabled();
+  expect(screen.getByRole("heading", { name: "Yield Curve" })).toBeInTheDocument();
+});
+
+it("keeps FRED cards visible and busy during background refresh", async () => {
+  mockedFetchDashboardData.mockImplementation((_date, _range, options) => {
+    options?.onCached?.({ ...demoDashboardData, macro: { FEDFUNDS: { value: 3.88, observation_label: "2026-09-25", mode: "snapshot" } } });
+    return new Promise(() => {});
+  });
+  render(<App />);
+  expect(await screen.findByText("3.88%")).toBeInTheDocument();
+  expect(screen.getByText("Updating macro observations…")).toBeInTheDocument();
+  expect(screen.getByRole("article", { name: "Macro indicators" })).toHaveAttribute("aria-busy", "true");
+  expect(screen.getByRole("button", { name: "Refresh macro data" })).toBeDisabled();
+});

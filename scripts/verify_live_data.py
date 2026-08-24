@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Independent Yahoo/API comparison; intentionally does not import app analytics."""
+"""Independent Yahoo/FRED/API comparison; intentionally does not import app analytics."""
 import argparse
 import calendar
+import csv
+import io
 import json
 import sys
 from datetime import date, datetime
@@ -55,8 +57,27 @@ def main():
                 baseline = [bar for bar in bars if bar[0] <= anchor][-1]
                 expected_return = (adj / baseline[2] - 1) * 100
                 add("1M %", item["returns"]["1m"] * 100, expected_return, 0.000051)
+        for symbol, fred_id in {"FEDFUNDS": "DFF", "CPI_YOY": "CPIAUCSL", "CORE_CPI_YOY": "CPILFESL", "UNRATE": "UNRATE", "FEDFUNDS_MONTHLY": "FEDFUNDS"}.items():
+            response = client.get("https://fred.stlouisfed.org/graph/fredgraph.csv", params={"id": fred_id},
+                                  headers={"User-Agent": "Python-urllib/3.11"})
+            response.raise_for_status()
+            observations = {r.get("observation_date", r.get("DATE")): float(r[fred_id])
+                            for r in csv.DictReader(io.StringIO(response.text)) if r[fred_id] not in {"", "."}}
+            observed = max(d for d in observations if d <= payload["as_of"])
+            expected = observations[observed]
+            if symbol.endswith("CPI_YOY"):
+                baseline = date.fromisoformat(observed).replace(year=int(observed[:4]) - 1).isoformat()
+                expected = (expected / observations[baseline] - 1) * 100
+            item = payload.get("macro_summary", {}).get(symbol)
+            actual = item["value"] if item else float("nan")
+            api_date = item["date"] if item else "unavailable"
+            ok = bool(item and abs(actual - expected) <= .000051 and api_date == observed
+                      and item["source"] == "fred" and item["fred_series_id"] == fred_id)
+            rows.append((fred_id, "YoY %" if symbol.endswith("CPI_YOY") else "rate %", observed,
+                         api_date, actual, expected, "PASS" if ok else "FAIL"))
+        print("Macro delivery: " + ", ".join(f"{s}={v['mode']}" for s, v in payload.get("macro_delivery", {}).get("series", {}).items()))
         print(f"API mode: {payload.get('data_mode')} | as of {payload['as_of']} | completed-session cutoff {cutoff}")
-        print("Ticker     Metric    Yahoo date  API date    API         Yahoo       Check")
+        print("Series     Metric    Source date API date    API         Source      Check")
         for ticker, metric, yahoo_date, api_date, actual, expected, status in rows:
             print(f"{ticker:10} {metric:9} {yahoo_date}  {api_date}  {actual:10.5f}  {expected:10.5f}  {status}")
         if any(row[-1] != "PASS" for row in rows):
