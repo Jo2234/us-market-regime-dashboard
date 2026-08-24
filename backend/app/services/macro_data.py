@@ -25,7 +25,7 @@ _lock = threading.Lock()
 
 
 def validate_series(series_id: str, series: dict) -> dict:
-    if series.get("source") != "fred" or series.get("fred_series_id") != series_id or series_id not in FRED_SERIES.values():
+    if not isinstance(series, dict) or series.get("source") != "fred" or series.get("fred_series_id") != series_id or series_id not in FRED_SERIES.values():
         raise ValueError("Invalid FRED provenance")
     datetime.fromisoformat(series["fetched_at"])
     observations = series["observations"]
@@ -44,6 +44,8 @@ def validate_series(series_id: str, series: dict) -> dict:
             raise ValueError("Invalid CPI index")
     if series_id in {"CPIAUCSL", "CPILFESL"} and not yoy_observations(observations):
         raise ValueError("CPI requires a matching year-ago month")
+    if series_id in {"CPIAUCSL", "CPILFESL"} and yoy_observations(observations)[-1]["date"] != observations[-1]["date"]:
+        raise ValueError("Latest CPI index has no matching year-ago month")
     return series
 
 
@@ -61,7 +63,7 @@ def yoy_observations(observations: list[dict]) -> list[dict]:
 def read_snapshot() -> dict:
     try:
         raw = json.loads(SNAPSHOT_PATH.read_text())
-        if raw.get("version") != 1:
+        if not isinstance(raw, dict) or raw.get("version") != 1 or not isinstance(raw.get("series"), dict):
             return {}
     except (OSError, ValueError):
         return {}
