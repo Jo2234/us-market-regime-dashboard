@@ -188,7 +188,7 @@ def seed_demo_data(conn, today: date | None = None) -> None:
             unemployment = 3.7 + math.cos(idx / 100.0) * 0.25
             fed_funds = max(_rate_value("DGS2", phase, idx, len(dates)) - 0.35, 0.0)
             monthly_values = {"CPI_YOY": cpi, "UNRATE": unemployment, "FEDFUNDS": fed_funds}
-            for symbol in MACRO_SYMBOLS:
+            for symbol in monthly_values:
                 macro_rows.append(
                     {
                         "id": _stable_id("macro", symbol, observed_date, source),

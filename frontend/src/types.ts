@@ -27,7 +27,7 @@ export interface RegimeSnapshot {
 
 export interface DataProvenance {
   mode: "api" | "demo" | "mixed" | "fallback" | "live" | "snapshot";
-  observations?: Array<{ symbol: string; ticker: string; date: string | null }>;
+  observations?: Array<{ symbol: string; ticker: string; date: string | null; url?: string }>;
   description: string;
   generatedAt: string;
   selectedDate: string;
@@ -113,7 +113,21 @@ export interface AnalystNote {
   watchItems: string[];
 }
 
+export interface MacroValue {
+  value: number;
+  source?: string;
+  fred_series_id?: string;
+  observation_date?: string;
+  observation_label?: string;
+  source_url?: string;
+  frequency?: string;
+  mode?: "live" | "snapshot" | "unavailable";
+  fetched_at?: string;
+  is_stale?: boolean;
+}
+
 export interface DashboardData {
+  macro?: Record<string, MacroValue | null>;
   fetchedAt?: string;
   cache?: "hit" | "miss" | "stale";
   retryAfterSeconds?: number;
