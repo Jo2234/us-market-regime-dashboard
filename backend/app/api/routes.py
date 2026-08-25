@@ -25,7 +25,7 @@ from app.data.instruments import provenance
 router = APIRouter()
 
 
-def get_db():
+def get_db(request: Request, cached_only: bool = False):
     # A fresh in-memory database cannot inherit synthetic rows from an old /tmp DB.
     with database.session(":memory:") as conn:
         database.init_schema(conn)
@@ -34,9 +34,10 @@ def get_db():
             seed_demo_data(conn)
         else:
             try:
-                snapshot, mode = get_snapshot()
+                snapshot, mode = get_snapshot(cached_only=cached_only)
             except DataUnavailable as exc:
                 raise HTTPException(status_code=503, detail=str(exc)) from exc
+            request.state.market_delivery = snapshot.get("_delivery", {})
             populate_database(conn, snapshot, mode)
         yield conn
 
@@ -70,6 +71,8 @@ def dashboard_summary(
         "as_of": snapshot["date"],
         "data_mode": delivery_metadata(conn)["mode"],
         "fetched_at": delivery_metadata(conn)["fetched_at"],
+        "refresh_pending": delivery_metadata(conn).get("refresh_pending", False),
+        "retry_after_seconds": delivery_metadata(conn).get("retry_after_seconds", 0),
         "fetch_ms": delivery_metadata(conn).get("fetch_ms", 0),
         "cache": delivery_metadata(conn).get("cache", "stale"),
         "fetch_diagnostics": {key: value for key, value in delivery_metadata(conn).items() if key not in {"mode", "fetched_at", "telemetry", "symbols"}},
@@ -250,6 +253,6 @@ def benchmark(request: Request, kind: str = "hit"):
     if kind == "miss":
         with market_data._lock:
             market_data._expires = 0
-    connection = get_db()
+    connection = get_db(request)
     with __import__("contextlib").closing(connection):
         return dashboard_summary(None, next(connection), "1m")

@@ -44,6 +44,8 @@ class FreshnessResponse(BaseModel):
 
 
 class DashboardSummaryResponse(BaseModel):
+    refresh_pending: bool = False
+    retry_after_seconds: int = 0
     fetch_ms: float = 0
     cache: str = "stale"
     fetch_diagnostics: dict[str, Any] = {}
