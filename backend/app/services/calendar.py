@@ -16,7 +16,7 @@ def _schedule():
 
 
 def latest_completed_session(now: datetime | None = None):
-    now = now or datetime.now(timezone.utc)
+    now = now or market_now()
     dates, closes, valid_through = _schedule()
     if now.date() > valid_through:
         raise ValueError("NYSE schedule expired; run scripts/refresh_calendar.py")
