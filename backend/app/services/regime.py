@@ -31,7 +31,9 @@ def _latest_as_of(conn, requested: date | None = None) -> date:
     return latest
 
 
-def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHistory | None = None) -> dict[str, Any]:
+_PREVIOUS_UNSET = object()
+
+def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHistory | None = None, previous=_PREVIOUS_UNSET) -> dict[str, Any]:
     source = history if history is not None else conn
     observed_date = _latest_as_of(source, as_of)
     spy = analytics._price_frame(source, "SPY", end=observed_date)
@@ -48,7 +50,7 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
     xly_1m = _ret(source, "XLY", "1m", observed_date)
     xli_1m = _ret(source, "XLI", "1m", observed_date)
     xlf_1m = _ret(source, "XLF", "1m", observed_date)
-    cpi = analytics.latest_macro_value(source, "CPI_YOY", observed_date)
+    cpi = analytics.latest_macro_value(source, "CPI_YOY", observed_date, published=True)
     dgs10_change = analytics.macro_change(source, "DGS10", 21, observed_date)
     dgs2_change = analytics.macro_change(source, "DGS2", 21, observed_date)
     curve = analytics.yield_curve(source, observed_date)
@@ -127,7 +129,8 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
     if cpi is None and confidence == "high":
         confidence = "medium"
 
-    previous = load_previous_regime(conn, observed_date)
+    if previous is _PREVIOUS_UNSET:
+        previous = load_previous_regime(conn, observed_date)
     change_note = "No prior regime snapshot is available."
     if previous and previous["date"] != observed_date.isoformat():
         risk_delta = risk_score - float(previous["risk_score"])
@@ -156,7 +159,7 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
             "data_limitations": [
                 "Yahoo Finance daily bars are unofficial and may be delayed or revised. ETF adjusted closes drive returns; prices use raw closes.",
                 "2Y uses 2YY=F yield futures. The 10Y-2Y spread mixes a cash index and futures-implied yield; contract rolls may affect changes.",
-                ("Headline CPI YoY uses FRED CPIAUCSL, seasonally adjusted, latest vintage. Observation months are not publication dates; historical views are not point-in-time backtests. Fed funds and unemployment are display-only inputs." if cpi else "CPI is unavailable. The CPI signal contributes no inflation point; model coverage is incomplete."),
+                ("Headline CPI YoY uses FRED CPIAUCSL, seasonally adjusted, latest vintage. Historical CPI becomes available on the 15th of the following month, an approximate release lag. Values are latest revised vintage, not point-in-time backtests. Fed funds and unemployment are display-only inputs." if cpi else "CPI is unavailable. The CPI signal contributes no inflation point; model coverage is incomplete."),
                 "Regime classification uses completed daily closes. Live quotes and intraday returns update separately during NYSE hours.",
             ],
         },
