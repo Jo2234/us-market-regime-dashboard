@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
 from typing import Annotated, Literal
 
@@ -17,9 +18,9 @@ from app.api.schemas import (
     YieldCurveResponse,
 )
 from app.data import database
-from app.services import analytics, regime, macro_data
+from app.services import analytics, regime, macro_data, live_quotes
 from app.services.market_data import get_snapshot, populate_database, demo_enabled, delivery_metadata, DataUnavailable
-from app.services.calendar import latest_completed_session, missed_sessions
+from app.services.calendar import latest_completed_session, missed_sessions, market_status
 from app.data.instruments import provenance
 
 router = APIRouter()
@@ -34,12 +35,15 @@ def get_db(request: Request, cached_only: bool = False):
             seed_demo_data(conn)
         else:
             try:
-                snapshot, mode = get_snapshot(cached_only=cached_only)
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    market_future = pool.submit(get_snapshot, cached_only=cached_only)
+                    macro_future = pool.submit(macro_data.get_snapshot, cached_only=cached_only)
+                    snapshot, mode = market_future.result()
+                    macro, macro_delivery = macro_future.result()
             except DataUnavailable as exc:
                 raise HTTPException(status_code=503, detail=str(exc)) from exc
             request.state.market_delivery = snapshot.get("_delivery", {})
             populate_database(conn, snapshot, mode)
-            macro, macro_delivery = macro_data.get_snapshot(cached_only=cached_only)
             macro_data.populate_database(conn, macro, macro_delivery)
         yield conn
 
@@ -69,7 +73,12 @@ def dashboard_summary(
     database.save_regime_snapshot(conn, snapshot)
     observed_date = date.fromisoformat(snapshot["date"])
     blocks = analytics.dashboard_market_blocks(history, observed_date)
+    state = market_status()
+    quotes, quote_delivery = live_quotes.get_quotes(cached_only=delivery_metadata(conn).get("refresh_pending", False)) if date_ is None else ({}, {"cache": "historical"})
     return {
+        "market_status": state,
+        "live_quotes": live_quotes.with_returns(quotes, history),
+        "quote_delivery": quote_delivery,
         "as_of": snapshot["date"],
         "data_mode": delivery_metadata(conn)["mode"],
         "fetched_at": delivery_metadata(conn)["fetched_at"],
@@ -208,7 +217,7 @@ def data_freshness(conn) -> dict:
                 "status": status if latest else "unavailable",
                 "missing_sessions": missed,
                 **provenance(row["symbol"]),
-                "freshness_policy": "Stale if behind the latest completed NYSE session (30-minute close grace).",
+                "freshness_policy": "Stale if behind the latest completed NYSE session (official close).",
                 **macro_freshness,
             }
         )
@@ -222,7 +231,7 @@ def data_freshness(conn) -> dict:
         "data_mode": delivery_metadata(conn)["mode"],
         "fetched_at": delivery_metadata(conn)["fetched_at"],
         "stale_after_days": settings.stale_after_days,
-        "freshness_policy": "Instrument/source rows are stale when behind the latest completed NYSE session, with a 30-minute close grace; weekends, US market holidays and early closes are respected. FRED macro uses separate daily/monthly publication grace windows, reported per instrument. Source status aggregates each instrument's cadence-aware status.",
+        "freshness_policy": "Instrument/source rows are stale when behind the latest completed NYSE session; weekends, US market holidays and early closes are respected. FRED macro uses separate daily/monthly publication grace windows, reported per instrument. Source status aggregates each instrument's cadence-aware status.",
         "sources": [
             {
                 "source": source,

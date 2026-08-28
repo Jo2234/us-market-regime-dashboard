@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
+from app.services.calendar import market_status
 
 
 def create_app() -> FastAPI:
@@ -30,8 +31,9 @@ def create_app() -> FastAPI:
         response.headers["X-Market-Instance"] = telemetry.INSTANCE_ID
         response.headers["X-Market-Request"] = str(count)
         telemetry.log_event("api_request", instance=telemetry.INSTANCE_ID, request=count, app_ms=round(elapsed, 2))
+        state = market_status()
         response.headers["Cache-Control"] = (
-            "public, max-age=0, s-maxage=900, stale-while-revalidate=3600"
+            f"public, max-age=0, s-maxage={state['refresh_seconds']}, stale-while-revalidate={15 if state['is_open'] else 60}"
             if request.method == "GET" and response.status_code == 200
             else "no-store"
         )

@@ -157,7 +157,7 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
                 "Yahoo Finance daily bars are unofficial and may be delayed or revised. ETF adjusted closes drive returns; prices use raw closes.",
                 "2Y uses 2YY=F yield futures. The 10Y-2Y spread mixes a cash index and futures-implied yield; contract rolls may affect changes.",
                 ("Headline CPI YoY uses FRED CPIAUCSL, seasonally adjusted, latest vintage. Observation months are not publication dates; historical views are not point-in-time backtests. Fed funds and unemployment are display-only inputs." if cpi else "CPI is unavailable. The CPI signal contributes no inflation point; model coverage is incomplete."),
-                "Signals are daily and do not represent real-time market conditions.",
+                "Regime classification uses completed daily closes. Live quotes and intraday returns update separately during NYSE hours.",
             ],
         },
         "summary": summary,
