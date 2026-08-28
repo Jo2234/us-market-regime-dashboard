@@ -1,4 +1,4 @@
-# US Market Regime Dashboard
+# Johan's Dashboard
 
 Daily US market dashboard with Yahoo Finance prices, FRED macro observations, adjusted returns, a labelled yield curve and deterministic regime rules.
 
