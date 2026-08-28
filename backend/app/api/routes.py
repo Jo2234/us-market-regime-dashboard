@@ -18,7 +18,7 @@ from app.api.schemas import (
     YieldCurveResponse,
 )
 from app.data import database
-from app.services import analytics, regime, macro_data, live_quotes
+from app.services import analytics, regime, macro_data, live_quotes, regime_history
 from app.services.market_data import get_snapshot, populate_database, demo_enabled, delivery_metadata, DataUnavailable
 from app.services.calendar import latest_completed_session, missed_sessions, market_status
 from app.data.instruments import provenance
@@ -67,10 +67,9 @@ def dashboard_summary(
     # history/change notes, not an unversioned cache of potentially revised data.
     history = analytics.MarketHistory(conn)
     try:
-        snapshot = regime.classify_regime(conn, date_, history=history)
+        snapshot, historical, history_delivery = regime_history.for_date(conn, history, date_)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    database.save_regime_snapshot(conn, snapshot)
     observed_date = date.fromisoformat(snapshot["date"])
     blocks = analytics.dashboard_market_blocks(history, observed_date)
     state = market_status()
@@ -91,10 +90,8 @@ def dashboard_summary(
         "regime": snapshot,
         "major_indices": blocks["indices"],
         "performance_series": analytics.indexed_performance(history, observed_date, range_),
-        "historical_regimes": [dict(row) for row in conn.execute(
-            "SELECT date, regime_label, risk_score, growth_score, inflation_score, rates_pressure_score "
-            "FROM regime_snapshots WHERE date <= ? ORDER BY date", (snapshot["date"],)
-        )],
+        "historical_regimes": historical,
+        "history_delivery": history_delivery,
         "sectors": blocks["sectors"],
         "sector_leaders": blocks["sector_leaders"],
         "sector_laggards": blocks["sector_laggards"],

@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchDashboardData } from "./api";
@@ -330,4 +330,21 @@ it("polls live quotes each minute, pauses hidden tabs and resumes on visibility"
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
   await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
   expect(mockedFetchDashboardData).toHaveBeenCalledTimes(3);
+});
+
+
+it("inspects all four historical scores and opens the selected snapshot", async () => {
+  const points = demoDashboardData.historicalRegimes!;
+  mockedFetchDashboardData.mockResolvedValue(demoDashboardData);
+  render(<App />);
+  const slider = await screen.findByRole("slider", { name: "Historical regime date" });
+  const chart = screen.getByRole("img", { name: "Historical regime scores chart" });
+  expect(chart.querySelectorAll("polyline")).toHaveLength(4);
+  fireEvent.change(slider, { target: { value: "0" } });
+  const tooltip = document.querySelector(".history-tooltip")!;
+  expect(tooltip.textContent).toContain(points[0].displayLabel);
+  expect(tooltip.textContent).toContain(`Risk ${points[0].riskScore}`);
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  await userEvent.click(screen.getByRole("button", { name: /View snapshot/ }));
+  expect(mockedFetchDashboardData).toHaveBeenLastCalledWith(points[0].date, "1M", expect.any(Object));
 });
