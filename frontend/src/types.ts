@@ -27,7 +27,7 @@ export interface RegimeSnapshot {
 
 export interface DataProvenance {
   mode: "api" | "demo" | "mixed" | "fallback" | "live" | "snapshot";
-  observations?: Array<{ symbol: string; ticker: string; date: string | null; url?: string }>;
+  observations?: Array<{ symbol: string; name?: string; ticker: string; date: string | null; url?: string }>;
   description: string;
   generatedAt: string;
   selectedDate: string;
@@ -46,6 +46,7 @@ export interface HistoricalRegimePoint {
 }
 
 export interface IndexReturn {
+  observationDate?: string;
   symbol: string;
   name: string;
   price: number | null;
@@ -58,6 +59,7 @@ export interface IndexReturn {
 }
 
 export interface SectorPerformance {
+  observationDate?: string;
   symbol: string;
   name: string;
   relativeToSpy1m: number | null;
@@ -90,6 +92,7 @@ export interface RatesSummary {
 }
 
 export interface RiskAssetMetric {
+  observationDate?: string;
   symbol: string;
   name: string;
   value: number | null;
