@@ -10,7 +10,7 @@ from pathlib import Path
 from app.services import analytics, regime
 from app.core.telemetry import log_event
 
-MODEL_VERSION = 1
+MODEL_VERSION = 2
 SNAPSHOT_PATH = Path(__file__).resolve().parents[1] / 'data/regime_history.json'
 _cache = OrderedDict()
 _lock = threading.Lock()

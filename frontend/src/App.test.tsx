@@ -44,7 +44,7 @@ describe("App dashboard states", () => {
     render(<App />);
 
     expect(
-      await screen.findByRole("heading", { name: "Mixed Transition" }),
+      await screen.findByRole("heading", { name: "Mixed transition" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Partial freshness")).toBeInTheDocument();
     expect(
@@ -64,7 +64,7 @@ describe("App dashboard states", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Data provenance")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Historical Regime Scores" }),
+      screen.getByRole("heading", { name: "Historical regime scores" }),
     ).toBeInTheDocument();
   });
 
@@ -101,7 +101,7 @@ describe("App dashboard states", () => {
     await userEvent.click(screen.getByRole("button", { name: /retry/i }));
 
     expect(
-      await screen.findByRole("heading", { name: "Mixed Transition" }),
+      await screen.findByRole("heading", { name: "Mixed transition" }),
     ).toBeInTheDocument();
   });
 });
@@ -207,7 +207,7 @@ it.each(["live", "snapshot"] as const)("renders the %s chip with the real date",
     provenance: { ...demoDashboardData.provenance!, mode },
   });
   render(<App />);
-  const label = mode === "live" ? "Live · Yahoo Finance · as of 2026-09-28" : "Snapshot · as of 2026-09-28";
+  const label = mode === "live" ? "Live · Yahoo Finance · as of Sep 28, 2026" : "Snapshot · as of Sep 28, 2026";
   expect((await screen.findAllByText(label)).length).toBeGreaterThan(0);
   expect(screen.getByText(/2Y is futures-implied/)).toBeInTheDocument();
 });
@@ -238,7 +238,7 @@ it("renders a real cached snapshot immediately and replaces it after background 
   const live = { ...cached, provenance: { ...cached.provenance, mode: "live" as const } };
   await act(async () => finish(live));
   expect(screen.queryByText("Updating with the latest numbers…")).not.toBeInTheDocument();
-  expect(screen.getAllByText("Live · Yahoo Finance · as of 2026-09-28").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("Live · Yahoo Finance · as of Sep 28, 2026").length).toBeGreaterThan(0);
   expect(screen.getByLabelText("Market overview")).toHaveAttribute("aria-busy", "false");
 });
 
@@ -251,7 +251,7 @@ it("retains last data on failure and automatically retries with increasing delay
   });
   render(<App />);
   await act(async () => {});
-  expect(screen.getByText(/Showing close of 2026-09-28; live refresh unavailable/)).toBeInTheDocument();
+  expect(screen.getByText(/Showing close of Sep 28, 2026; live refresh unavailable/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Refresh data" })).toBeEnabled();
   expect(screen.getByLabelText("Market overview")).toBeInTheDocument();
   expect(mockedFetchDashboardData).toHaveBeenCalledTimes(1);
@@ -290,13 +290,13 @@ it("renders dated FRED cards, retains snapshot values and isolates unavailable c
   render(<App />);
   expect(await screen.findByRole("heading", { name: "Macro indicators" })).toBeInTheDocument();
   expect(screen.getByText("3.88%")).toBeInTheDocument();
-  expect(screen.getByText("2026-09-25")).toBeInTheDocument();
+  expect(screen.getByText("Sep 25, 2026")).toBeInTheDocument();
   expect(screen.getByText("3.35%")).toBeInTheDocument();
   expect(screen.getByText("Snapshot · Aug 2026; live refresh unavailable, retrying.")).toBeInTheDocument();
   expect(screen.getByText("Unavailable")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "FRED: DFF" })).toHaveAttribute("href", "https://fred.stlouisfed.org/series/DFF");
   expect(screen.getByRole("button", { name: "Refresh macro data" })).toBeEnabled();
-  expect(screen.getByRole("heading", { name: "Yield Curve" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Yield curve" })).toBeInTheDocument();
 });
 
 it("keeps FRED cards visible and busy during background refresh", async () => {

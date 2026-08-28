@@ -857,7 +857,7 @@ tbody tr:last-child th {
   background: var(--raised);
   color: var(--ink);
   font-size: 12px;
-  text-transform: capitalize;
+  text-transform: none;
 }
 .note-panel {
   display: grid;
@@ -997,7 +997,7 @@ tbody tr:last-child th {
 }
 .source-badge .source-status {
   font-size: 10px;
-  text-transform: capitalize;
+  text-transform: none;
 }
 .source-badge.fresh {
   border-top-color: var(--positive);
