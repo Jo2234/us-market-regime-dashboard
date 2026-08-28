@@ -33,6 +33,17 @@ import {
   scoreClass,
 } from "./utils";
 
+function UpdatedAge({ timestamp }: { timestamp?: string }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => { if (document.visibilityState === "visible") setNow(Date.now()); }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+  if (!timestamp) return null;
+  const seconds = Math.max(0, Math.floor((now - Date.parse(timestamp)) / 1000));
+  return <time dateTime={timestamp} aria-live="off" className="updated-age">Updated {seconds < 60 ? `${seconds} s` : seconds < 3600 ? `${Math.floor(seconds / 60)} min` : `${Math.floor(seconds / 3600)} h`} ago</time>;
+}
+
 type SeriesKey = Exclude<keyof ChartPoint, "date">;
 
 const seriesColors: Record<SeriesKey, string> = {
@@ -63,13 +74,20 @@ export default function App() {
   const failures = useRef(0);
 
   useEffect(() => {
+    const visible = () => { if (document.visibilityState === "visible") setReloadTick(value => value + 1); };
+    document.addEventListener("visibilitychange", visible);
+    return () => document.removeEventListener("visibilitychange", visible);
+  }, []);
+
+  useEffect(() => {
+    if (document.visibilityState === "hidden") return;
     const controller = new AbortController();
     let retry: ReturnType<typeof setTimeout> | undefined;
     setLoading(true);
     setSlow(false);
     const slowTimer = setTimeout(() => setSlow(true), 4000);
     const schedule = (milliseconds: number) => {
-      retry = setTimeout(() => setReloadTick(value => value + 1), milliseconds);
+      retry = setTimeout(() => { if (document.visibilityState === "visible") setReloadTick(value => value + 1); }, milliseconds);
     };
     fetchDashboardData(selectedDate, range, {
       signal: controller.signal,
@@ -83,7 +101,7 @@ export default function App() {
         schedule(Math.max(nextData.retryAfterSeconds ?? 0, Math.min(900, 5 * 2 ** Math.min(failures.current - 1, 8))) * 1000);
       } else {
         failures.current = 0;
-        schedule(900_000);
+        schedule(Math.max(nextData.marketStatus?.refresh_seconds ?? 900, nextData.quoteStatus?.refresh_seconds ?? 0) * 1000);
       }
     }).catch(requestError => {
       if (controller.signal.aborted) return;
@@ -147,13 +165,18 @@ export default function App() {
         </a>
       </nav>
       <div className="refresh-status" role="status" aria-live="polite" aria-atomic="true">
-        <span>{data.fetchedAt ? `Last updated ${formatDateTime(data.fetchedAt)}` : "Last update time unavailable"} · Yahoo Finance · as of <time className="observation-date" dateTime={data.selectedDate}>{data.selectedDate}</time></span>
+        <span><UpdatedAge timestamp={data.fetchedAt} /> · {data.fetchedAt ? `Last updated ${formatDateTime(data.fetchedAt)}` : "Last update time unavailable"} · Yahoo Finance · as of <time className="observation-date" dateTime={data.selectedDate}>{data.selectedDate}</time></span>
         <span className={error || data.provenance?.mode === "snapshot" ? "refresh-warning" : ""}>
           {loading ? "Updating with the latest numbers…" : error || data.provenance?.mode === "snapshot"
             ? `Showing close of ${data.selectedDate}; live refresh unavailable, retrying automatically.`
-            : "Latest available daily close"}
+            : data.marketStatus?.is_open ? data.quoteStatus?.cache === "stale" ? "Live quote refresh unavailable; retaining the last real observations and retrying." : "Live intraday prices · regime based on completed daily closes" : "Latest completed daily close"}
         </span>
       </div>
+      <p className="market-status" role="status">{data.marketStatus?.is_open
+        ? "Market open · Live intraday"
+        : `Market closed · Close of ${formatDate(data.selectedDate)}`}
+        {data.marketStatus?.is_open && !data.intraday && " · Awaiting current-session quotes"}
+      </p>
       <div className="data-notice">
         <span
           className={`mode-chip ${data.provenance?.mode ?? data.sourceMode}`}
@@ -512,9 +535,9 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
             : "Demo fallback data"}
         </p>
         <p>{provenance.description}</p>
-        <p>Price = unadjusted last daily close. Returns and indexed charts use Yahoo adjusted closes (splits and distributions). 1D uses the previous observation; 1W, 1M, 3M and 1Y use the close on or before the same calendar date earlier (7 days, 1 month, 3 months, 1 year). YTD starts at the last close of the prior year. Month-end dates clamp to the last day of the target month. Missing history displays n/a.</p>
-        <p>Yahoo is an unofficial data service and may rate-limit. Instance and CDN caches last 15 minutes; the CDN may serve an older response for another hour while refreshing. A scheduled Yahoo snapshot is the labelled fallback. Observation dates are preserved.</p>
-        <p>Macro indicators come from FRED, with a separate six-hour cache and per-series snapshot fallback. Fed funds uses daily DFF; the monthly FEDFUNDS average is secondary context. Headline and core CPI YoY equal 100 × (this month’s seasonally adjusted index / the same month one year earlier − 1), using CPIAUCSL and CPILFESL. Monthly dates identify observation months, not release dates. Historical macro values use the latest revised vintage, not point-in-time releases.</p>
+        <p>During NYSE hours, price is the regular-market quote and 1D is its change from the previous close. Otherwise price is the completed daily close. Longer returns and indexed charts use Yahoo adjusted historical closes (splits and distributions), with the live price as the endpoint intraday; 1W, 1M, 3M and 1Y use the close on or before the same calendar date earlier (7 days, 1 month, 3 months, 1 year). YTD starts at the last close of the prior year. Month-end dates clamp to the last day of the target month. Missing history displays n/a.</p>
+        <p>Yahoo is an unofficial data service and may rate-limit. Live quotes refresh every 60 seconds during NYSE hours, only while this tab is visible. Daily history refreshes every 15 minutes and after the close; closed-market responses cache for up to 15 minutes. CDN revalidation may add 15 seconds during market hours or 60 seconds when closed. Rate limits extend quote refresh intervals up to 15 minutes. A scheduled Yahoo snapshot is the labelled fallback. Observation dates are preserved.</p>
+        <p>Macro indicators come from FRED, with a separate one-hour cache and per-series snapshot fallback. Fed funds uses daily DFF; the monthly FEDFUNDS average is secondary context. Headline and core CPI YoY equal 100 × (this month’s seasonally adjusted index / the same month one year earlier − 1), using CPIAUCSL and CPILFESL. Monthly dates identify observation months, not release dates. Historical macro values use the latest revised vintage, not point-in-time releases.</p>
       </div>
       <div>
         <span>Selected {formatDate(provenance.selectedDate)}</span>

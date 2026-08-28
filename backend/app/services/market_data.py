@@ -23,6 +23,7 @@ _cached: dict | None = None
 _cached_mode = "snapshot"
 _expires = 0.0
 _last_good: dict | None = None
+_session = None
 
 
 class DataUnavailable(RuntimeError):
@@ -62,7 +63,7 @@ def _fallback():
 
 
 def get_snapshot(*, cached_only=False) -> tuple[dict, str]:
-    global _cached, _cached_mode, _expires, _last_good
+    global _cached, _cached_mode, _expires, _last_good, _session
     # Bootstrap must not wait behind a slow refresh holding the single-flight lock.
     if cached_only:
         snapshot = _cached or _fallback()
@@ -71,13 +72,14 @@ def get_snapshot(*, cached_only=False) -> tuple[dict, str]:
                 "refresh_pending": True, "retry_after_seconds": 0}}, mode
     with _lock:
         remaining = max(0, math.ceil(_expires - time.monotonic()))
-        if remaining:
+        if remaining and _session == latest_completed_session():
             if _cached is None:
                 raise DataUnavailable("Live data unavailable; retry after the refresh cooldown")
             cache = "hit" if _cached_mode == "live" else "stale"
             log_event("market_cache", cache=cache, mode=_cached_mode)
             return {**_cached, "_delivery": {"cache": cache, "fetch_ms": 0.0,
                     "retry_after_seconds": remaining if _cached_mode == "snapshot" else 0}}, _cached_mode
+        _session = latest_completed_session()
         stats = {}
         try:
             if os.getenv("MARKET_REGIME_SNAPSHOT_ONLY") == "1":
