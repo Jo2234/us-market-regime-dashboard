@@ -1533,3 +1533,6 @@ tbody tr:last-child th {
 
 .macro-panel > .chart-note { min-height: 44px; }
 @media (max-width: 480px) { .macro-secondary { min-height: 53px; } }
+
+.market-status { font-size: .82rem; color: var(--muted); margin: .75rem 0; }
+.updated-age { font-variant-numeric: tabular-nums; display: inline-block; min-width: 8.5rem; }

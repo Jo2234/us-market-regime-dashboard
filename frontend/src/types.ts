@@ -127,6 +127,9 @@ export interface MacroValue {
 }
 
 export interface DashboardData {
+  marketStatus?: { is_open: boolean; session_date: string; refresh_seconds: number; next_open: string };
+  quoteStatus?: { cache?: string; fetched_at?: string; refresh_seconds?: number; retry_after_seconds?: number };
+  intraday?: boolean;
   macro?: Record<string, MacroValue | null>;
   fetchedAt?: string;
   cache?: "hit" | "miss" | "stale";
