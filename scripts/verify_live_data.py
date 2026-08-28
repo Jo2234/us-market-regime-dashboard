@@ -70,6 +70,26 @@ def main():
                 baseline = [bar for bar in bars if bar[0] <= anchor][-1]
                 expected_return = (adj / baseline[2] - 1) * 100
                 add("1M %", item["returns"]["1m"] * 100, expected_return, 0.000051)
+        if payload.get("market_status", {}).get("is_open"):
+            tickers = list(YAHOO_TICKERS.values())
+            direct = {}
+            for offset in range(0, len(tickers), 20):
+                response = client.get("https://query1.finance.yahoo.com/v7/finance/spark",
+                                      params={"symbols": ",".join(tickers[offset:offset+20]), "range": "1d", "interval": "5m"})
+                response.raise_for_status()
+                for quote in response.json()["spark"]["result"]:
+                    direct[quote["symbol"]] = quote["response"][0]["meta"]
+            for symbol, item in payload.get("live_quotes", {}).items():
+                if not item.get("is_current_session") or item.get("is_stale"):
+                    continue
+                meta = direct[item["yahoo_ticker"]]
+                same_tick = datetime.fromisoformat(item["observed_at"]).timestamp() == meta.get("regularMarketTime")
+                difference = abs(item["price"] - meta["regularMarketPrice"])
+                status = "PASS" if difference <= .00011 else "FAIL" if same_tick else "TIME-DIFF"
+                rows.append((item["yahoo_ticker"], "live", item["observation_date"], item["observation_date"], item["price"], meta["regularMarketPrice"], status))
+            print("Intraday comparisons use the exact quote timestamp; TIME-DIFF means a newer market tick, not verified equality.")
+        else:
+            print("Market closed: live polling is paused; comparing completed-session prices and returns.")
         for symbol, fred_id in {"FEDFUNDS": "DFF", "CPI_YOY": "CPIAUCSL", "CORE_CPI_YOY": "CPILFESL", "UNRATE": "UNRATE", "FEDFUNDS_MONTHLY": "FEDFUNDS"}.items():
             response = client.get("https://fred.stlouisfed.org/graph/fredgraph.csv", params={"id": fred_id},
                                   headers={"User-Agent": "Python-urllib/3.11"})
@@ -93,7 +113,7 @@ def main():
         print("Series     Metric    Source date API date    API         Source      Check")
         for ticker, metric, yahoo_date, api_date, actual, expected, status in rows:
             print(f"{ticker:10} {metric:9} {yahoo_date}  {api_date}  {actual:10.5f}  {expected:10.5f}  {status}")
-        if any(row[-1] != "PASS" for row in rows):
+        if any(row[-1] == "FAIL" for row in rows):
             raise SystemExit(1)
 
 

@@ -23,7 +23,11 @@ type BackendSignal = {
   evidence: string;
 };
 
+type LiveQuote = { price: number; observation_date: string; observed_at: string; is_current_session: boolean; is_stale: boolean; returns?: Record<string, number | null> };
 type BackendSummary = {
+  market_status?: DashboardData["marketStatus"];
+  quote_delivery?: DashboardData["quoteStatus"];
+  live_quotes?: Record<string, LiveQuote>;
   as_of: string;
   data_mode?: "live" | "snapshot" | "demo";
   fetched_at?: string;
@@ -175,7 +179,42 @@ function markDemo(data: DashboardData, message: string): DashboardData {
   };
 }
 
-export function adaptBackendSummary(payload: BackendSummary): DashboardData {
+function withLiveQuotes(raw: BackendSummary): BackendSummary {
+  if (!raw.market_status?.is_open) return raw;
+  const quotes = raw.live_quotes ?? {};
+  const usable = (symbol: string) => quotes[symbol]?.is_current_session && !quotes[symbol]?.is_stale ? quotes[symbol] : undefined;
+  const overlay = (item: BackendInstrument) => {
+    const quote = usable(item.symbol);
+    return quote ? { ...item, price: quote.price, returns: quote.returns ?? item.returns } : item;
+  };
+  const sectors = raw.sectors?.map(item => {
+    const returns = usable(item.symbol)?.returns ?? item.returns;
+    const spy = usable("SPY")?.returns ?? raw.major_indices.find(i => i.symbol === "SPY")?.returns ?? {};
+    return { ...item, returns, relative_to_spy: Object.fromEntries(Object.entries(returns).map(([key, value]) => [key, value != null && spy[key] != null ? value - spy[key]! : null])) };
+  });
+  const maturities = raw.rates_summary.maturities.map(item => {
+    const quote = usable(item.symbol);
+    return quote ? { ...item, value: quote.price, date: quote.observation_date } : item;
+  });
+  const ten = maturities.find(item => item.symbol === "DGS10");
+  const two = maturities.find(item => item.symbol === "DGS2");
+  const performance = [...(raw.performance_series ?? [])];
+  const last = performance[performance.length - 1];
+  if (last && ["SPY", "QQQ", "IWM", "DIA"].every(symbol => usable(symbol))) {
+    const point = { ...last, date: raw.market_status.session_date };
+    for (const symbol of ["SPY", "QQQ", "IWM", "DIA"] as const) {
+      const daily = raw.major_indices.find(item => item.symbol === symbol);
+      if (daily?.value) point[symbol] = last[symbol] * usable(symbol)!.price / daily.value;
+    }
+    performance.push(point);
+  }
+  return { ...raw, major_indices: raw.major_indices.map(overlay), sectors,
+    commodities_summary: raw.commodities_summary.map(overlay), volatility_summary: overlay(raw.volatility_summary),
+    rates_summary: { ...raw.rates_summary, maturities, spreads: { ...raw.rates_summary.spreads, "10y_2y": ten && two ? ten.value - two.value : null } }, performance_series: performance };
+}
+
+export function adaptBackendSummary(raw: BackendSummary): DashboardData {
+  const payload = withLiveQuotes(raw);
   const freshness = adaptFreshness(payload.data_freshness.instruments);
   const sources = sourceLabels([
     ...(payload.data_freshness.sources ?? []),
@@ -198,6 +237,9 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
   };
 
   return {
+    marketStatus: payload.market_status,
+    quoteStatus: payload.quote_delivery,
+    intraday: Boolean(payload.market_status?.is_open && Object.values(payload.live_quotes ?? {}).some(q => q.is_current_session && !q.is_stale)),
     performanceSeries: payload.performance_series ?? [],
     historicalRegimes: (payload.historical_regimes ?? []).map((point) => ({
       date: point.date, displayLabel: titleCase(point.regime_label),
@@ -206,7 +248,7 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
       note: "Computed from stored regime classifications."
     })),
     breadth: [],
-    fetchedAt: payload.fetched_at,
+    fetchedAt: payload.quote_delivery?.fetched_at ?? payload.fetched_at,
     cache: payload.cache,
     retryAfterSeconds: payload.retry_after_seconds,
     generatedAt: payload.data_freshness.generated_at,
@@ -224,7 +266,7 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
       description: payload.data_mode === "snapshot"
         ? "Saved Yahoo Finance daily closes with their original observation dates. Live refresh is pending or unavailable."
         : payload.data_mode === "live"
-          ? "Daily closes fetched from Yahoo Finance. Prices are unadjusted closes; returns use adjusted closes. Live describes the feed, not intraday quotes."
+          ? "Yahoo Finance quotes refresh every 60 seconds during NYSE hours; closed markets show completed daily closes. Longer returns use adjusted history with a live endpoint intraday. The regime model uses completed daily closes."
           : onlyDemoSources
         ? "Deterministic demo_seed observations served by the API. Values are generated examples, not live market data."
         : hasDemoSource
