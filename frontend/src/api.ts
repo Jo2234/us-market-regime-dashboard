@@ -1,3 +1,5 @@
+import displayLabels from "../../backend/app/data/display_labels.json";
+import { sentenceCase } from "./utils";
 import type { DashboardData, FreshnessSource, RangeKey, RegimeSignal, ChartPoint, MacroValue } from "./types";
 
 const API_BASE_URL =
@@ -6,6 +8,7 @@ const API_BASE_URL =
 const USE_DEMO_DATA = !import.meta.env.PROD && import.meta.env.DEV && import.meta.env.VITE_USE_DEMO_DATA === "true";
 
 type BackendInstrument = {
+  date?: string;
   symbol: string;
   available?: boolean;
   value: number;
@@ -17,6 +20,7 @@ type BackendInstrument = {
 
 type BackendSignal = {
   name: string;
+  display_name?: string;
   passed: boolean;
   available?: boolean;
   value: number | null;
@@ -54,10 +58,10 @@ type BackendSummary = {
     date: string; regime_label: string; risk_score: number; growth_score: number;
     inflation_score: number; rates_pressure_score: number; note?: string;
   }>;
-  sectors?: Array<{ symbol: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
+  sectors?: Array<{ symbol: string; date?: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
   macro_summary?: Record<string, MacroValue | null>;
-  sector_leaders: Array<{ symbol: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
-  sector_laggards: Array<{ symbol: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
+  sector_leaders: Array<{ symbol: string; date?: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
+  sector_laggards: Array<{ symbol: string; date?: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
   rates_summary: {
     maturities: Array<{ symbol: string; value: number; yahoo_ticker?: string; date?: string }>;
     spreads: Record<string, number | null>;
@@ -71,6 +75,8 @@ type BackendSummary = {
     sources?: Array<{ source: string }>;
     instruments: Array<{
       asset_class: string;
+      name?: string;
+      frequency?: string;
       symbol?: string;
       yahoo_ticker?: string | null;
       fred_series_id?: string;
@@ -185,12 +191,12 @@ function withLiveQuotes(raw: BackendSummary): BackendSummary {
   const usable = (symbol: string) => quotes[symbol]?.is_current_session && !quotes[symbol]?.is_stale ? quotes[symbol] : undefined;
   const overlay = (item: BackendInstrument) => {
     const quote = usable(item.symbol);
-    return quote ? { ...item, price: quote.price, returns: quote.returns ?? item.returns } : item;
+    return quote ? { ...item, date: quote.observation_date, price: quote.price, returns: quote.returns ?? item.returns } : item;
   };
   const sectors = raw.sectors?.map(item => {
     const returns = usable(item.symbol)?.returns ?? item.returns;
     const spy = usable("SPY")?.returns ?? raw.major_indices.find(i => i.symbol === "SPY")?.returns ?? {};
-    return { ...item, returns, relative_to_spy: Object.fromEntries(Object.entries(returns).map(([key, value]) => [key, value != null && spy[key] != null ? value - spy[key]! : null])) };
+    return { ...item, date: usable(item.symbol)?.observation_date ?? item.date, returns, relative_to_spy: Object.fromEntries(Object.entries(returns).map(([key, value]) => [key, value != null && spy[key] != null ? value - spy[key]! : null])) };
   });
   const maturities = raw.rates_summary.maturities.map(item => {
     const quote = usable(item.symbol);
@@ -224,10 +230,10 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
   const onlyDemoSources = hasDemoSource && sources.every(source => source.toLowerCase() === "demo_seed");
   const sectorUpdates = payload.sectors ?? [...payload.sector_leaders, ...payload.sector_laggards];
   const sectorNames: Record<string, string> = {
-    XLK: "Technology", XLF: "Financials", XLE: "Energy", XLV: "Health Care", XLY: "Cons. Disc.",
-    XLP: "Staples", XLI: "Industrials", XLB: "Materials", XLU: "Utilities", XLRE: "Real Estate", XLC: "Comm. Svcs."
+    XLK: "Technology", XLF: "Financials", XLE: "Energy", XLV: "Health care", XLY: "Consumer discretionary",
+    XLP: "Staples", XLI: "Industrials", XLB: "Materials", XLU: "Utilities", XLRE: "Real estate", XLC: "Communications"
   };
-  const names: Record<string, string> = { SPY: "S&P 500", QQQ: "Nasdaq 100", IWM: "Russell 2000", DIA: "Dow Industrials" };
+  const names: Record<string, string> = { SPY: "S&P 500", QQQ: "Nasdaq 100", IWM: "Russell 2000", DIA: "Dow Jones" };
   const maturities: Record<string, [string, number]> = {
     DGS3MO: ["3M", 0.25],
     DGS2: ["2Y*", 2],
@@ -242,7 +248,7 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
     intraday: Boolean(payload.market_status?.is_open && Object.values(payload.live_quotes ?? {}).some(q => q.is_current_session && !q.is_stale)),
     performanceSeries: payload.performance_series ?? [],
     historicalRegimes: (payload.historical_regimes ?? []).map((point) => ({
-      date: point.date, displayLabel: titleCase(point.regime_label),
+      date: point.date, displayLabel: regimeLabel(point.regime_label),
       riskScore: scorePercent(point.risk_score), growthScore: scorePercent(point.growth_score),
       inflationScore: scorePercent(point.inflation_score), ratesPressureScore: scorePercent(point.rates_pressure_score),
       note: point.note ?? "Computed from completed daily closes with approximate macro release lags."
@@ -276,13 +282,13 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
             : "API observations; source metadata was not supplied. Live market provenance is unverified.",
       generatedAt: payload.data_freshness.generated_at,
       selectedDate: payload.as_of,
-      sources,
-      observations: payload.data_freshness.instruments.filter(item => item.yahoo_ticker || item.fred_series_id).map(item => ({ symbol: item.symbol ?? "", ticker: item.fred_series_id ? `FRED: ${item.fred_series_id}` : item.yahoo_ticker!, date: item.latest_date, url: item.source_url })),
+      sources: sources.map(source => displayLabels.sources[source as keyof typeof displayLabels.sources] ?? sentenceCase(source)),
+      observations: payload.data_freshness.instruments.filter(item => item.yahoo_ticker || item.fred_series_id).map(item => ({ symbol: item.symbol ?? "", name: item.name ?? item.symbol ?? "", ticker: item.fred_series_id ? `FRED: ${item.fred_series_id}` : item.yahoo_ticker!, date: item.latest_date, url: item.source_url })),
       freshnessPolicy: payload.data_freshness.freshness_policy
     },
     regime: {
       label: payload.regime.regime_label,
-      displayLabel: titleCase(payload.regime.regime_label),
+      displayLabel: regimeLabel(payload.regime.regime_label),
       confidence: payload.regime.confidence,
       asOf: payload.as_of,
       riskScore: scorePercent(payload.regime.risk_score),
@@ -296,6 +302,7 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
     },
     indices: payload.major_indices.filter((item) => item.available !== false).map((item) => ({
       symbol: item.symbol,
+      observationDate: item.date ?? payload.as_of,
       name: names[item.symbol] ?? item.symbol,
       price: item.price ?? item.value,
       dayReturn: percent(item.returns["1d"]),
@@ -307,6 +314,7 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
     })),
     sectors: sectorUpdates.map((item) => ({
       symbol: item.symbol,
+      observationDate: item.date ?? payload.as_of,
       name: sectorNames[item.symbol] ?? item.symbol,
       relativeToSpy1m: percent(item.relative_to_spy["1m"]),
       returns: {
@@ -327,23 +335,25 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
     },
     commodities: payload.commodities_summary.filter((item) => item.available !== false).map((item) => ({
       symbol: item.symbol,
+      observationDate: item.date ?? payload.as_of,
       name: ({ USO: "Crude oil proxy", GLD: "Gold", CPER: "Copper" } as Record<string, string>)[item.symbol] ?? item.symbol,
       value: item.price ?? item.value,
       dayChange: percent(item.returns["1d"]),
       monthReturn: percent(item.returns["1m"]),
-      signal: "Yahoo Finance daily ETF close"
+      signal: payload.market_status?.is_open && payload.live_quotes?.[item.symbol]?.is_current_session && !payload.live_quotes?.[item.symbol]?.is_stale ? "Yahoo Finance · Intraday quote" : "Yahoo Finance · Daily ETF close"
     })),
     volatility: payload.volatility_summary.available === false ? [] : [{
       symbol: payload.volatility_summary.symbol,
+      observationDate: payload.volatility_summary.date ?? payload.as_of,
       name: "CBOE Volatility Index",
       value: payload.volatility_summary.price ?? payload.volatility_summary.value,
       dayChange: percent(payload.volatility_summary.returns["1d"]),
       monthReturn: percent(payload.volatility_summary.returns["1m"]),
-      signal: "Yahoo Finance · ^VIX daily close"
+      signal: payload.market_status?.is_open && payload.live_quotes?.VIX?.is_current_session && !payload.live_quotes?.VIX?.is_stale ? "Yahoo Finance · ^VIX intraday quote" : "Yahoo Finance · ^VIX daily close"
     }],
     signals: payload.regime.signals.all.map(adaptSignal),
     analystNote: {
-      title: titleCase(payload.regime.regime_label),
+      title: regimeLabel(payload.regime.regime_label),
       bullets: [payload.analyst_summary],
       watchItems: payload.regime.signals.top_negative.slice(0, 3).map((signal) => signal.evidence)
     }
@@ -360,6 +370,7 @@ function adaptFreshness(rows: BackendSummary["data_freshness"]["instruments"]): 
   const labels: Record<string, string> = {
     equity_index: "Equity indices",
     sector: "Sector ETFs",
+    sector_etf: "Sector ETFs",
     rates: "Treasury rates",
     macro: "Macro indicators",
     commodity: "Commodities",
@@ -373,11 +384,11 @@ function adaptFreshness(rows: BackendSummary["data_freshness"]["instruments"]): 
     const stale = items.some((item) => item.is_stale);
     const sources = sourceLabels(items);
     return {
-      name: labels[assetClass] ?? titleCase(assetClass),
+      name: labels[assetClass] ?? sentenceCase(assetClass),
       latestDate: dates[0] ?? null,
       status: dates.length < items.length ? "partial" : stale ? "stale" : "fresh",
       lagDays,
-      note: sources.length ? `Reported sources: ${sources.join(", ")}.` : "Source metadata was not supplied by the API."
+      note: sources.length ? `Reported sources: ${sources.map(source => displayLabels.sources[source as keyof typeof displayLabels.sources] ?? sentenceCase(source)).join(", ")}.` : "Source metadata was not supplied by the API."
     };
   });
 }
@@ -389,7 +400,7 @@ function adaptSignal(signal: BackendSignal): RegimeSignal {
       : name.includes("oil") || name.includes("copper") || name.includes("cpi") ? "inflation"
         : name.includes("nasdaq") || name.includes("russell") ? "growth" : "risk";
   return {
-    name: titleCase(name),
+    name: signal.display_name ?? displayLabels.signals[signal.name as keyof typeof displayLabels.signals] ?? sentenceCase(name),
     category,
     value: signal.value === null ? "n/a" : String(signal.value),
     direction: signal.available === false || signal.value === null ? "neutral" : signal.passed ? "positive" : "negative",
@@ -406,6 +417,6 @@ function scorePercent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(50 + value * 15)));
 }
 
-function titleCase(value: string): string {
-  return value.replace(/_/g, " ").replace(/\b\w/g, (letter: string) => letter.toUpperCase());
+function regimeLabel(value: string): string {
+  return displayLabels.regimes[value as keyof typeof displayLabels.regimes] ?? sentenceCase(value);
 }

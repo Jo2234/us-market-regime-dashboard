@@ -81,7 +81,7 @@ describe("API provenance", () => {
     const data = api.adaptBackendSummary(input);
     expect(data.sourceMode).toBe("api");
     expect(data.provenance?.mode).toBe(mode);
-    expect(data.provenance?.sources).toEqual(sources);
+    expect(data.provenance?.sources).toEqual(sources.map(source => ({ demo_seed: "Local demo", fred: "FRED", yahoo_finance: "Yahoo Finance" })[source]));
     if (!sources.length) expect(data.provenance?.description).toContain("source metadata was not supplied");
     if (!sources.includes("demo_seed")) {
       expect(data.freshness.map(item => item.note).join(" ")).not.toContain("demo_seed");
@@ -190,4 +190,20 @@ it("preserves FRED provenance, observation cadence and per-card fallback", async
   expect(result.freshness[0].status).toBe("fresh");
   expect(result.provenance?.observations?.[0].url).toBe("https://fred.stlouisfed.org/series/DFF");
   expect(result.optionalProvidersMissing).not.toContain("CPI, unemployment and Fed funds (no Yahoo equivalent)");
+});
+
+it("displays current quotes with their dates while preserving completed regime inputs", async () => {
+  const api = await productionApi();
+  const input = summary();
+  input.market_status = { is_open: true, session_date: "2025-01-16", refresh_seconds: 60, next_open: "2025-01-17" };
+  input.major_indices = [{ symbol: "SPY", date: "2025-01-15", value: 100, price: 101, returns: { "1m": .02 }, volatility: {}, drawdown_52w: 0 }];
+  input.live_quotes = { SPY: { price: 102, observation_date: "2025-01-16", observed_at: "2025-01-16T15:00:00Z", is_current_session: true, is_stale: false, returns: { "1m": .03 } } };
+  const result = api.adaptBackendSummary(input);
+  expect(result.indices[0].price).toBe(102);
+  expect(result.indices[0].monthReturn).toBe(3);
+  expect(result.indices[0].observationDate).toBe("2025-01-16");
+  expect(result.regime.asOf).toBe("2025-01-15");
+  expect(input.major_indices[0].price).toBe(101);
+  input.live_quotes.SPY.is_stale = true;
+  expect(api.adaptBackendSummary(input).indices[0].price).toBe(101);
 });

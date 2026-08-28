@@ -1,0 +1,26 @@
+{
+  "signals": {
+    "sp500_above_50d_ma": "S&P 500 above 50-day MA",
+    "nasdaq_outperforming_sp500_1m": "Nasdaq 100 outperforming S&P 500 (1M)",
+    "vix_below_3m_average": "VIX below 3-month average",
+    "defensives_outperform_cyclicals_1m": "Defensives outperforming cyclicals (1M)",
+    "russell_underperforming_sp500_1m": "Russell 2000 underperforming S&P 500 (1M)",
+    "gold_outperforming_equities_1m": "Gold outperforming equities (1M)",
+    "oil_up_more_than_5pct_1m": "Oil up more than 5% (1M)",
+    "copper_up_more_than_5pct_1m": "Copper up more than 5% (1M)",
+    "cpi_above_target": "CPI above target",
+    "ten_year_rising_sharply_1m": "10Y yield rising sharply (1M)",
+    "two_year_rising_sharply_1m": "2Y futures-implied yield rising sharply (1M)",
+    "yield_curve_inverted": "Yield curve inverted"
+  },
+  "regimes": {
+    "risk_on_growth_led": "Risk-on growth led",
+    "risk_on_broadening": "Risk-on broadening",
+    "risk_off_defensive": "Risk-off defensive",
+    "inflation_pressure": "Inflation pressure",
+    "rates_pressure": "Rates pressure",
+    "commodity_shock": "Commodity shock",
+    "mixed_transition": "Mixed transition"
+  },
+  "sources": { "yahoo_finance": "Yahoo Finance", "fred": "FRED", "us_treasury": "US Treasury", "demo_seed": "Local demo" }
+}
