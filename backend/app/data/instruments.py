@@ -33,16 +33,16 @@ INSTRUMENTS: tuple[InstrumentDefinition, ...] = (
     InstrumentDefinition("CPER", "United States Copper Index Fund", "commodity", "yahoo_finance"),
     InstrumentDefinition("VIX", "CBOE Volatility Index", "volatility", "yahoo_finance"),
     InstrumentDefinition("DXY", "US Dollar Index", "currency", "yahoo_finance"),
-    InstrumentDefinition("DGS3MO", "3-Month Treasury Yield", "rates", "yahoo_finance"),
-    InstrumentDefinition("DGS2", "2-Year Yield Futures (futures-implied)", "rates", "yahoo_finance"),
-    InstrumentDefinition("DGS5", "5-Year Treasury Yield", "rates", "yahoo_finance"),
-    InstrumentDefinition("DGS10", "10-Year Treasury Yield", "rates", "yahoo_finance"),
-    InstrumentDefinition("DGS30", "30-Year Treasury Yield", "rates", "yahoo_finance"),
+    InstrumentDefinition("DGS3MO", "3-month Treasury", "rates", "yahoo_finance"),
+    InstrumentDefinition("DGS2", "2-year yield futures (futures-implied)", "rates", "yahoo_finance"),
+    InstrumentDefinition("DGS5", "5-year Treasury", "rates", "yahoo_finance"),
+    InstrumentDefinition("DGS10", "10-year Treasury", "rates", "yahoo_finance"),
+    InstrumentDefinition("DGS30", "30-year Treasury", "rates", "yahoo_finance"),
     InstrumentDefinition("FEDFUNDS", "Effective Fed funds rate, daily", "macro", "fred", "daily"),
     InstrumentDefinition("CPI_YOY", "Headline CPI YoY", "macro", "fred", "monthly"),
     InstrumentDefinition("CORE_CPI_YOY", "Core CPI YoY", "macro", "fred", "monthly"),
     InstrumentDefinition("FEDFUNDS_MONTHLY", "Fed funds monthly average", "macro", "fred", "monthly"),
-    InstrumentDefinition("UNRATE", "Unemployment Rate", "macro", "fred", "monthly"),
+    InstrumentDefinition("UNRATE", "Unemployment rate", "macro", "fred", "monthly"),
 )
 
 SECTOR_SYMBOLS = ("XLK", "XLF", "XLE", "XLV", "XLY", "XLP", "XLI", "XLB", "XLU", "XLRE", "XLC")

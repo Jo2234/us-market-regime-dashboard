@@ -21,11 +21,11 @@ Moving averages use 50/200 observed sessions of adjusted close. Rolling volatili
 
 ## Yield curve
 
-Yahoo `^IRX`, `^FVX`, `^TNX`, `^TYX`, and `2YY=F` are already in percent: **5.24 means 5.24%, with no factor-of-ten or factor-of-100 conversion**. Values come from daily `close`, not `regularMarketPrice`. The curve covers 3M, 2Y*, 5Y, 10Y and 30Y.
+Yahoo `^IRX`, `^FVX`, `^TNX`, `^TYX`, and `2YY=F` are already in percent: **5.24 means 5.24%, with no factor-of-ten or factor-of-100 conversion**. Daily values use the bar close, with the documented same-session metadata repair when the last completed bar is null. Intraday quotes use timestamped `regularMarketPrice`. The curve covers 3M, 2Y*, 5Y, 10Y and 30Y.
 
 - 3M is the `^IRX` discount-yield index, not a Treasury par yield.
 - 2Y* is `2YY=F`, the front-contract 2-year yield future. It is futures-implied, not a cash Treasury index or the price-based `ZT=F` future.
-- `10y_2y` remains the API key for compatibility, but is explicitly **10Y Treasury minus 2Y futures-implied yield**. It is not the conventional cash 10Y−2Y recession spread. Contract rolls, liquidity and differing observation dates can affect it; API spread metadata exposes that distinction and both dates.
+- `10y_2y` remains the API key for compatibility, but is explicitly **10Y Treasury minus 2Y futures-implied yield**. It is not the conventional cash 10Y–2Y recession spread. Contract rolls, liquidity and differing observation dates can affect it; API spread metadata exposes that distinction and both dates.
 - `10y_3m` and `30y_10y` are differences of the corresponding available observations.
 
 Spreads are percentage points in the API; the UI multiplies by 100 for basis points. Rates-pressure changes currently retain their 21-observation definition. Macro inputs are supplied separately by FRED.
@@ -40,7 +40,7 @@ Headline `CPI_YOY` uses CPIAUCSL and additive `CORE_CPI_YOY` uses CPILFESL. Both
 
 The denominator must be the exact year-ago month, not the twelfth preceding row if months are missing. No match means no derived observation for that month. API values are percentages, rounded to four decimal places; the UI shows two. These seasonally adjusted calculations can differ slightly from published unadjusted headline YoY figures. The raw snapshot retains the indices and full precision. Values dated `2026-08-01` mean **Aug 2026**, not a reading published on August 1.
 
-The existing `cpi_above_target` rule adds one inflation point when **headline CPI YoY > 2.5%**. The threshold and all classification precedence remain unchanged. Core CPI, DFF and unemployment are displayed but do not enter the scores. Missing CPI contributes no point and caps otherwise-high confidence at medium. With the September 28, 2026 market inputs held fixed, restoring August headline CPI (3.3530%) increases raw inflation score from 1 to 2 (UI 65 → 80); Rates Pressure remains the label, with medium confidence. Risk 0, growth 0 and rates pressure 2 are unchanged.
+The existing `cpi_above_target` rule adds one inflation point when **headline CPI YoY > 2.5%**. The threshold and all classification precedence remain unchanged. Core CPI, DFF and unemployment are displayed but do not enter the scores. Missing CPI contributes no point and caps otherwise-high confidence at medium. With the September 28, 2026 market inputs held fixed, restoring August headline CPI (3.3530%) increases raw inflation score from 1 to 2 (UI 65 → 80); Rates pressure remains the label, with medium confidence. Risk 0, growth 0 and rates pressure 2 are unchanged.
 
 FRED returns the latest revised vintage, not ALFRED's point-in-time release history. Historical selections filter observation dates on or before the selected market date, but can include revisions and data published after the observation month. They are descriptive historical views, not valid point-in-time backtests.
 
@@ -54,7 +54,7 @@ Freshness compares actual series dates with that latest completed NYSE session; 
 
 Regime labels remain deterministic rule outputs. All price signals use adjusted history. Rules expose availability; missing CPI is not described as a failed observation. The note does not infer causality. Scores are descriptive, not probabilities or trading advice.
 
-Production requests construct an isolated in-memory database from the validated cached Yahoo and FRED datasets, so an old demo SQLite database cannot leak into responses. Historical selections recompute from roughly two years of available bars. `/regime/recalculate` computes a requested backfill, but its database is request-local; it does not create durable serverless history. The default summary therefore contains its current computed classification, not invented historical scores.
+Production requests construct an isolated in-memory database from the validated cached Yahoo and FRED datasets, so an old demo SQLite database cannot leak into responses. Historical selections recompute from roughly two years of available bars. `/regime/recalculate` computes a requested backfill, but its database is request-local; it does not create durable serverless history. The default summary includes the cached, deterministic trailing-year history and previous-session change note; the snapshot workflow persists the same derived history.
 
 ## Intraday endpoints
 

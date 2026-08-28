@@ -24,6 +24,9 @@ import type {
 import {
   downloadDashboardCsv,
   formatDate,
+  formatShortDate,
+  sentenceCase,
+  observationLabel,
   formatDateTime,
   formatNumber,
   formatPercent,
@@ -54,7 +57,7 @@ const seriesColors: Record<SeriesKey, string> = {
 };
 
 const metricTooltips = {
-  spyMonth: "SPY one-month adjusted-close return for the selected market date.",
+  spyMonth: "SPY one-month return using adjusted history; during NYSE hours its endpoint is the live quote.",
   qqqVsSpy:
     "QQQ one-month return minus SPY one-month return, in percentage points.",
   tenTwo:
@@ -101,7 +104,7 @@ export default function App() {
         schedule(Math.max(nextData.retryAfterSeconds ?? 0, Math.min(900, 5 * 2 ** Math.min(failures.current - 1, 8))) * 1000);
       } else {
         failures.current = 0;
-        schedule(Math.max(nextData.marketStatus?.refresh_seconds ?? 900, nextData.quoteStatus?.refresh_seconds ?? 0) * 1000);
+        schedule((selectedDate ? 900 : Math.max(nextData.marketStatus?.refresh_seconds ?? 900, nextData.quoteStatus?.refresh_seconds ?? 0)) * 1000);
       }
     }).catch(requestError => {
       if (controller.signal.aborted) return;
@@ -165,17 +168,17 @@ export default function App() {
         </a>
       </nav>
       <div className="refresh-status" role="status" aria-live="polite" aria-atomic="true">
-        <span><UpdatedAge timestamp={data.fetchedAt} /> · {data.fetchedAt ? `Last updated ${formatDateTime(data.fetchedAt)}` : "Last update time unavailable"} · Yahoo Finance · as of <time className="observation-date" dateTime={data.selectedDate}>{data.selectedDate}</time></span>
+        <span><UpdatedAge timestamp={data.fetchedAt} /> · {data.fetchedAt ? `Last updated ${formatDateTime(data.fetchedAt)}` : "Last update time unavailable"} · Yahoo Finance · as of <time className="observation-date" dateTime={data.intraday ? data.marketStatus!.session_date : data.selectedDate}>{formatDate(data.intraday ? data.marketStatus!.session_date : data.selectedDate)}</time></span>
         <span className={error || data.provenance?.mode === "snapshot" ? "refresh-warning" : ""}>
           {loading ? "Updating with the latest numbers…" : error || data.provenance?.mode === "snapshot"
-            ? `Showing close of ${data.selectedDate}; live refresh unavailable, retrying automatically.`
+            ? `Showing close of ${formatDate(data.selectedDate)}; live refresh unavailable, retrying automatically.`
             : data.marketStatus?.is_open ? data.quoteStatus?.cache === "stale" ? "Live quote refresh unavailable; retaining the last real observations and retrying." : "Live intraday prices · regime based on completed daily closes" : "Latest completed daily close"}
         </span>
       </div>
-      <p className="market-status" role="status">{data.marketStatus?.is_open
+      <p className="market-status" role="status">{selectedDate ? `Historical snapshot · Close of ${formatDate(data.selectedDate)}` : data.marketStatus?.is_open
         ? "Market open · Live intraday"
         : `Market closed · Close of ${formatDate(data.selectedDate)}`}
-        {data.marketStatus?.is_open && !data.intraday && " · Awaiting current-session quotes"}
+        {!selectedDate && data.marketStatus?.is_open && !data.intraday && " · Awaiting current-session quotes"}
       </p>
       <div className="data-notice">
         <span
@@ -184,8 +187,8 @@ export default function App() {
           {loading && <RefreshCw size={13} className="spinning" aria-label="Updating market data" />}
           {
             {
-              live: `Live · Yahoo Finance · as of ${data.selectedDate}`,
-              snapshot: `Snapshot · as of ${data.selectedDate}`,
+              live: `Live · Yahoo Finance · as of ${formatDate(data.intraday ? data.marketStatus!.session_date : data.selectedDate)}`,
+              snapshot: `Snapshot · as of ${formatDate(data.selectedDate)}`,
               api: "API data",
               demo: "Generated demo data",
               mixed: "Mixed sources",
@@ -238,7 +241,7 @@ export default function App() {
           <div className="cross-asset-stack">
             <RiskPanel title="Commodities" items={data.commodities} />
             <RiskPanel
-              title="Volatility & Breadth"
+              title="Volatility & breadth"
               items={[...data.volatility, ...data.breadth]}
             />
           </div>
@@ -269,7 +272,7 @@ export default function App() {
           number="03"
           title="How the regime evolved"
           id="history-title"
-          description="Stored classifications, with scores shown on a 0–100 scale."
+          description="Daily classifications reconstructed from observed data, with scores on a 0–100 scale."
         />
         <RegimeHistoryChart
           data={data.historicalRegimes ?? []}
@@ -347,7 +350,7 @@ function SiteFooter() {
         target="_blank"
         rel="noreferrer"
       >
-        source on GitHub
+        Source on GitHub
       </a>
     </footer>
   );
@@ -499,7 +502,7 @@ function FreshnessBadge({ source }: { source: FreshnessSource }) {
     <div className={`source-badge ${source.status}`} title={source.note}>
       <span>{source.name}</span>
       <strong>{formatDate(source.latestDate)}</strong>
-      <span className="source-status">{source.status.replace("_", " ")}</span>
+      <span className="source-status">{sentenceCase(source.status)}</span>
     </div>
   );
 }
@@ -519,8 +522,8 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
         <span className={`mode-chip ${provenance.mode}`}>
           {
             {
-              live: `Live · Yahoo Finance · as of ${data.selectedDate}`,
-              snapshot: `Snapshot · as of ${data.selectedDate}`,
+              live: `Live · Yahoo Finance · as of ${formatDate(data.intraday ? data.marketStatus!.session_date : data.selectedDate)}`,
+              snapshot: `Snapshot · as of ${formatDate(data.selectedDate)}`,
               api: "API data",
               demo: "Demo data",
               mixed: "Mixed sources",
@@ -537,7 +540,7 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
         <p>{provenance.description}</p>
         <p>During NYSE hours, price is the regular-market quote and 1D is its change from the previous close. Otherwise price is the completed daily close. Longer returns and indexed charts use Yahoo adjusted historical closes (splits and distributions), with the live price as the endpoint intraday; 1W, 1M, 3M and 1Y use the close on or before the same calendar date earlier (7 days, 1 month, 3 months, 1 year). YTD starts at the last close of the prior year. Month-end dates clamp to the last day of the target month. Missing history displays n/a.</p>
         <p>Yahoo is an unofficial data service and may rate-limit. Live quotes refresh every 60 seconds during NYSE hours, only while this tab is visible. Daily history refreshes every 15 minutes and after the close; closed-market responses cache for up to 15 minutes. CDN revalidation may add 15 seconds during market hours or 60 seconds when closed. Rate limits extend quote refresh intervals up to 15 minutes. A scheduled Yahoo snapshot is the labelled fallback. Observation dates are preserved.</p>
-        <p>Macro indicators come from FRED, with a separate one-hour cache and per-series snapshot fallback. Fed funds uses daily DFF; the monthly FEDFUNDS average is secondary context. Headline and core CPI YoY equal 100 × (this month’s seasonally adjusted index / the same month one year earlier − 1), using CPIAUCSL and CPILFESL. Monthly dates identify observation months, not release dates. Historical macro values use the latest revised vintage, not point-in-time releases.</p>
+        <p>Macro indicators come from FRED, with a separate one-hour cache and per-series snapshot fallback. Fed funds uses daily DFF; the monthly FEDFUNDS average is secondary context. Headline and core CPI YoY equal 100 × (this month’s seasonally adjusted index / the same month one year earlier − 1), using CPIAUCSL and CPILFESL. Monthly dates identify observation months, not release dates. Historical CPI uses an approximate release date on the 15th of the following month; unemployment uses the first Friday, and DFF the next business day. Values use the latest revised vintage, not point-in-time releases.</p>
       </div>
       <div>
         <span>Selected {formatDate(provenance.selectedDate)}</span>
@@ -545,7 +548,7 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
         <span>{provenance.freshnessPolicy}</span>
       </div>
       {provenance.observations && <ul aria-label="Series observation dates">
-        {provenance.observations.map(item => <li key={item.symbol}>{item.symbol} · {item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.ticker}</a> : item.ticker} · {item.date ?? "unavailable"}</li>)}
+        {provenance.observations.map(item => <li key={item.symbol}>{item.name ?? item.symbol} · {item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.ticker}</a> : item.ticker} · {item.date ? formatDate(item.date) : "Unavailable"}</li>)}
       </ul>}
       {provenance.sources.length > 0 && (
         <ul>
@@ -574,7 +577,7 @@ function RegimeCard({ data }: { data: DashboardData }) {
           <h2>{data.regime.displayLabel}</h2>
         </div>
         <span className={`confidence ${data.regime.confidence}`}>
-          {data.regime.confidence} confidence
+          {sentenceCase(data.regime.confidence)} confidence
         </span>
       </div>
       <p className="regime-change">{data.regime.changedSincePrevious}</p>
@@ -640,7 +643,7 @@ function MarketSummary({ data }: { data: DashboardData }) {
       <div className="panel-header">
         <div>
           <span className="eyebrow">Snapshot at a glance</span>
-          <h2>{formatDate(data.selectedDate)}</h2>
+          <h2>{formatDate(data.intraday ? data.marketStatus!.session_date : data.selectedDate)}</h2>
         </div>
       </div>
       <dl className="metric-list">
@@ -657,7 +660,7 @@ function MarketSummary({ data }: { data: DashboardData }) {
           </dd>
         </div>
         <div>
-          <dt title={metricTooltips.tenTwo}>10Y - 2Y*</dt>
+          <dt title={metricTooltips.tenTwo}>10Y–2Y*</dt>
           <dd className={performanceClass(data.rates.tenTwoSpread)}>
             {formatNumber(
               data.rates.tenTwoSpread === null
@@ -757,8 +760,8 @@ function SectorHeatmap({ data }: { data: DashboardData }) {
     <article className="panel heatmap-panel">
       <div className="panel-header">
         <div>
-          <span className="eyebrow">Sector Rotation</span>
-          <h2>Performance Heatmap</h2>
+          <span className="eyebrow">Sector rotation</span>
+          <h2>Performance heatmap</h2>
         </div>
         <span className="header-note">ETF proxies</span>
       </div>
@@ -847,8 +850,8 @@ function PerformanceChart({
     <article className="panel chart-panel">
       <div className="panel-header">
         <div>
-          <span className="eyebrow">Indexed Return</span>
-          <h2>Major Indices</h2>
+          <span className="eyebrow">Indexed return</span>
+          <h2>Major indices</h2>
         </div>
         <span className="header-note">Base 100</span>
       </div>
@@ -957,7 +960,7 @@ function PerformanceChart({
                 className="axis-label"
               >
                 {index === 0 || index === data.performanceSeries.length - 1
-                  ? point.date.slice(5)
+                  ? formatShortDate(point.date)
                   : ""}
               </text>
             ))}
@@ -985,9 +988,9 @@ function MacroPanel({ data, loading, onRefresh }: { data: DashboardData; loading
       const item = data.macro?.[symbol];
       return <section className="macro-card" key={symbol} aria-label={label}>
         <h3>{label}</h3><strong className="macro-value">{item ? `${formatNumber(item.value, 2)}%` : "Unavailable"}</strong>
-        <p>{item?.observation_label ?? item?.observation_date ?? "No observation available"}</p>
+        <p>{item ? observationLabel(item.observation_label ?? item.observation_date) : "No observation available"}</p>
         <a href={`https://fred.stlouisfed.org/series/${series}`} target="_blank" rel="noreferrer">FRED: {series}</a><span className="macro-frequency">{frequency}</span>
-        <p className="macro-notice">{!item ? "Live refresh unavailable; retrying." : item.mode === "snapshot" ? `Snapshot · ${item.observation_label ?? item.observation_date}; live refresh unavailable, retrying.` : item.is_stale ? "Observation is behind its publication window." : "Latest supplied observation"}</p>
+        <p className="macro-notice">{!item ? "Live refresh unavailable; retrying." : item.mode === "snapshot" ? `Snapshot · ${observationLabel(item.observation_label ?? item.observation_date)}; live refresh unavailable, retrying.` : item.is_stale ? "Observation is behind its publication window." : "Latest supplied observation"}</p>
         {symbol === "FEDFUNDS" && monthly && <p className="macro-secondary">Monthly average: {formatNumber(monthly.value, 2)}% · {monthly.observation_label} · <a href="https://fred.stlouisfed.org/series/FEDFUNDS" target="_blank" rel="noreferrer">FEDFUNDS</a>{monthly.mode === "snapshot" ? " · Snapshot" : ""}</p>}
       </section>;
     })}</div>
@@ -1011,7 +1014,7 @@ function YieldCurvePanel({ data }: { data: DashboardData }) {
       <div className="panel-header">
         <div>
           <span className="eyebrow">Rates</span>
-          <h2>Yield Curve</h2>
+          <h2>Yield curve</h2>
         </div>
         <span className={performanceClass(data.rates.tenTwoSpread)}>
           {formatNumber(
@@ -1020,12 +1023,12 @@ function YieldCurvePanel({ data }: { data: DashboardData }) {
               : data.rates.tenTwoSpread * 100,
             0,
           )}{" "}
-          bps 10Y-2Y*
+          bps 10Y–2Y*
         </span>
       </div>
       <YieldCurve points={points} />
-      <p className="chart-note">*2Y is futures-implied (Yahoo 2YY=F), not a cash Treasury yield. The 10Y−2Y spread mixes these bases. 3M uses the ^IRX discount yield. All yields are in percent.</p>
-      <p className="chart-note">{points.map(point => `${point.maturity} ${point.yield.toFixed(2)}%${point.date ? ` (${point.date})` : ""}`).join(" · ")}</p>
+      <p className="chart-note">*2Y is futures-implied (Yahoo 2YY=F), not a cash Treasury yield. The 10Y–2Y* spread mixes these bases. 3M uses the ^IRX discount yield. All yields are in percent.</p>
+      <p className="chart-note">{points.map(point => `${point.maturity} ${point.yield.toFixed(2)}%${point.date ? ` (${formatDate(point.date)})` : ""}`).join(" · ")}</p>
       <div className="legend yield-legend">
         <span>
           <i style={{ background: "var(--positive)" }} />
@@ -1162,7 +1165,7 @@ function RiskPanel({
     <article className="panel risk-panel">
       <div className="panel-header">
         <div>
-          <span className="eyebrow">Cross-Asset</span>
+          <span className="eyebrow">Cross-asset</span>
           <h2>{title}</h2>
         </div>
       </div>
@@ -1214,7 +1217,7 @@ function SignalTable({ signals }: { signals: RegimeSignal[] }) {
       <div className="panel-header">
         <div>
           <span className="eyebrow">Rules</span>
-          <h2>Regime Signal Table</h2>
+          <h2>Regime signal table</h2>
         </div>
         <label className="filter-label">
           Category
@@ -1227,7 +1230,7 @@ function SignalTable({ signals }: { signals: RegimeSignal[] }) {
             {[...new Set(signals.map((signal) => signal.category))].map(
               (value) => (
                 <option key={value} value={value}>
-                  {value}
+                  {sentenceCase(value)}
                 </option>
               ),
             )}
@@ -1262,11 +1265,11 @@ function SignalTable({ signals }: { signals: RegimeSignal[] }) {
             {filteredSignals.map((signal) => (
               <tr key={signal.name}>
                 <th>{signal.name}</th>
-                <td>{signal.category}</td>
+                <td>{sentenceCase(signal.category)}</td>
                 <td>{signal.value}</td>
                 <td>
                   <span className={`direction ${signal.direction}`}>
-                    {signal.direction}
+                    {sentenceCase(signal.direction)}
                   </span>
                 </td>
                 <td>{formatNumber(signal.weight * 100, 0)}%</td>
@@ -1311,11 +1314,11 @@ function RegimeHistoryChart({ data, onDateSelect }: { data: HistoricalRegimePoin
     setActiveIndex(Math.max(0, Math.min(data.length - 1, Math.round((x - pad) / (width - 2 * pad) * (data.length - 1)))));
   };
   return <article className="panel history-panel">
-    <div className="panel-header"><div><span className="eyebrow">Explainability</span><h2>Historical Regime Scores</h2></div>
+    <div className="panel-header"><div><span className="eyebrow">Explainability</span><h2>Historical regime scores</h2></div>
       <div className="legend">{metrics.map(([, label, color]) => <span key={label}><i style={{ background: color }} />{label}</span>)}</div>
     </div>
     {data.length === 1 && <p className="chart-caption">A trend needs at least two observations.</p>}
-    <p className="chart-caption">{data.length} daily classifications · completed closes · hover, tap or use the date slider. Shaded bands mark regime periods.</p>
+    <p className="chart-caption">{data.length} daily classifications · {formatDate(data[0].date)} – {formatDate(data[data.length-1].date)} · completed closes · hover, tap or use the date slider. Shaded bands mark regime periods.</p>
     <svg className="history-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Historical regime scores chart" onPointerMove={inspect} onPointerDown={inspect}>
       {bands.map(band => <rect key={band.start} x={xFor(band.start)} y={pad} width={Math.max(1, xFor(Math.min(data.length - 1, band.end + 1)) - xFor(band.start))} height={height - 2 * pad} fill={bandColor(band.label)} opacity=".08"><title>{band.label}</title></rect>)}
       {[0, 50, 100].map(tick => <g key={tick}><line x1={pad} x2={width-pad} y1={yFor(tick)} y2={yFor(tick)} className="grid-line" /><text x={3} y={yFor(tick)+4} className="axis-label">{tick}</text></g>)}
@@ -1342,7 +1345,7 @@ function AnalystNote({ data }: { data: DashboardData }) {
     <article className="panel note-panel">
       <div className="panel-header">
         <div>
-          <span className="eyebrow">Analyst Note</span>
+          <span className="eyebrow">Analyst note</span>
           <h2>{data.analystNote.title}</h2>
         </div>
       </div>
@@ -1358,7 +1361,7 @@ function AnalystNote({ data }: { data: DashboardData }) {
         ))}
       </div>
       <div className="limitations">
-        <h3>Data Limits</h3>
+        <h3>Data limits</h3>
         {data.regime.limitations.map((item) => (
           <p key={item}>{item}</p>
         ))}
@@ -1382,16 +1385,16 @@ function LoadingState({ slow }: { slow: boolean }) {
       </p>
       <div className="skeleton-dashboard" aria-busy="true" aria-label="Loading market dashboard">
         <div className="dashboard-grid first-row" aria-hidden="true">
-          <article className="panel skeleton-card"><span className="eyebrow">MARKET REGIME</span><span className="skeleton-title" />{lines(3)}<span className="skeleton-chart short" /></article>
-          <article className="panel skeleton-card"><span className="eyebrow">THE MARKET AT A GLANCE</span>{lines(5)}</article>
+          <article className="panel skeleton-card"><span className="eyebrow">Market regime</span><span className="skeleton-title" />{lines(3)}<span className="skeleton-chart short" /></article>
+          <article className="panel skeleton-card"><span className="eyebrow">The market at a glance</span>{lines(5)}</article>
         </div>
-        <div className="skeleton-indices" aria-hidden="true">{["S&P 500", "Nasdaq 100", "Russell 2000", "Dow Industrials"].map(name => <article className="panel skeleton-card" key={name}><span className="eyebrow">{name}</span><span className="skeleton-title" />{lines(2)}</article>)}</div>
+        <div className="skeleton-indices" aria-hidden="true">{["S&P 500", "Nasdaq 100", "Russell 2000", "Dow Jones"].map(name => <article className="panel skeleton-card" key={name}><span className="eyebrow">{name}</span><span className="skeleton-title" />{lines(2)}</article>)}</div>
         <div className="dashboard-grid second-row" aria-hidden="true">
-          <article className="panel skeleton-card"><span className="eyebrow">INDEX PERFORMANCE</span><span className="skeleton-chart" /></article>
-          <article className="panel skeleton-card"><span className="eyebrow">TREASURY YIELD CURVE</span><span className="skeleton-chart" /></article>
+          <article className="panel skeleton-card"><span className="eyebrow">Index performance</span><span className="skeleton-chart" /></article>
+          <article className="panel skeleton-card"><span className="eyebrow">Treasury yield curve</span><span className="skeleton-chart" /></article>
         </div>
-        <article className="panel skeleton-card" aria-hidden="true"><span className="eyebrow">MACRO INDICATORS · FRED</span><div className="macro-grid">{[0, 1, 2, 3].map(i => <div key={i}><span className="skeleton-title" />{lines(3)}</div>)}</div></article>
-        <article className="panel skeleton-card skeleton-table" aria-hidden="true"><span className="eyebrow">SECTOR ROTATION</span>{lines(6)}</article>
+        <article className="panel skeleton-card" aria-hidden="true"><span className="eyebrow">Macro indicators · FRED</span><div className="macro-grid">{[0, 1, 2, 3].map(i => <div key={i}><span className="skeleton-title" />{lines(3)}</div>)}</div></article>
+        <article className="panel skeleton-card skeleton-table" aria-hidden="true"><span className="eyebrow">Sector rotation</span>{lines(6)}</article>
       </div>
       <SiteFooter />
     </main>
