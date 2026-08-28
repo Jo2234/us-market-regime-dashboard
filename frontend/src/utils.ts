@@ -1,5 +1,19 @@
 import type { DashboardData, RangeKey } from "./types";
 
+export function sentenceCase(value: string): string {
+  const text = value.replace(/_/g, " ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+export function formatShortDate(value: string): string {
+  return new Date(`${value}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+export function observationLabel(value?: string): string {
+  if (!value) return "Unavailable";
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? formatDate(value) : value;
+}
+
 export const ranges: RangeKey[] = ["1D", "1W", "1M", "3M", "YTD", "1Y"];
 
 export function formatPercent(value: number | null, precision = 2): string {
@@ -64,9 +78,9 @@ export function downloadDashboardCsv(data: DashboardData): void {
   const rows: string[][] = [
     ["section", "name", "symbol", "metric", "value", "as_of"],
     ...data.indices.flatMap((item) => [
-      ["index", item.name, item.symbol, "day_return_pct", String(item.dayReturn), data.selectedDate],
-      ["index", item.name, item.symbol, "month_return_pct", String(item.monthReturn), data.selectedDate],
-      ["index", item.name, item.symbol, "ytd_return_pct", String(item.ytdReturn), data.selectedDate],
+      ["index", item.name, item.symbol, "day_return_pct", String(item.dayReturn), item.observationDate ?? data.selectedDate],
+      ["index", item.name, item.symbol, "month_return_pct", String(item.monthReturn), item.observationDate ?? data.selectedDate],
+      ["index", item.name, item.symbol, "ytd_return_pct", String(item.ytdReturn), item.observationDate ?? data.selectedDate],
       ["index", item.name, item.symbol, "drawdown_52w_pct", String(item.drawdown52w), data.selectedDate]
     ]),
     ...data.sectors.flatMap((item) =>
@@ -76,12 +90,12 @@ export function downloadDashboardCsv(data: DashboardData): void {
         item.symbol,
         `${window.toLowerCase()}_return_pct`,
         String(value),
-        data.selectedDate
+        item.observationDate ?? data.selectedDate
       ])
     ),
-    ...data.rates.points.map((item) => ["yield_curve", item.maturity, "", "yield_pct", String(item.yield), data.selectedDate]),
-    ...data.commodities.map((item) => ["commodity", item.name, item.symbol, "month_return_pct", String(item.monthReturn), data.selectedDate]),
-    ...data.volatility.map((item) => ["volatility", item.name, item.symbol, "value", String(item.value), data.selectedDate]),
+    ...data.rates.points.map((item) => ["yield_curve", item.maturity, "", "yield_pct", String(item.yield), item.date ?? data.selectedDate]),
+    ...data.commodities.map((item) => ["commodity", item.name, item.symbol, "month_return_pct", String(item.monthReturn), item.observationDate ?? data.selectedDate]),
+    ...data.volatility.map((item) => ["volatility", item.name, item.symbol, "value", String(item.value), item.observationDate ?? data.selectedDate]),
     ...data.signals.map((item) => ["signal", item.name, item.category, item.direction, item.value, data.selectedDate])
   ];
 
