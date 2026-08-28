@@ -40,7 +40,20 @@ def main():
             chart = response.json()["chart"]["result"][0]
             tz = ZoneInfo(chart["meta"]["exchangeTimezoneName"])
             closes = chart["indicators"]["quote"][0]["close"]
+            # Independent same-session closing-quote check for Yahoo's delayed bar.
+            meta = chart["meta"]
+            last_day = datetime.fromtimestamp(chart["timestamp"][-1], tz).date()
+            from app.services.calendar import session_close
+            official_close = session_close(last_day)
+            meta_time = meta.get("regularMarketTime", 0)
+            repaired = (closes[-1] is None and last_day <= cutoff and official_close
+                        and meta_time >= official_close.timestamp()
+                        and datetime.fromtimestamp(meta_time, tz).date() == last_day)
+            if repaired:
+                closes[-1] = meta["regularMarketPrice"]
             adjusted = chart["indicators"].get("adjclose", [{}])[0].get("adjclose", closes)
+            if repaired:
+                adjusted[-1] = closes[-1]
             bars = [(datetime.fromtimestamp(t, tz).date(), c, a)
                     for t, c, a in zip(chart["timestamp"], closes, adjusted)
                     if c is not None and datetime.fromtimestamp(t, tz).date() <= cutoff]
