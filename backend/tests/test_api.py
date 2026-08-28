@@ -119,7 +119,8 @@ def test_summary_uses_requested_observation_date_and_revised_inputs(seeded_conn)
         "UPDATE market_prices SET adjusted_close = adjusted_close / 2 WHERE instrument_id = 'SPY' AND date = '2026-06-25'"
     )
     revised = dashboard_summary(date(2026, 6, 25), seeded_conn)
-    expected = classify_regime(seeded_conn, date(2026, 6, 25))
+    previous = classify_regime(seeded_conn, date(2026, 6, 24))
+    expected = classify_regime(seeded_conn, date(2026, 6, 25), previous=previous)
     assert revised["regime"] == expected
     assert revised["regime"]["risk_score"] != later["regime"]["risk_score"]
 

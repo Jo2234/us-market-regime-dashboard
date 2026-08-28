@@ -60,6 +60,7 @@ class DashboardSummaryResponse(BaseModel):
     major_indices: list[dict[str, Any]]
     performance_series: list[dict[str, Any]]
     historical_regimes: list[dict[str, Any]]
+    history_delivery: dict[str, Any] = {}
     sectors: list[dict[str, Any]]
     sector_leaders: list[dict[str, Any]]
     sector_laggards: list[dict[str, Any]]
