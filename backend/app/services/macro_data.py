@@ -16,7 +16,7 @@ from app.ingestion.fred import fetch_batch
 from app.services.calendar import latest_completed_session, missed_sessions
 
 SNAPSHOT_PATH = Path(__file__).resolve().parents[1] / "data" / "fred_snapshot.json"
-CACHE_SECONDS = 6 * 3600
+CACHE_SECONDS = 3600
 FAILURE_SECONDS = 900
 _cached: dict = {}
 _expires: dict = {}
