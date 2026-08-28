@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import date
+import json
+from pathlib import Path
 from typing import Any
 from uuid import uuid5, NAMESPACE_URL
 
@@ -8,9 +10,12 @@ from app.data.database import load_previous_regime, save_regime_snapshot
 from app.services import analytics
 
 
+_LABELS = json.loads((Path(__file__).resolve().parents[1] / "data/display_labels.json").read_text())
+
 def _signal(name: str, passed: bool, value: float | None, threshold: str, evidence: str) -> dict[str, Any]:
     return {
         "name": name,
+        "display_name": _LABELS["signals"].get(name, name),
         "passed": passed,
         "available": value is not None,
         "value": analytics._rounded(value, 6),
@@ -135,7 +140,7 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
     if previous and previous["date"] != observed_date.isoformat():
         risk_delta = risk_score - float(previous["risk_score"])
         if previous["regime_label"] != label:
-            change_note = f"Regime changed from {previous['regime_label']} to {label}; risk score moved {risk_delta:+.1f}."
+            change_note = f"Regime changed from {_LABELS['regimes'][previous['regime_label']]} to {_LABELS['regimes'][label]}; risk score moved {risk_delta:+.1f}."
         else:
             change_note = f"Regime label is unchanged; risk score moved {risk_delta:+.1f}."
 
@@ -146,6 +151,7 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
         "id": str(uuid5(NAMESPACE_URL, f"regime:{observed_date.isoformat()}")),
         "date": observed_date.isoformat(),
         "regime_label": label,
+        "display_label": _LABELS["regimes"][label],
         "confidence": confidence,
         "risk_score": round(risk_score, 3),
         "growth_score": round(growth_score, 3),
@@ -158,7 +164,7 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
             "what_changed": change_note,
             "data_limitations": [
                 "Yahoo Finance daily bars are unofficial and may be delayed or revised. ETF adjusted closes drive returns; prices use raw closes.",
-                "2Y uses 2YY=F yield futures. The 10Y-2Y spread mixes a cash index and futures-implied yield; contract rolls may affect changes.",
+                "2Y uses 2YY=F yield futures. The 10Y–2Y* spread mixes a cash index and futures-implied yield; contract rolls may affect changes.",
                 ("Headline CPI YoY uses FRED CPIAUCSL, seasonally adjusted, latest vintage. Historical CPI becomes available on the 15th of the following month, an approximate release lag. Values are latest revised vintage, not point-in-time backtests. Fed funds and unemployment are display-only inputs." if cpi else "CPI is unavailable. The CPI signal contributes no inflation point; model coverage is incomplete."),
                 "Regime classification uses completed daily closes. Live quotes and intraday returns update separately during NYSE hours.",
             ],
@@ -176,14 +182,14 @@ def deterministic_summary(
     observed_date: date,
     change_note: str,
 ) -> str:
-    leadership = positive[0]["name"].replace("_", " ") if positive else "no dominant positive signal"
-    watch = negative[0]["name"].replace("_", " ") if negative else "signal confirmation"
+    leadership = _LABELS["signals"][positive[0]["name"]] if positive else "no dominant positive signal"
+    watch = _LABELS["signals"][negative[0]["name"]] if negative else "signal confirmation"
     spread = curve["spreads"].get("10y_2y")
     spread_text = "not available" if spread is None else f"{spread:.2f} percentage points"
     return (
-        f"As of {observed_date.isoformat()}, the dashboard classifies the market as {label} "
+        f"As of {observed_date.strftime('%b')} {observed_date.day}, {observed_date.year}, the dashboard classifies the market as {_LABELS['regimes'][label]} "
         f"with {confidence} confidence. The strongest confirming evidence is {leadership}. "
-        f"The main watch item is {watch}. The 10Y minus 2Y futures-implied spread is {spread_text}. "
+        f"The main watch item is {watch}. The 10Y–2Y* futures-implied spread is {spread_text}. "
         f"{change_note} This note is deterministic and only uses computed dashboard metrics."
     )
 
