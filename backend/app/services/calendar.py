@@ -27,3 +27,12 @@ def latest_completed_session(now: datetime | None = None):
 def missed_sessions(observed, expected) -> int:
     dates, _, _ = _schedule()
     return max(0, bisect.bisect_right(dates, expected) - bisect.bisect_right(dates, observed))
+
+
+def session_close(day: date) -> datetime | None:
+    """Official close, including early closes; None for weekends/holidays."""
+    dates, closes, _ = _schedule()
+    index = bisect.bisect_left(dates, day)
+    if index >= len(dates) or dates[index] != day:
+        return None
+    return datetime.fromtimestamp(closes[index], timezone.utc)

@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from app.data.instruments import YAHOO_TICKERS, PRICE_SYMBOLS
-from app.services.calendar import latest_completed_session
+from app.services.calendar import latest_completed_session, session_close
 
 # Keep the minimal browser User-Agent verified against Yahoo from Vercel.
 USER_AGENT = "Mozilla/5.0"
@@ -47,14 +47,28 @@ def normalize_chart(symbol: str, payload: dict, cutoff: date) -> list[dict]:
     for i, timestamp in enumerate(result.get("timestamp", [])):
         observed = datetime.fromtimestamp(timestamp, tz).date()
         close = number(quotes.get("close", []), i)
+        close_source = "yahoo_bar"
+        # Yahoo may leave the latest completed daily bar empty for hours. Only
+        # the same session's post-close regular-market quote can repair it.
+        if close is None and i == len(result.get("timestamp", [])) - 1 and observed <= cutoff:
+            official_close = session_close(observed)
+            meta = result["meta"]
+            quote_time = meta.get("regularMarketTime")
+            meta_price = meta.get("regularMarketPrice")
+            if (official_close and isinstance(quote_time, (int, float))
+                    and quote_time >= official_close.timestamp()
+                    and datetime.fromtimestamp(quote_time, tz).date() == observed
+                    and isinstance(meta_price, (int, float)) and math.isfinite(meta_price) and meta_price > 0):
+                close, close_source = float(meta_price), "yahoo_meta"
         if observed > cutoff or close is None or close <= 0:
             continue
-        adj = number(adjusted, i)
+        adj = close if close_source == "yahoo_meta" else number(adjusted, i)
         if symbol in PRICE_SYMBOLS and (adj is None or adj <= 0):
             # Reject incomplete adjusted history instead of mixing return bases.
             raise YahooUnavailable(f"Missing adjusted close for {symbol} on {observed}")
         bars[observed] = {
             "date": observed.isoformat(), "close": close, "adjusted_close": adj,
+            **({"close_source": "yahoo_meta", "adjusted_close_source": "same_as_unadjusted_close_pending_yahoo_bar"} if close_source == "yahoo_meta" else {}),
             **{key: number(quotes.get(key, []), i) for key in ("open", "high", "low", "volume")},
         }
     if not bars:
