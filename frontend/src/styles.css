@@ -1536,3 +1536,10 @@ tbody tr:last-child th {
 
 .market-status { font-size: .82rem; color: var(--muted); margin: .75rem 0; }
 .updated-age { font-variant-numeric: tabular-nums; display: inline-block; min-width: 8.5rem; }
+
+.history-panel .history-chart { width: 100%; min-width: 0; display: block; height: auto; }
+.history-date-control { display: grid; gap: .6rem; font-size: .8rem; margin: 1rem 0; }
+.history-date-control input { width: 100%; accent-color: var(--positive); }
+.history-tooltip { min-height: 9rem; padding: 1rem; background: var(--surface-muted); border: 1px solid var(--border); font-size: .85rem; }
+.history-tooltip p { line-height: 1.6; }
+.history-panel .axis-label { font-size: 12px; }

@@ -59,3 +59,9 @@ Production requests construct an isolated in-memory database from the validated 
 ## Intraday endpoints
 
 The daily API fields and regime scores use completed sessions. Additive `live_quotes` use timestamped Yahoo regular-market prices during NYSE hours. Intraday 1D = live price / previous raw close − 1; 1W/1M/3M/YTD/1Y = live price / the adjusted historical close at the same calendar baseline defined above − 1. Indexed charts append that live endpoint. Each quote carries its own observation time and stale flag. A stale or older-session quote does not override daily values in the UI; intraday values are explicitly labelled.
+
+## Historical regime reconstruction
+
+Classify each available SPY session in the trailing calendar year, with at least 63 preceding price observations for warm-up. Reuse the same thresholds and precedence as the current classifier. Cache by source observation values plus model version and retain a matching derived snapshot; quote-only refreshes leave this history unchanged. The preceding daily classification supplies change notes even on a new serverless instance.
+
+For model inputs on historical date D, select the latest FRED observation whose approximate release date is on/before D: CPI month M on the 15th of M+1, unemployment on the first Friday of M+1, DFF on the next NYSE business day. These are date-level approximations, not exact release timestamps; the data are latest revised vintage. CPI is the only macro variable affecting this model. Fed funds/unemployment do not alter scores. Display scores retain the existing mapping `clamp(50 + 15 × raw score, 0, 100)`; no thresholds were tuned for the resulting labels.

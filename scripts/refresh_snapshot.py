@@ -76,6 +76,8 @@ def main():
         except Exception as exc:
             print(f"{name}: {type(exc).__name__}; snapshot retained for failed series", file=sys.stderr)
             failed.append(name)
+    from refresh_regime_history import refresh
+    refresh()
     if failed:
         raise SystemExit(1)
 
