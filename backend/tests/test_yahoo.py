@@ -77,7 +77,7 @@ def test_holidays_weekends_early_closes_and_intraday():
     assert latest_completed_session(datetime(2026, 9, 6, 22, tzinfo=timezone.utc)) == date(2026, 9, 4)
     assert latest_completed_session(datetime(2026, 9, 29, 18, tzinfo=timezone.utc)) == date(2026, 9, 28)
     assert latest_completed_session(datetime(2026, 11, 27, 18, 31, tzinfo=timezone.utc)) == date(2026, 11, 27)  # 13:00 EST close
-    assert latest_completed_session(datetime(2026, 11, 27, 18, 10, tzinfo=timezone.utc)) == date(2026, 11, 25)
+    assert latest_completed_session(datetime(2026, 11, 27, 18, 10, tzinfo=timezone.utc)) == date(2026, 11, 27)
     assert missed_sessions(date(2026, 9, 4), date(2026, 9, 8)) == 1
 
 

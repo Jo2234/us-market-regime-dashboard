@@ -44,6 +44,9 @@ class FreshnessResponse(BaseModel):
 
 
 class DashboardSummaryResponse(BaseModel):
+    market_status: dict[str, Any] = {}
+    live_quotes: dict[str, Any] = {}
+    quote_delivery: dict[str, Any] = {}
     refresh_pending: bool = False
     retry_after_seconds: int = 0
     fetch_ms: float = 0

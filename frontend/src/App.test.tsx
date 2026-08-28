@@ -310,3 +310,24 @@ it("keeps FRED cards visible and busy during background refresh", async () => {
   expect(screen.getByRole("article", { name: "Macro indicators" })).toHaveAttribute("aria-busy", "true");
   expect(screen.getByRole("button", { name: "Refresh macro data" })).toBeDisabled();
 });
+
+it("polls live quotes each minute, pauses hidden tabs and resumes on visibility", async () => {
+  vi.useFakeTimers();
+  mockedFetchDashboardData.mockResolvedValue({ ...demoDashboardData,
+    marketStatus: { is_open: true, session_date: "2026-09-29", refresh_seconds: 60, next_open: "2026-09-30" },
+    quoteStatus: { cache: "hit", refresh_seconds: 60 }, intraday: true,
+    provenance: { ...demoDashboardData.provenance!, mode: "live" } });
+  render(<App />);
+  await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+  expect(screen.getByText("Market open · Live intraday")).toBeInTheDocument();
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(1);
+  await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(2);
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+  document.dispatchEvent(new Event("visibilitychange"));
+  await act(async () => { await vi.advanceTimersByTimeAsync(120_000); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(2);
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+  await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(3);
+});
