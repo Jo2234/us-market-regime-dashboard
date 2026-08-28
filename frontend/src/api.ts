@@ -52,7 +52,7 @@ type BackendSummary = {
   performance_series?: ChartPoint[];
   historical_regimes?: Array<{
     date: string; regime_label: string; risk_score: number; growth_score: number;
-    inflation_score: number; rates_pressure_score: number;
+    inflation_score: number; rates_pressure_score: number; note?: string;
   }>;
   sectors?: Array<{ symbol: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
   macro_summary?: Record<string, MacroValue | null>;
@@ -245,7 +245,7 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
       date: point.date, displayLabel: titleCase(point.regime_label),
       riskScore: scorePercent(point.risk_score), growthScore: scorePercent(point.growth_score),
       inflationScore: scorePercent(point.inflation_score), ratesPressureScore: scorePercent(point.rates_pressure_score),
-      note: "Computed from stored regime classifications."
+      note: point.note ?? "Computed from completed daily closes with approximate macro release lags."
     })),
     breadth: [],
     fetchedAt: payload.quote_delivery?.fetched_at ?? payload.fetched_at,
