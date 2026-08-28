@@ -145,7 +145,13 @@ def test_bootstrap_snapshot_and_corrupt_card(monkeypatch, fred_series, tmp_path)
 
 
 def test_kill_test_macro_only_and_regime_impact(monkeypatch, tmp_path, empty_conn, fred_series):
-    yahoo = market_data.validate_snapshot(json.loads(market_data.SNAPSHOT_PATH.read_text()))
+    from app.data.instruments import YAHOO_TICKERS
+    from app.ingestion.yahoo import normalize_chart
+    yahoo = {"version": 1, "fetched_at": "2026-09-29T14:00:00+00:00", "series": {
+        symbol: {"source": "yahoo_finance", "yahoo_ticker": ticker,
+                 "bars": normalize_chart(symbol, json.loads((FIXTURES.parent / f"{symbol}.json").read_text()), date(2026, 9, 28))}
+        for symbol, ticker in YAHOO_TICKERS.items()}}
+    market_data.validate_snapshot(yahoo)
     market_data.populate_database(empty_conn, yahoo, "live")
     before = regime.classify_regime(empty_conn)
     macro_data.populate_database(empty_conn, fred_series, {})
