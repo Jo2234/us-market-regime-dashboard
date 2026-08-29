@@ -30,7 +30,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add backend/app/data/yahoo_snapshot.json backend/app/data/fred_snapshot.json
+          git add backend/app/data/yahoo_snapshot.json backend/app/data/fred_snapshot.json backend/app/data/regime_history.json
           if ! git diff --cached --quiet; then
             git commit -m 'Refresh market and macro snapshots'
             git pull --rebase origin main

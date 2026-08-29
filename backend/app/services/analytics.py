@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import calendar
+import bisect
 import math
 import statistics
 from datetime import date, datetime, timedelta
@@ -50,16 +51,39 @@ class MarketHistory:
                 symbol = row.pop("symbol")
                 row["date"] = parse_date(row["date"])
                 target.setdefault(symbol, []).append(row)
+        self.price_frames = {}
+        self.date_indexes = {}
+        for symbol, rows in self.prices.items():
+            result, previous = [], None
+            for row in rows:
+                value = row["adjusted_close"] if row["adjusted_close"] is not None else row["close"]
+                result.append({**row, "value": value, "daily_return": value / previous - 1 if previous else None})
+                previous = value
+            self.price_frames[symbol] = result
+        for table, series in (("market_prices", self.prices), ("macro_observations", self.macro)):
+            for symbol, rows in series.items():
+                self.date_indexes[(table, symbol)] = [r["date"] for r in rows]
+
+    def select(self, symbol, table, start=None, end=None, prices=False):
+        symbol = symbol.upper()
+        rows = (self.price_frames if prices else self.prices if table == "market_prices" else self.macro).get(symbol, [])
+        dates = self.date_indexes.get((table, symbol), [])
+        return rows[bisect.bisect_left(dates, start) if start else 0:bisect.bisect_right(dates, end) if end else len(rows)]
 
 
 def _frame(conn, symbol, table, start=None, end=None):
     if isinstance(conn, MarketHistory):
-        return _select((conn.prices if table == "market_prices" else conn.macro).get(symbol.upper(), []), start, end)
+        return conn.select(symbol, table, start, end)
     records = conn.execute(f"SELECT p.* FROM {table} p JOIN instruments i ON i.id=p.instrument_id WHERE i.symbol=? ORDER BY p.date", (symbol.upper(),))
     return _select([{**dict(row), "date": parse_date(row["date"])} for row in records], start, end)
 
 
 def _price_frame(conn, symbol, start=None, end=None):
+    if isinstance(conn, MarketHistory):
+        rows = conn.select(symbol, "market_prices", start, end, prices=True)
+        if start and rows:
+            rows = [{**rows[0], "daily_return": None}, *rows[1:]]
+        return rows
     rows = _frame(conn, symbol, "market_prices", start, end)
     result, previous = [], None
     for row in rows:
@@ -165,8 +189,11 @@ def sector_performance(conn, windows, as_of=None):
     return list(reversed(rows))
 
 
-def latest_macro_value(conn, symbol, as_of=None):
+def latest_macro_value(conn, symbol, as_of=None, published=False):
     rows = _macro_frame(conn, symbol, end=as_of)
+    if published and as_of:
+        from app.services.macro_data import available_on
+        rows = [r for r in rows if r["source"] != "fred" or available_on(symbol, r["date"]) <= as_of]
     if not rows:
         return None
     row = rows[-1]
