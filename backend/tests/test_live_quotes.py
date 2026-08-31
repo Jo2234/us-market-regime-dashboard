@@ -84,3 +84,36 @@ def test_live_calendar_returns_leave_daily_model_untouched(empty_conn):
     baseline = next(row['adjusted_close'] for row in history.prices['SPY'] if row['date'] == date(2026, 8, 28))
     assert result['returns']['1m'] == pytest.approx(764.2 / baseline - 1)
     assert history.prices == before
+
+
+def test_open_api_replay_preserves_completed_regime(monkeypatch, empty_conn):
+    from fastapi.testclient import TestClient
+    from app.api import routes
+    from app.main import create_app
+    from app.services import market_data, macro_data
+    from app.ingestion.yahoo import normalize_chart
+    from app.data.instruments import YAHOO_TICKERS
+    monkeypatch.setenv('MARKET_REGIME_CLOCK', '2026-09-29T19:59:30Z')
+    monkeypatch.delenv('VERCEL', raising=False)
+    snapshot = {'version': 1, 'fetched_at': '2026-09-29T19:59:00Z', 'series': {
+        symbol: {'source': 'yahoo_finance', 'yahoo_ticker': ticker, 'bars': normalize_chart(symbol, json.loads((FIXTURES / f'{symbol}.json').read_text()), date(2026,9,28))}
+        for symbol,ticker in YAHOO_TICKERS.items()}}
+    monkeypatch.setattr(routes, 'get_snapshot', lambda **kwargs: (snapshot, 'live'))
+    monkeypatch.setattr(macro_data, 'get_snapshot', lambda **kwargs: ({}, {}))
+    for key, value in [('_cached', {}), ('_expires', 0), ('_interval', 60), ('_last_stats', {})]:
+        monkeypatch.setattr(live, key, value)
+    async def fetch():
+        return recorded(), {'fetch_ms': 42, 'http_429': 0, 'http_401': 0}
+    monkeypatch.setattr(live, 'fetch_quotes', fetch)
+    with TestClient(create_app()) as client:
+        response = client.get('/api/dashboard/summary')
+        payload = response.json()
+        assert response.status_code == 200 and 's-maxage=30' in response.headers['cache-control']  # Capped at close.
+        assert payload['market_status']['is_open']
+        assert payload['as_of'] == payload['regime']['date'] == '2026-09-28'
+        assert payload['major_indices'][0]['price'] == 765.61
+        assert payload['live_quotes']['SPY']['price'] == 764.2
+        assert payload['live_quotes']['SPY']['returns']['1d'] < 0
+        assert payload['live_quotes']['DGS2']['is_stale']
+        assert len(payload['historical_regimes']) >= 245
+        assert 'demo_seed' not in response.text
