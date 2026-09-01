@@ -32,6 +32,7 @@ def main():
         curve = curve_response.json()
         assert "demo_seed" not in json.dumps([payload, curve]), "Synthetic provenance in production"
         rows = []
+        price_history = {}
         for symbol in ["SPY", "QQQ", "DGS3MO", "DGS2", "DGS5", "DGS10", "DGS30"]:
             ticker = YAHOO_TICKERS[symbol]
             response = client.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}",
@@ -57,6 +58,7 @@ def main():
             bars = [(datetime.fromtimestamp(t, tz).date(), c, a)
                     for t, c, a in zip(chart["timestamp"], closes, adjusted)
                     if c is not None and datetime.fromtimestamp(t, tz).date() <= cutoff]
+            price_history[symbol] = bars
             observed, close, adj = bars[-1]
             item = next(i for i in (payload["major_indices"] if symbol in {"SPY", "QQQ"} else curve["maturities"]) if i["symbol"] == symbol)
             def add(metric, actual, expected, tolerance):
@@ -87,6 +89,17 @@ def main():
                 difference = abs(item["price"] - meta["regularMarketPrice"])
                 status = "PASS" if difference <= .00011 else "FAIL" if same_tick else "TIME-DIFF"
                 rows.append((item["yahoo_ticker"], "live", item["observation_date"], item["observation_date"], item["price"], meta["regularMarketPrice"], status))
+                if symbol in {"SPY", "QQQ"}:
+                    observed = date.fromisoformat(item["observation_date"])
+                    year, month = (observed.year - 1, 12) if observed.month == 1 else (observed.year, observed.month - 1)
+                    anchor = date(year, month, min(observed.day, calendar.monthrange(year, month)[1]))
+                    baseline = [bar for bar in price_history[symbol] if bar[0] <= anchor][-1]
+                    # Hold the API's timestamped endpoint fixed while independently
+                    # checking its calculation against Yahoo's historical denominator.
+                    expected = (item["price"] / baseline[2] - 1) * 100
+                    actual = item["returns"]["1m"] * 100
+                    rows.append((item["yahoo_ticker"], "live 1M %", observed.isoformat(), item["observation_date"], actual, expected,
+                                 "PASS" if abs(actual - expected) <= .000051 else "FAIL"))
             print("Intraday comparisons use the exact quote timestamp; TIME-DIFF means a newer market tick, not verified equality.")
         else:
             print("Market closed: live polling is paused; comparing completed-session prices and returns.")
