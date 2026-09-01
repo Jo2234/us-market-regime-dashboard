@@ -1,0 +1,233 @@
+[
+  {
+    "sample": 0,
+    "ms": 4182.58,
+    "revision": "59517d156d80765fd3347c0a2f682ff796bfbe4c",
+    "instance": "8e068524231b",
+    "request": "1",
+    "cdn": "MISS",
+    "timing": "app;dur=3330.78, import;dur=465.66, yahoo;dur=372.36",
+    "cache": "miss",
+    "yahoo_ms": 372.36,
+    "history": {
+      "cache": "miss",
+      "compute_ms": 2468.13,
+      "points": 252
+    },
+    "quotes": {
+      "cache": "closed",
+      "fetch_ms": 0,
+      "refresh_seconds": 900
+    }
+  },
+  {
+    "sample": 1,
+    "ms": 788.69,
+    "revision": "59517d156d80765fd3347c0a2f682ff796bfbe4c",
+    "instance": "8e068524231b",
+    "request": "3",
+    "cdn": "MISS",
+    "timing": "app;dur=331.38, import;dur=465.66, yahoo;dur=0.00",
+    "cache": "hit",
+    "yahoo_ms": 0.0,
+    "history": {
+      "cache": "hit",
+      "compute_ms": 0,
+      "points": 252
+    },
+    "quotes": {
+      "cache": "closed",
+      "fetch_ms": 0,
+      "refresh_seconds": 900
+    }
+  },
+  {
+    "sample": 2,
+    "ms": 829.94,
+    "revision": "59517d156d80765fd3347c0a2f682ff796bfbe4c",
+    "instance": "8e068524231b",
+    "request": "5",
+    "cdn": "MISS",
+    "timing": "app;dur=331.18, import;dur=465.66, yahoo;dur=0.00",
+    "cache": "hit",
+    "yahoo_ms": 0.0,
+    "history": {
+      "cache": "hit",
+      "compute_ms": 0,
+      "points": 252
+    },
+    "quotes": {
+      "cache": "closed",
+      "fetch_ms": 0,
+      "refresh_seconds": 900
+    }
+  },
+  {
+    "sample": 3,
+    "ms": 864.09,
+    "revision": "59517d156d80765fd3347c0a2f682ff796bfbe4c",
+    "instance": "8e068524231b",
+    "request": "6",
+    "cdn": "MISS",
+    "timing": "app;dur=336.66, import;dur=465.66, yahoo;dur=0.00",
+    "cache": "hit",
+    "yahoo_ms": 0.0,
+    "history": {
+      "cache": "hit",
+      "compute_ms": 0,
+      "points": 252
+    },
+    "quotes": {
+      "cache": "closed",
+      "fetch_ms": 0,
+      "refresh_seconds": 900
+    }
+  },
+  {
+    "sample": 4,
+    "ms": 612.86,
+    "revision": "59517d156d80765fd3347c0a2f682ff796bfbe4c",
+    "instance": "8e068524231b",
+    "request": "7",
+    "cdn": "MISS",
+    "timing": "app;dur=328.17, import;dur=465.66, yahoo;dur=0.00",
+    "cache": "hit",
+    "yahoo_ms": 0.0,
+    "history": {
+      "cache": "hit",
+      "compute_ms": 0,
+      "points": 252
+    },
+    "quotes": {
+      "cache": "closed",
+      "fetch_ms": 0,
+      "refresh_seconds": 900
+    }
+  },
+  {
+    "sample": 5,
+    "ms": 612.9,
+    "revision": "59517d156d80765fd3347c0a2f682ff796bfbe4c",
+    "instance": "8e068524231b",
+    "request": "8",
+    "cdn": "MISS",
+    "timing": "app;dur=324.20, import;dur=465.66, yahoo;dur=0.00",
+    "cache": "hit",
+    "yahoo_ms": 0.0,
+    "history": {
+      "cache": "hit",
+      "compute_ms": 0,
+      "points": 252
+    },
+    "quotes": {
+      "cache": "closed",
+      "fetch_ms": 0,
+      "refresh_seconds": 900
+    }
+  },
+  {
+    "sample": 6,
+    "ms": 25.82,
+    "revision": "59517d156d80765fd3347c0a2f682ff796bfbe4c",
+    "instance": "8e068524231b",
+    "request": "8",
+    "cdn": "HIT",
+    "timing": "app;dur=324.20, import;dur=465.66, yahoo;dur=0.00",
+    "cache": "hit",
+    "yahoo_ms": 0.0,
+    "history": {
+      "cache": "hit",
+      "compute_ms": 0,
+      "points": 252
+    },
+    "quotes": {
+      "cache": "closed",
+      "fetch_ms": 0,
+      "refresh_seconds": 900
+    }
+  },
+  {
+    "sample": 7,
+    "ms": 14.28,
+    "revision": "59517d156d80765fd3347c0a2f682ff796bfbe4c",
+    "instance": "8e068524231b",
+    "request": "8",
+    "cdn": "HIT",
+    "timing": "app;dur=324.20, import;dur=465.66, yahoo;dur=0.00",
+    "cache": "hit",
+    "yahoo_ms": 0.0,
+    "history": {
+      "cache": "hit",
+      "compute_ms": 0,
+      "points": 252
+    },
+    "quotes": {
+      "cache": "closed",
+      "fetch_ms": 0,
+      "refresh_seconds": 900
+    }
+  },
+  {
+    "sample": 8,
+    "ms": 11.42,
+    "revision": "59517d156d80765fd3347c0a2f682ff796bfbe4c",
+    "instance": "8e068524231b",
+    "request": "8",
+    "cdn": "HIT",
+    "timing": "app;dur=324.20, import;dur=465.66, yahoo;dur=0.00",
+    "cache": "hit",
+    "yahoo_ms": 0.0,
+    "history": {
+      "cache": "hit",
+      "compute_ms": 0,
+      "points": 252
+    },
+    "quotes": {
+      "cache": "closed",
+      "fetch_ms": 0,
+      "refresh_seconds": 900
+    }
+  },
+  {
+    "sample": 9,
+    "ms": 12.57,
+    "revision": "59517d156d80765fd3347c0a2f682ff796bfbe4c",
+    "instance": "8e068524231b",
+    "request": "8",
+    "cdn": "HIT",
+    "timing": "app;dur=324.20, import;dur=465.66, yahoo;dur=0.00",
+    "cache": "hit",
+    "yahoo_ms": 0.0,
+    "history": {
+      "cache": "hit",
+      "compute_ms": 0,
+      "points": 252
+    },
+    "quotes": {
+      "cache": "closed",
+      "fetch_ms": 0,
+      "refresh_seconds": 900
+    }
+  },
+  {
+    "sample": 10,
+    "ms": 16.98,
+    "revision": "59517d156d80765fd3347c0a2f682ff796bfbe4c",
+    "instance": "8e068524231b",
+    "request": "8",
+    "cdn": "HIT",
+    "timing": "app;dur=324.20, import;dur=465.66, yahoo;dur=0.00",
+    "cache": "hit",
+    "yahoo_ms": 0.0,
+    "history": {
+      "cache": "hit",
+      "compute_ms": 0,
+      "points": 252
+    },
+    "quotes": {
+      "cache": "closed",
+      "fetch_ms": 0,
+      "refresh_seconds": 900
+    }
+  }
+]
