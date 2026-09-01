@@ -1,0 +1,18 @@
+Market closed: live polling is paused; comparing completed-session prices and returns.
+Macro delivery: FEDFUNDS=live, CPI_YOY=live, UNRATE=live, CORE_CPI_YOY=live, FEDFUNDS_MONTHLY=live
+API mode: live | as of 2026-09-29 | completed-session cutoff 2026-09-29
+Series     Metric    Source date API date    API         Source      Check
+SPY        price     2026-09-29  2026-09-29   764.20000   764.20001  PASS
+SPY        1M %      2026-09-29  2026-09-29    -0.42270    -0.42274  PASS
+QQQ        price     2026-09-29  2026-09-29   737.93000   737.92999  PASS
+QQQ        1M %      2026-09-29  2026-09-29     3.10830     3.10832  PASS
+^IRX       yield %   2026-09-29  2026-09-29     4.06500     4.06500  PASS
+2YY=F      yield %   2026-09-28  2026-09-28     4.50000     4.50000  PASS
+^FVX       yield %   2026-09-29  2026-09-29     5.06300     5.06300  PASS
+^TNX       yield %   2026-09-29  2026-09-29     5.25500     5.25500  PASS
+^TYX       yield %   2026-09-29  2026-09-29     5.59400     5.59400  PASS
+DFF        rate %    2026-09-28  2026-09-28     3.88000     3.88000  PASS
+CPIAUCSL   YoY %     2026-08-01  2026-08-01     3.35300     3.35302  PASS
+CPILFESL   YoY %     2026-08-01  2026-08-01     2.44620     2.44616  PASS
+UNRATE     rate %    2026-08-01  2026-08-01     4.10000     4.10000  PASS
+FEDFUNDS   rate %    2026-08-01  2026-08-01     3.63000     3.63000  PASS
