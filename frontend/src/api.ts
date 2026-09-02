@@ -85,6 +85,7 @@ type BackendSummary = {
       latest_date: string | null;
       age_days: number | null;
       is_stale: boolean;
+      affects_group_freshness?: boolean;
     }>;
   };
 };
@@ -283,7 +284,7 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
       generatedAt: payload.data_freshness.generated_at,
       selectedDate: payload.as_of,
       sources: sources.map(source => displayLabels.sources[source as keyof typeof displayLabels.sources] ?? sentenceCase(source)),
-      observations: payload.data_freshness.instruments.filter(item => item.yahoo_ticker || item.fred_series_id).map(item => ({ symbol: item.symbol ?? "", name: item.name ?? item.symbol ?? "", ticker: item.fred_series_id ? `FRED: ${item.fred_series_id}` : item.yahoo_ticker!, date: item.latest_date, url: item.source_url })),
+      observations: payload.data_freshness.instruments.filter(item => item.yahoo_ticker || item.fred_series_id).map(item => ({ symbol: item.symbol ?? "", name: item.name ?? item.symbol ?? "", ticker: item.fred_series_id ? `FRED: ${item.fred_series_id}` : item.yahoo_ticker!, date: item.latest_date, url: item.source_url, isStale: item.is_stale })),
       freshnessPolicy: payload.data_freshness.freshness_policy
     },
     regime: {
@@ -330,7 +331,8 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
       tenTwoSpread: payload.rates_summary.spreads["10y_2y"] ?? null,
       points: payload.rates_summary.maturities.flatMap((item) => {
         const maturity = maturities[item.symbol];
-        return maturity ? [{ maturity: maturity[0], years: maturity[1], yield: item.value, date: item.date, ticker: item.yahoo_ticker }] : [];
+        const isStale = payload.data_freshness.instruments.find(row => row.symbol === item.symbol)?.is_stale;
+        return maturity ? [{ maturity: maturity[0], years: maturity[1], yield: item.value, date: item.date, ticker: item.yahoo_ticker, isStale }] : [];
       })
     },
     commodities: payload.commodities_summary.filter((item) => item.available !== false).map((item) => ({
@@ -381,7 +383,7 @@ function adaptFreshness(rows: BackendSummary["data_freshness"]["instruments"]): 
   return [...groups].map(([assetClass, items]) => {
     const dates = items.flatMap((item) => item.latest_date ? [item.latest_date] : []).sort();
     const lagDays = items.reduce<number | null>((largest, item) => item.age_days === null ? largest : Math.max(largest ?? 0, item.age_days), null);
-    const stale = items.some((item) => item.is_stale);
+    const stale = items.some((item) => item.is_stale && item.affects_group_freshness !== false);
     const sources = sourceLabels(items);
     return {
       name: labels[assetClass] ?? sentenceCase(assetClass),
