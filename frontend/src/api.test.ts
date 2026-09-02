@@ -207,3 +207,16 @@ it("displays current quotes with their dates while preserving completed regime i
   input.live_quotes.SPY.is_stale = true;
   expect(api.adaptBackendSummary(input).indices[0].price).toBe(101);
 });
+
+it("keeps a one-session futures delay on its row without downgrading Treasury freshness", async () => {
+  const { adaptBackendSummary } = await import("./api");
+  const data = summary();
+  data.rates_summary.maturities = [{ symbol: "DGS2", value: 4.5, date: "2026-09-28" }];
+  data.data_freshness.instruments = [{ symbol: "DGS2", asset_class: "rates", name: "2-year futures-implied yield", source: "yahoo_finance", yahoo_ticker: "2YY=F", latest_date: "2026-09-28", age_days: 1, is_stale: true, affects_group_freshness: false }];
+  const result = adaptBackendSummary(data);
+  expect(result.freshness[0].status).toBe("fresh");
+  expect(result.provenance?.observations?.[0].isStale).toBe(true);
+  expect(result.rates.points[0].isStale).toBe(true);
+  data.data_freshness.instruments[0].affects_group_freshness = true;
+  expect(adaptBackendSummary(data).freshness[0].status).toBe("stale");
+});
