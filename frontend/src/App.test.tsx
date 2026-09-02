@@ -348,3 +348,37 @@ it("inspects all four historical scores and opens the selected snapshot", async 
   await userEvent.click(screen.getByRole("button", { name: /View snapshot/ }));
   expect(mockedFetchDashboardData).toHaveBeenLastCalledWith(points[0].date, "1M", expect.any(Object));
 });
+
+
+it("fetches once on an initially hidden tab and resumes only when refresh is due", async () => {
+  vi.useFakeTimers();
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+  mockedFetchDashboardData.mockResolvedValue({ ...demoDashboardData,
+    marketStatus: { is_open: true, session_date: "2026-09-29", refresh_seconds: 60, next_open: "2026-09-30" },
+    provenance: { ...demoDashboardData.provenance!, mode: "live" } });
+  render(<App />);
+  await act(async () => {});
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(1);
+  expect(screen.getByLabelText("Market overview")).toBeInTheDocument();
+  await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+  await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(1);
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+  await act(async () => { await vi.advanceTimersByTimeAsync(90_000); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(1);
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+  await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(2);
+});
+
+it("arms the slow-loading notice even when the initial tab is hidden", async () => {
+  vi.useFakeTimers();
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+  mockedFetchDashboardData.mockImplementation(() => new Promise(() => {}));
+  render(<App />);
+  await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("status")).toHaveTextContent("Still fetching");
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+});
