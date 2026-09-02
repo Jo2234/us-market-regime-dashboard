@@ -12,7 +12,7 @@ Production revision: `59517d156d80765fd3347c0a2f682ff796bfbe4c`. Tests: 62 backe
 | SPY 1M | −0.2390% | −0.4227% |
 | QQQ 1M | +2.9127% | +3.1083% |
 | Regime history | 1 request-time row | 252 daily points, Sep 29, 2025–Sep 29, 2026 |
-| Masthead | Vaz Research | Johan’s Dashboard |
+| Masthead | Previous publication name | Johan’s Dashboard |
 | Latest model classification | Sep 28: Rates pressure | Sep 29: Mixed transition |
 
 Yahoo left the final ETF daily close null while its timestamped regular-market metadata already held the completed close. The parser now accepts that metadata only for the same session at/after the official NYSE close, marks it `yahoo_meta`, and prefers a subsequently filled daily bar. Its provisional adjusted close equals the raw close. Holidays and early closes use the checked-in exchange calendar.
