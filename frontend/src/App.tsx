@@ -561,7 +561,7 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
         <span>{provenance.freshnessPolicy}</span>
       </div>
       {provenance.observations && <ul aria-label="Series observation dates">
-        {provenance.observations.map(item => <li key={item.symbol}>{item.name ?? item.symbol} · {item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.ticker}</a> : item.ticker} · {item.date ? formatDate(item.date) : "Unavailable"}</li>)}
+        {provenance.observations.map(item => <li key={item.symbol}>{item.name ?? item.symbol} · {item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.ticker}</a> : item.ticker} · {item.date ? formatDate(item.date) : "Unavailable"}{item.isStale ? " · Delayed observation" : ""}</li>)}
       </ul>}
       {provenance.sources.length > 0 && (
         <ul>
@@ -1041,7 +1041,7 @@ function YieldCurvePanel({ data }: { data: DashboardData }) {
       </div>
       <YieldCurve points={points} />
       <p className="chart-note">*2Y is futures-implied (Yahoo 2YY=F), not a cash Treasury yield. The 10Y–2Y* spread mixes these bases. 3M uses the ^IRX discount yield. All yields are in percent.</p>
-      <p className="chart-note">{points.map(point => `${point.maturity} ${point.yield.toFixed(2)}%${point.date ? ` (${formatDate(point.date)})` : ""}`).join(" · ")}</p>
+      <p className="chart-note">{points.map(point => `${point.maturity} ${point.yield.toFixed(2)}%${point.date ? ` (${formatDate(point.date)})` : ""}${point.isStale ? " · Delayed observation" : ""}`).join(" · ")}</p>
       <div className="legend yield-legend">
         <span>
           <i style={{ background: "var(--positive)" }} />

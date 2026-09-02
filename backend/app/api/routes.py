@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.services import futures_calendar
+
 import csv
 import io
 from concurrent.futures import ThreadPoolExecutor
@@ -216,6 +218,7 @@ def data_freshness(conn) -> dict:
                 **provenance(row["symbol"]),
                 "freshness_policy": "Stale if behind the latest completed NYSE session (official close).",
                 **macro_freshness,
+                **(futures_calendar.freshness(latest) if row["symbol"] == "DGS2" else {}),
             }
         )
         if latest and (row["source"] not in source_latest or latest < source_latest[row["source"]]):
@@ -228,14 +231,14 @@ def data_freshness(conn) -> dict:
         "data_mode": delivery_metadata(conn)["mode"],
         "fetched_at": delivery_metadata(conn)["fetched_at"],
         "stale_after_days": settings.stale_after_days,
-        "freshness_policy": "Instrument/source rows are stale when behind the latest completed NYSE session; weekends, US market holidays and early closes are respected. FRED macro uses separate daily/monthly publication grace windows, reported per instrument. Source status aggregates each instrument's cadence-aware status.",
+        "freshness_policy": "Instrument/source rows are stale when behind the latest completed NYSE session; weekends, US market holidays and early closes are respected. FRED macro uses separate daily/monthly publication grace windows, reported per instrument. CME yield futures use a separate settlement clock; a one-session futures lag is shown on its row only. Source status aggregates each instrument's cadence-aware status.",
         "sources": [
             {
                 "source": source,
                 "latest_date": latest.isoformat(),
                 "age_days": (today - latest).days,
-                "is_stale": any(r["is_stale"] for r in instruments if r["source"] == source),
-                "status": "partial" if any(r["status"] == "unavailable" for r in instruments if r["source"] == source) else "stale" if any(r["is_stale"] for r in instruments if r["source"] == source) else "fresh",
+                "is_stale": any(r["is_stale"] and r.get("affects_group_freshness", True) for r in instruments if r["source"] == source),
+                "status": "partial" if any(r["status"] == "unavailable" for r in instruments if r["source"] == source) else "stale" if any(r["is_stale"] and r.get("affects_group_freshness", True) for r in instruments if r["source"] == source) else "fresh",
             }
             for source, latest in sorted(source_latest.items())
         ],
