@@ -75,22 +75,35 @@ export default function App() {
 
   const [slow, setSlow] = useState(false);
   const failures = useRef(0);
+  const refreshDue = useRef(Number.POSITIVE_INFINITY);
 
   useEffect(() => {
-    const visible = () => { if (document.visibilityState === "visible") setReloadTick(value => value + 1); };
+    const visible = () => {
+      if (document.visibilityState === "visible" && Date.now() >= refreshDue.current) {
+        refreshDue.current = Number.POSITIVE_INFINITY;
+        setReloadTick(value => value + 1);
+      }
+    };
     document.addEventListener("visibilitychange", visible);
     return () => document.removeEventListener("visibilitychange", visible);
   }, []);
 
   useEffect(() => {
-    if (document.visibilityState === "hidden") return;
+    // Initial and explicit requests also run in background tabs. Only polling pauses.
+    refreshDue.current = Number.POSITIVE_INFINITY;
     const controller = new AbortController();
     let retry: ReturnType<typeof setTimeout> | undefined;
     setLoading(true);
     setSlow(false);
     const slowTimer = setTimeout(() => setSlow(true), 4000);
     const schedule = (milliseconds: number) => {
-      retry = setTimeout(() => { if (document.visibilityState === "visible") setReloadTick(value => value + 1); }, milliseconds);
+      refreshDue.current = Date.now() + milliseconds;
+      retry = setTimeout(() => {
+        if (document.visibilityState === "visible") {
+          refreshDue.current = Number.POSITIVE_INFINITY;
+          setReloadTick(value => value + 1);
+        }
+      }, milliseconds);
     };
     fetchDashboardData(selectedDate, range, {
       signal: controller.signal,
