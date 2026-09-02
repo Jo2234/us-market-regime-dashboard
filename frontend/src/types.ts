@@ -27,7 +27,7 @@ export interface RegimeSnapshot {
 
 export interface DataProvenance {
   mode: "api" | "demo" | "mixed" | "fallback" | "live" | "snapshot";
-  observations?: Array<{ symbol: string; name?: string; ticker: string; date: string | null; url?: string }>;
+  observations?: Array<{ symbol: string; name?: string; ticker: string; date: string | null; url?: string; isStale?: boolean }>;
   description: string;
   generatedAt: string;
   selectedDate: string;
@@ -75,6 +75,7 @@ export interface ChartPoint {
 }
 
 export interface YieldPoint {
+  isStale?: boolean;
   date?: string;
   ticker?: string;
   maturity: string;

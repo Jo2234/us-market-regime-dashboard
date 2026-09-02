@@ -294,3 +294,38 @@ def test_official_close_respects_early_close_and_holiday():
     from app.services.calendar import session_close
     assert session_close(date(2026, 11, 27)) == datetime(2026, 11, 27, 18, tzinfo=timezone.utc)
     assert session_close(date(2026, 9, 7)) is None
+
+
+def test_futures_null_close_requires_same_session_post_settlement_meta():
+    payload = json.loads((FIXTURES / "DGS2_sep29_null.json").read_text())
+    chart = payload["chart"]["result"][0]
+    # Recorded response: 4.422 is a September 22 trade, not a September 29 close.
+    assert normalize_chart("DGS2", payload, date(2026, 9, 29))[-1]["date"] == "2026-09-28"
+    # Replay the same null-bar shape with a current quote at 14:00 CT (before NYSE closes).
+    chart["meta"]["regularMarketTime"] = int(datetime(2026, 9, 29, 19, tzinfo=timezone.utc).timestamp())
+    repaired = normalize_chart("DGS2", payload, date(2026, 9, 29))[-1]
+    assert repaired["date"] == "2026-09-29"
+    assert repaired["close"] == 4.422
+    assert repaired["close_source"] == "yahoo_meta"
+    chart["meta"]["regularMarketTime"] -= 1
+    assert normalize_chart("DGS2", payload, date(2026, 9, 29))[-1]["date"] == "2026-09-28"
+    chart["indicators"]["quote"][0]["close"][-1] = 4.5
+    assert normalize_chart("DGS2", payload, date(2026, 9, 29))[-1]["close"] == 4.5
+
+
+def test_futures_cadence_is_separate_and_only_one_lag_is_row_level():
+    from app.services.futures_calendar import latest_completed_settlement, freshness, settlement_time
+    now = datetime(2026, 9, 29, 19, 5, tzinfo=timezone.utc)
+    assert latest_completed_settlement(now) == date(2026, 9, 29)
+    assert latest_completed_session(now) == date(2026, 9, 28)
+    lag = freshness(date(2026, 9, 28), now)
+    assert lag["is_stale"] and not lag["affects_group_freshness"]
+    assert freshness(date(2026, 9, 25), now)["affects_group_freshness"]
+    assert not freshness(date(2026, 9, 29), now)["is_stale"]
+    assert settlement_time(date(2026, 9, 27)) is None
+    assert latest_completed_settlement(datetime(2026, 9, 27, 23, tzinfo=timezone.utc)) == date(2026, 9, 25)
+    assert settlement_time(date(2026, 12, 25)) is None
+    assert settlement_time(date(2026, 11, 27)) == datetime(2026, 11, 27, 18, tzinfo=timezone.utc)
+    assert settlement_time(date(2026, 12, 1)) == datetime(2026, 12, 1, 20, tzinfo=timezone.utc)
+    meta = {"exchangeTimezoneName": "America/New_York", "currentTradingPeriod": {"regular": {"end": 1790704800}}}
+    assert settlement_time(date(2026, 9, 29), meta) == datetime(2026, 9, 29, 18, tzinfo=timezone.utc)
