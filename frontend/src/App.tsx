@@ -11,11 +11,11 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { fetchDashboardData } from "./api";
+import RegimeHistoryChart from "./RegimeHistoryChart";
 import type {
   ChartPoint,
   DashboardData,
   FreshnessSource,
-  HistoricalRegimePoint,
   RangeKey,
   RegimeSignal,
   RiskAssetMetric,
@@ -1294,63 +1294,6 @@ function SignalTable({ signals }: { signals: RegimeSignal[] }) {
       </div>
     </article>
   );
-}
-
-function RegimeHistoryChart({ data, onDateSelect }: { data: HistoricalRegimePoint[]; onDateSelect: (date: string) => void }) {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [width, setWidth] = useState(window.innerWidth < 600 ? 340 : 900);
-  useEffect(() => {
-    const resize = () => setWidth(window.innerWidth < 600 ? 340 : 900);
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, []);
-  if (!data.length) return <EmptyState title="Regime history unavailable" body="No completed daily observations are available for this history window." />;
-  const metrics = [
-    ["riskScore", "Risk", "var(--positive)"], ["growthScore", "Growth", "var(--chart-qqq)"],
-    ["inflationScore", "Inflation", "var(--chart-iwm)"], ["ratesPressureScore", "Rates", "var(--negative)"],
-  ] as const;
-  const height = 260, pad = 32;
-  const xFor = (index: number) => pad + index / Math.max(1, data.length - 1) * (width - 2 * pad);
-  const yFor = (value: number) => height - pad - value / 100 * (height - pad * 2);
-  const active = Math.min(activeIndex ?? data.length - 1, data.length - 1);
-  const point = data[active];
-  const bands = data.reduce<Array<{ start: number; end: number; label: string }>>((result, item, i) => {
-    const previous = result[result.length - 1];
-    if (previous?.label === item.displayLabel) previous.end = i;
-    else result.push({ start: i, end: i, label: item.displayLabel });
-    return result;
-  }, []);
-  const bandColor = (label: string) => /risk.on/i.test(label) ? "var(--positive)" : /pressure|shock|risk.off/i.test(label) ? "var(--negative)" : "var(--chart-qqq)";
-  const inspect = (event: React.PointerEvent<SVGSVGElement>) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const x = (event.clientX - bounds.left) / bounds.width * width;
-    setActiveIndex(Math.max(0, Math.min(data.length - 1, Math.round((x - pad) / (width - 2 * pad) * (data.length - 1)))));
-  };
-  return <article className="panel history-panel">
-    <div className="panel-header"><div><span className="eyebrow">Explainability</span><h2>Historical regime scores</h2></div>
-      <div className="legend">{metrics.map(([, label, color]) => <span key={label}><i style={{ background: color }} />{label}</span>)}</div>
-    </div>
-    {data.length === 1 && <p className="chart-caption">A trend needs at least two observations.</p>}
-    <p className="chart-caption">{data.length} daily classifications · {formatDate(data[0].date)} – {formatDate(data[data.length-1].date)} · completed closes · hover, tap or use the date slider. Shaded bands mark regime periods.</p>
-    <svg className="history-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Historical regime scores chart" onPointerMove={inspect} onPointerDown={inspect}>
-      {bands.map(band => <rect key={band.start} x={xFor(band.start)} y={pad} width={Math.max(1, xFor(Math.min(data.length - 1, band.end + 1)) - xFor(band.start))} height={height - 2 * pad} fill={bandColor(band.label)} opacity=".08"><title>{band.label}</title></rect>)}
-      {[0, 50, 100].map(tick => <g key={tick}><line x1={pad} x2={width-pad} y1={yFor(tick)} y2={yFor(tick)} className="grid-line" /><text x={3} y={yFor(tick)+4} className="axis-label">{tick}</text></g>)}
-      {metrics.map(([key, label, color]) => <polyline key={key} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" aria-label={`${label} score history`} points={data.map((item, i) => `${xFor(i)},${yFor(item[key])}`).join(" ")} />)}
-      <line x1={xFor(active)} x2={xFor(active)} y1={pad} y2={height-pad} className="grid-line" strokeDasharray="3 3" />
-      {metrics.map(([key, label, color]) => <circle key={key} cx={xFor(active)} cy={yFor(point[key])} r="3.5" fill={color}><title>{formatDate(point.date)}: {label} {point[key]}</title></circle>)}
-      {[0, Math.floor((data.length-1)/2), data.length-1].filter((n,i,a) => a.indexOf(n) === i).map(i => <text key={i} x={xFor(i)} y={height-9} textAnchor="middle" className="axis-label">{new Date(`${data[i].date}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</text>)}
-    </svg>
-    <label className="history-date-control">Explore a trading date<input aria-label="Historical regime date" type="range" min="0" max={data.length-1} value={active} onChange={event => setActiveIndex(Number(event.target.value))} /></label>
-    <div className="history-tooltip" aria-live="polite">
-      <strong>{formatDate(point.date)} · {point.displayLabel}</strong>
-      <p>{metrics.map(([key, label]) => `${label} ${point[key]}`).join(" · ")}</p>
-      <p>{point.note}</p>
-      <button type="button" className="text-link" onClick={() => {
-        onDateSelect(point.date);
-        document.getElementById("overview")?.scrollIntoView({ behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-      }}>View snapshot <ArrowUpRight size={14} /></button>
-    </div>
-  </article>;
 }
 
 function AnalystNote({ data }: { data: DashboardData }) {
