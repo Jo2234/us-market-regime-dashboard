@@ -14,6 +14,7 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from app.services.calendar import latest_completed_session
+from app.services.futures_calendar import latest_completed_settlement, settlement_time
 from app.data.instruments import YAHOO_TICKERS
 
 
@@ -45,9 +46,10 @@ def main():
             meta = chart["meta"]
             last_day = datetime.fromtimestamp(chart["timestamp"][-1], tz).date()
             from app.services.calendar import session_close
-            official_close = session_close(last_day)
+            symbol_cutoff = latest_completed_settlement() if symbol == "DGS2" else cutoff
+            official_close = settlement_time(last_day, meta) if symbol == "DGS2" else session_close(last_day)
             meta_time = meta.get("regularMarketTime", 0)
-            repaired = (closes[-1] is None and last_day <= cutoff and official_close
+            repaired = (closes[-1] is None and last_day <= symbol_cutoff and official_close
                         and meta_time >= official_close.timestamp()
                         and datetime.fromtimestamp(meta_time, tz).date() == last_day)
             if repaired:
@@ -57,7 +59,7 @@ def main():
                 adjusted[-1] = closes[-1]
             bars = [(datetime.fromtimestamp(t, tz).date(), c, a)
                     for t, c, a in zip(chart["timestamp"], closes, adjusted)
-                    if c is not None and datetime.fromtimestamp(t, tz).date() <= cutoff]
+                    if c is not None and datetime.fromtimestamp(t, tz).date() <= symbol_cutoff]
             price_history[symbol] = bars
             observed, close, adj = bars[-1]
             item = next(i for i in (payload["major_indices"] if symbol in {"SPY", "QQQ"} else curve["maturities"]) if i["symbol"] == symbol)

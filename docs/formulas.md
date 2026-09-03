@@ -71,3 +71,7 @@ A null final futures bar may use `meta.regularMarketPrice` only when `regularMar
 ## Historical score display
 
 The chart uses four aligned 0–100 panels and a categorical regime ribbon. Raw daily scores use a step curve by default, preserving the discrete model decisions. The optional 5-day smoothing switch draws the trailing mean of five trading observations (or available observations at the start of the window). It affects display only: daily labels, regime changes, raw inspector scores, API history and snapshot selection are unchanged. The date slider provides keyboard access to the same synchronized inspector as pointer hover/tap/drag.
+
+## Signal value display
+
+API and CSV signal values remain unrounded. The Value column formats fractional returns as percentages (one decimal), differences between fractional returns as percentage points (two decimals), and yield changes/spreads as percentage points (already in that unit). CPI is a percent level; the SPY-minus-MA input is an adjusted USD difference; VIX-minus-average is an index-point difference. A raw-value tooltip identifies the original unit. Support and Pressure show the signal display name first and its evidence second.
