@@ -42,9 +42,9 @@ function UpdatedAge({ timestamp }: { timestamp?: string }) {
     const timer = setInterval(() => { if (document.visibilityState === "visible") setNow(Date.now()); }, 1000);
     return () => clearInterval(timer);
   }, []);
-  if (!timestamp) return null;
+  if (!timestamp) return <>Last update time unavailable</>;
   const seconds = Math.max(0, Math.floor((now - Date.parse(timestamp)) / 1000));
-  return <time dateTime={timestamp} aria-live="off" className="updated-age">Updated {seconds < 60 ? `${seconds} s` : seconds < 3600 ? `${Math.floor(seconds / 60)} min` : `${Math.floor(seconds / 3600)} h`} ago</time>;
+  return <time dateTime={timestamp} title={new Date(timestamp).toString()} aria-live="off" className="updated-age">Updated {seconds < 60 ? `${seconds} s` : seconds < 3600 ? `${Math.floor(seconds / 60)} min` : `${Math.floor(seconds / 3600)} h`} ago ({formatDateTime(timestamp)})</time>;
 }
 
 type SeriesKey = Exclude<keyof ChartPoint, "date">;
@@ -181,7 +181,7 @@ export default function App() {
         </a>
       </nav>
       <div className="refresh-status" role="status" aria-live="polite" aria-atomic="true">
-        <span><UpdatedAge timestamp={data.fetchedAt} /> · {data.fetchedAt ? `Last updated ${formatDateTime(data.fetchedAt)}` : "Last update time unavailable"} · Yahoo Finance · as of <time className="observation-date" dateTime={data.intraday ? data.marketStatus!.session_date : data.selectedDate}>{formatDate(data.intraday ? data.marketStatus!.session_date : data.selectedDate)}</time></span>
+        <span><UpdatedAge timestamp={data.fetchedAt} /> · Yahoo Finance · as of <time className="observation-date" dateTime={data.intraday ? data.marketStatus!.session_date : data.selectedDate}>{formatDate(data.intraday ? data.marketStatus!.session_date : data.selectedDate)}</time></span>
         <span className={error || data.provenance?.mode === "snapshot" ? "refresh-warning" : ""}>
           {loading ? "Updating with the latest numbers…" : error || data.provenance?.mode === "snapshot"
             ? `Showing close of ${formatDate(data.selectedDate)}; live refresh unavailable, retrying automatically.`
@@ -618,14 +618,14 @@ function RegimeCard({ data }: { data: DashboardData }) {
         ))}
       </div>
       <div className="signal-split">
-        <SignalList title="Support" items={data.regime.positiveSignals} />
-        <SignalList title="Pressure" items={data.regime.negativeSignals} />
+        <SignalList title="Support" items={data.regime.positiveSignals} signals={data.signals} />
+        <SignalList title="Pressure" items={data.regime.negativeSignals} signals={data.signals} />
       </div>
     </article>
   );
 }
 
-function SignalList({ title, items }: { title: string; items: string[] }) {
+function SignalList({ title, items, signals }: { title: string; items: string[]; signals: RegimeSignal[] }) {
   if (items.length === 0) {
     return <EmptyState title={title} body="No signals available." compact />;
   }
@@ -635,7 +635,7 @@ function SignalList({ title, items }: { title: string; items: string[] }) {
       <h3>{title}</h3>
       <ul>
         {items.slice(0, 3).map((item) => (
-          <li key={item}>{item}</li>
+          <li key={item}><strong>{item}</strong>{signals.find(signal => signal.name === item)?.evidence && <span>{signals.find(signal => signal.name === item)!.evidence}</span>}</li>
         ))}
       </ul>
     </div>
@@ -1279,7 +1279,7 @@ function SignalTable({ signals }: { signals: RegimeSignal[] }) {
               <tr key={signal.name}>
                 <th>{signal.name}</th>
                 <td>{sentenceCase(signal.category)}</td>
-                <td>{signal.value}</td>
+                <td title={`Raw: ${signal.value}${signal.rawUnit ? ` ${signal.rawUnit}` : ""}`} className="signal-value">{signal.displayValue ?? signal.value}</td>
                 <td>
                   <span className={`direction ${signal.direction}`}>
                     {sentenceCase(signal.direction)}
