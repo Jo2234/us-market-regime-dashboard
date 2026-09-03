@@ -8,7 +8,7 @@ const browser = await chromium.launch({ headless: true });
 const results = [];
 try {
   for (const [name, width, height] of [['desktop', 1440, 900], ['mobile', 375, 812]]) {
-    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' });
+    const page = await browser.newPage({ viewport: { width, height }, hasTouch: name === 'mobile', isMobile: name === 'mobile', reducedMotion: 'reduce' });
     const errors = [];
     if (process.env.PLAYWRIGHT_API_FIXTURE) {
       const body = await readFile(process.env.PLAYWRIGHT_API_FIXTURE, 'utf8');
@@ -20,19 +20,34 @@ try {
       Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
     });
+    const liveResponse = page.waitForResponse(response => response.url().includes('/dashboard/summary') && !response.url().includes('cached_only') && response.status() === 200);
     const started = Date.now();
     await page.goto(origin, { waitUntil: 'domcontentloaded' });
     await page.getByLabel('Market overview', { exact: true }).waitFor({ timeout: 30_000 });
     const renderMs = Date.now() - started;
     await page.locator('[aria-label="Market overview"][aria-busy="false"]').waitFor({ timeout: 30_000 });
+    const api = await (await liveResponse).json();
+    const settledMs = Date.now() - started;
     const state = await page.evaluate(() => ({
       visibility: document.visibilityState,
       overflow: document.documentElement.scrollWidth > innerWidth,
       title: document.title,
       header: document.querySelector('.refresh-status')?.textContent,
+      freshness: document.querySelector('.freshness-pill')?.textContent?.trim(),
       text: document.body.innerText,
     }));
+    for (const symbol of ['SPY', 'QQQ']) {
+      const item = api.major_indices.find(item => item.symbol === symbol);
+      const quote = api.live_quotes?.[symbol];
+      const price = api.market_status?.is_open && quote?.is_current_session && !quote?.is_stale ? quote.price : item.price;
+      if (!state.text.includes(price.toFixed(2))) throw new Error(`${symbol} price does not match the API`);
+    }
+    if (state.text.includes('Partial freshness') || state.header?.includes('Last updated')) throw new Error('Freshness or duplicate timestamp regression');
+    if (await page.locator('.history-chart .score-panel').count() !== 4) throw new Error('Missing small multiples');
+    if ((await page.locator('.signal-value').allTextContents()).some(value => /\.\d{4,}/.test(value))) throw new Error('Unformatted signal values');
     await page.screenshot({ path: new URL(`${name}-overview.png`, directory).pathname });
+    await page.locator('.regime-panel').screenshot({ path: new URL(`${name}-scores.png`, directory).pathname });
+    await page.locator('.signal-table-panel').screenshot({ path: new URL(`${name}-signals.png`, directory).pathname });
     const history = page.locator('.history-panel');
     if (await history.count()) {
       await history.screenshot({ path: new URL(`${name}-history.png`, directory).pathname });
@@ -44,11 +59,21 @@ try {
       const second = await slider.getAttribute('aria-valuetext');
       if (!first || first === second) throw new Error('Keyboard date inspection failed');
       const svg = page.getByRole('img', { name: 'Historical regime scores chart' });
+      await svg.scrollIntoViewIfNeeded();
       const bounds = await svg.boundingBox();
       await page.mouse.move(bounds.x + bounds.width * .5, bounds.y + 12);
       await page.mouse.down();
       await page.mouse.move(bounds.x + bounds.width * .75, bounds.y + 12, { steps: 5 });
       await page.mouse.up();
+      if (name === 'mobile') {
+        await page.touchscreen.tap(bounds.x + bounds.width * .3, bounds.y + 12);
+        const tapped = await slider.inputValue();
+        const touch = await page.context().newCDPSession(page);
+        await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: bounds.x + bounds.width * .3, y: bounds.y + 12 }] });
+        for (const ratio of [.4, .5, .6]) await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: bounds.x + bounds.width * ratio, y: bounds.y + 12 }] });
+        await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        if (await slider.inputValue() === tapped) throw new Error('Touch drag did not update the synchronized inspector');
+      }
       if (await slider.inputValue() === '1') throw new Error('Ribbon pointer inspection failed');
       const inspector = await page.locator('.history-tooltip').textContent();
       const toggle = page.getByRole('checkbox', { name: '5-day smoothing' });
@@ -60,7 +85,7 @@ try {
       }
     }
     await page.screenshot({ path: new URL(`${name}-full.png`, directory).pathname, fullPage: true });
-    const result = { name, renderMs, ...state, errors };
+    const result = { name, renderMs, settledMs, historyPoints: api.historical_regimes.length, ...state, errors };
     results.push(result);
     console.log(JSON.stringify({ ...result, text: undefined }));
     if (state.overflow || errors.length || /demo_seed/.test(state.text)) throw new Error(`${name} browser check failed`);
