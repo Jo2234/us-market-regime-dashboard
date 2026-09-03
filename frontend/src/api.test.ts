@@ -220,3 +220,15 @@ it("keeps a one-session futures delay on its row without downgrading Treasury fr
   data.data_freshness.instruments[0].affects_group_freshness = true;
   expect(adaptBackendSummary(data).freshness[0].status).toBe("stale");
 });
+
+it("keeps unrounded signal values while exposing display units and support names", async () => {
+  const { adaptBackendSummary } = await import("./api");
+  const data = summary();
+  const signal = { name: "nasdaq_outperforming_sp500_1m", value: 0.035311, passed: true, evidence: "QQQ outperformed SPY by 3.53 percentage points." };
+  data.regime.signals.all = [signal]; data.regime.signals.top_positive = [signal];
+  const result = adaptBackendSummary(data);
+  expect(result.signals[0].value).toBe("0.035311");
+  expect(result.signals[0].displayValue).toBe("+3.53 pp");
+  expect(result.regime.positiveSignals[0]).toBe("Nasdaq 100 outperforming S&P 500 (1M)");
+  expect(result.partial).toBe(false);
+});

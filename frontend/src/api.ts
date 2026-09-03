@@ -1,5 +1,6 @@
 import displayLabels from "../../backend/app/data/display_labels.json";
 import { sentenceCase } from "./utils";
+import { formatSignalValue } from "./signalFormatting";
 import type { DashboardData, FreshnessSource, RangeKey, RegimeSignal, ChartPoint, MacroValue } from "./types";
 
 const API_BASE_URL =
@@ -263,7 +264,7 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
     sourceMode: "api",
     apiBaseUrl: API_BASE_URL,
     stale: freshness.some((item) => item.status === "stale"),
-    partial: true,
+    partial: freshness.some(item => item.status === "stale" || item.status === "partial" || item.status === "error"),
     optionalProvidersMissing: ["Market breadth feed"],
     macro: payload.macro_summary ?? {},
     errors: [],
@@ -297,8 +298,8 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
       inflationScore: scorePercent(payload.regime.inflation_score),
       ratesPressureScore: scorePercent(payload.regime.rates_pressure_score),
       changedSincePrevious: payload.regime.signals.what_changed,
-      positiveSignals: payload.regime.signals.top_positive.map((signal) => signal.evidence),
-      negativeSignals: payload.regime.signals.top_negative.map((signal) => signal.evidence),
+      positiveSignals: payload.regime.signals.top_positive.map((signal) => adaptSignal(signal).name),
+      negativeSignals: payload.regime.signals.top_negative.map((signal) => adaptSignal(signal).name),
       limitations: payload.regime.signals.data_limitations
     },
     indices: payload.major_indices.filter((item) => item.available !== false).map((item) => ({
@@ -331,7 +332,8 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
       tenTwoSpread: payload.rates_summary.spreads["10y_2y"] ?? null,
       points: payload.rates_summary.maturities.flatMap((item) => {
         const maturity = maturities[item.symbol];
-        const isStale = payload.data_freshness.instruments.find(row => row.symbol === item.symbol)?.is_stale;
+        const observation = payload.data_freshness.instruments.find(row => row.symbol === item.symbol);
+        const isStale = observation?.is_stale && observation.latest_date === item.date;
         return maturity ? [{ maturity: maturity[0], years: maturity[1], yield: item.value, date: item.date, ticker: item.yahoo_ticker, isStale }] : [];
       })
     },
@@ -396,6 +398,7 @@ function adaptFreshness(rows: BackendSummary["data_freshness"]["instruments"]): 
 }
 
 function adaptSignal(signal: BackendSignal): RegimeSignal {
+  const formatted = formatSignalValue(signal.name, signal.value);
   const name = signal.name.replace(/_/g, " ");
   const category = name.includes("yield") || name.includes("year rising") ? "rates"
     : name.includes("vix") ? "volatility"
@@ -405,6 +408,8 @@ function adaptSignal(signal: BackendSignal): RegimeSignal {
     name: signal.display_name ?? displayLabels.signals[signal.name as keyof typeof displayLabels.signals] ?? sentenceCase(name),
     category,
     value: signal.value === null ? "n/a" : String(signal.value),
+    displayValue: formatted.display,
+    rawUnit: formatted.rawUnit,
     direction: signal.available === false || signal.value === null ? "neutral" : signal.passed ? "positive" : "negative",
     weight: 1,
     evidence: signal.evidence

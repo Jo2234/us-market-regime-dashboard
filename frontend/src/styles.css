@@ -1561,3 +1561,7 @@ tbody tr:last-child th {
   .history-smoothing { min-height: 32px; }
   .history-panel .history-tooltip { min-height: 190px; }
 }
+
+.mini-list li strong { display: block; font-size: 12px; font-weight: 600; color: var(--ink); }
+.mini-list li span { display: block; margin-top: 4px; color: var(--soft); font-size: 11px; line-height: 1.5; }
+.signal-value { white-space: nowrap; font-variant-numeric: tabular-nums; }
