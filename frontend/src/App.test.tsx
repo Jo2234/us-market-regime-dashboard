@@ -339,7 +339,10 @@ it("inspects all four historical scores and opens the selected snapshot", async 
   render(<App />);
   const slider = await screen.findByRole("slider", { name: "Historical regime date" });
   const chart = screen.getByRole("img", { name: "Historical regime scores chart" });
-  expect(chart.querySelectorAll("polyline")).toHaveLength(4);
+  expect(chart.querySelectorAll(".score-line")).toHaveLength(4);
+  expect(chart.querySelectorAll(".score-panel")).toHaveLength(4);
+  expect(chart.querySelectorAll(".regime-strip").length).toBeGreaterThan(0);
+  expect(screen.getByRole("checkbox", { name: "5-day smoothing" })).not.toBeChecked();
   fireEvent.change(slider, { target: { value: "0" } });
   const tooltip = document.querySelector(".history-tooltip")!;
   expect(tooltip.textContent).toContain(points[0].displayLabel);
@@ -381,4 +384,21 @@ it("arms the slow-loading notice even when the initial tab is hidden", async () 
   expect(mockedFetchDashboardData).toHaveBeenCalledTimes(1);
   expect(screen.getByRole("status")).toHaveTextContent("Still fetching");
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+});
+
+
+it("smooths only display paths and keeps classifications and inspector scores unchanged", async () => {
+  mockedFetchDashboardData.mockResolvedValue(demoDashboardData);
+  render(<App />);
+  const toggle = await screen.findByRole("checkbox", { name: "5-day smoothing" });
+  const path = document.querySelector(".score-line")!;
+  expect(path.getAttribute("d")).toContain("H ");
+  const inspector = document.querySelector(".history-tooltip")!.textContent;
+  const strips = document.querySelectorAll(".regime-strip").length;
+  await userEvent.click(toggle);
+  expect(path.getAttribute("d")).toContain("L ");
+  expect(path.getAttribute("d")).not.toContain("H ");
+  expect(document.querySelector(".history-tooltip")!.textContent).toBe(inspector);
+  expect(document.querySelectorAll(".regime-strip")).toHaveLength(strips);
+  expect(screen.getByText(/for display only; classifications and inspector scores are unchanged/)).toBeInTheDocument();
 });
