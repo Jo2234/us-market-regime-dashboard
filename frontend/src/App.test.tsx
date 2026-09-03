@@ -402,3 +402,17 @@ it("smooths only display paths and keeps classifications and inspector scores un
   expect(document.querySelectorAll(".regime-strip")).toHaveLength(strips);
   expect(screen.getByText(/for display only; classifications and inspector scores are unchanged/)).toBeInTheDocument();
 });
+
+it("merges update times and shows formatted values with raw tooltips and named evidence", async () => {
+  mockedFetchDashboardData.mockResolvedValue({ ...demoDashboardData,
+    fetchedAt: new Date().toISOString(),
+    regime: { ...demoDashboardData.regime, positiveSignals: ["Nasdaq 100 outperforming S&P 500 (1M)"] },
+    signals: [{ name: "Nasdaq 100 outperforming S&P 500 (1M)", value: "0.035311", displayValue: "+3.53 pp", rawUnit: "return fraction difference", category: "growth", direction: "positive", weight: 1, evidence: "QQQ outperformed SPY by 3.53 percentage points." }],
+  });
+  render(<App />);
+  expect(await screen.findByText("+3.53 pp")).toHaveAttribute("title", "Raw: 0.035311 return fraction difference");
+  expect(document.querySelector(".updated-age")?.textContent).toMatch(/Updated .* ago \(.*\)/);
+  expect(document.querySelector(".refresh-status")?.textContent).not.toContain("Last updated");
+  expect(document.querySelector(".mini-list strong")?.textContent).toBe("Nasdaq 100 outperforming S&P 500 (1M)");
+  expect(document.querySelector(".mini-list li span")?.textContent).toBe("QQQ outperformed SPY by 3.53 percentage points.");
+});
