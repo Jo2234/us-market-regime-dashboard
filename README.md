@@ -108,7 +108,7 @@ Synthetic fixtures are restricted to tests and opt-in local demos. Set `MARKET_R
 
 ## Known limits
 
-Yahoo is unofficial, may rate-limit, revise adjusted history or omit bars, and offers no availability guarantee. The UI labels stale observations and unsupported breadth coverage. FRED may delay releases, rate-limit downloads, and revise historical values. Monthly observation dates are not release dates; historical views use the latest revised vintage and are not point-in-time backtests. ETF proxies, futures and yield indices have different economic meanings. The rule-based regime is an explanation of these inputs, not a predictive guarantee. Historical regime backfills are request-local on serverless hosting; they are not persistently stored. The interface shows unavailable measurements as `n/a`.
+Yahoo is unofficial, may rate-limit, revise adjusted history or omit bars, and offers no availability guarantee. The UI labels stale observations and unsupported breadth coverage. FRED may delay releases, rate-limit downloads, and revise historical values. Monthly observation dates are not release dates; historical views use the latest revised vintage and are not point-in-time backtests. ETF proxies, futures and yield indices have different economic meanings. The rule-based regime is an explanation of these inputs, not a predictive guarantee. Historical regimes are computed once per daily-history fingerprint, cached per instance, and included in the committed fallback snapshot. The interface shows unavailable measurements as `n/a`.
 
 ## License
 
