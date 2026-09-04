@@ -1251,8 +1251,8 @@ function SignalTable({ signals }: { signals: RegimeSignal[] }) {
         </label>
       </div>
       <p className="chart-caption">
-        {filteredSignals.length} of {signals.length} signals · Raw values and
-        rule weights as supplied by the model.
+        {filteredSignals.length} of {signals.length} signals · Values formatted by unit;
+        hover for raw values. Rule weights as supplied by the model.
       </p>
       <p className="table-scroll-hint">
         Scroll sideways to read every rule’s evidence →
