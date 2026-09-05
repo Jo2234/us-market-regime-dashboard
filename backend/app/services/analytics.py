@@ -203,20 +203,37 @@ def latest_macro_value(conn, symbol, as_of=None, published=False):
 
 def macro_change(conn, symbol, periods=21, as_of=None):
     rows = _macro_frame(conn, symbol, end=as_of)
+    if as_of:
+        from app.services.macro_data import available_on
+        rows = [r for r in rows if r["source"] != "fred" or available_on(symbol, r["date"]) <= as_of]
     return rows[-1]["value"] - rows[-periods - 1]["value"] if len(rows) > periods else None
 
 
 def yield_curve(conn, as_of=None):
-    maturities = [row for s in RATE_SYMBOLS if (row := latest_macro_value(conn, s, as_of))]
+    from app.services.calendar import latest_completed_session
+    from app.services.macro_data import available_on
+    cutoff = as_of or latest_completed_session()
+    series = {s: {r["date"]: r for r in _macro_frame(conn, s, end=cutoff)
+                  if r["source"] != "fred" or available_on(s, r["date"]) <= cutoff}
+              for s in RATE_SYMBOLS}
+    common = set.intersection(*(set(rows) for rows in series.values()))
+    day = max(common) if common else None
+    maturities = [{"symbol": s, "date": day.isoformat(), "observation_date": day.isoformat(),
+                   "value": _rounded(rows[day]["value"]), "source": rows[day]["source"], **provenance(s)}
+                  for s, rows in series.items()] if day else []
     values = {row["symbol"]: row["value"] for row in maturities}
-    spreads = {name: _rounded(values[a] - values[b]) for name, a, b in
-               [("10y_2y", "DGS10", "DGS2"), ("10y_3m", "DGS10", "DGS3MO"), ("30y_10y", "DGS30", "DGS10")]
-               if a in values and b in values}
-    return {"date": max((r["date"] for r in maturities), default=None), "maturities": maturities, "spreads": spreads,
-            "units": "percent", "spread_metadata": {
-                "10y_2y": {"label": "10Y Treasury minus 2Y futures-implied yield", "unit": "percentage_points", "is_cash_treasury_spread": False,
-                           "observation_dates": {s: next((m["date"] for m in maturities if m["symbol"] == s), None) for s in ("DGS10", "DGS2")}},
-                "10y_3m": {"label": "10Y Treasury minus 3M discount yield", "unit": "percentage_points"}}}
+    spreads, metadata = {}, {}
+    for key, fred_id, a, b in [("10y_2y", "T10Y2Y", "DGS10", "DGS2"), ("10y_3m", "T10Y3M", "DGS10", "DGS3MO"), ("30y_10y", None, "DGS30", "DGS10")]:
+        official = next((r for r in _macro_frame(conn, fred_id, end=day) if r["date"] == day), None) if fred_id and day else None
+        value = official["value"] if official else values[a] - values[b] if a in values and b in values else None
+        spreads[key] = _rounded(value)
+        metadata[key] = {"label": key.upper().replace("_", "–") + " Treasury spread", "unit": "percentage_points",
+                         "source": "fred", "fred_series_id": fred_id if official else None,
+                         "calculation": "official FRED spread" if official else "same-date constant-maturity yields",
+                         "date": day.isoformat() if day else None, "is_cash_treasury_spread": True,
+                         "observation_dates": {s: day.isoformat() if day else None for s in (a, b)}}
+    return {"date": day.isoformat() if day else None, "maturities": maturities, "spreads": spreads,
+            "units": "percent", "source": "fred", "spread_metadata": metadata}
 
 
 def dashboard_market_blocks(conn, as_of=None):
