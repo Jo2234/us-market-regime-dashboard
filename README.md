@@ -6,7 +6,7 @@ Daily US market dashboard with Yahoo Finance prices, FRED macro observations, ad
 
 ## Data sources
 
-All 25 supported market series come from Yahoo Finance's unofficial v8 chart endpoint. The canonical mapping is in `backend/app/data/instruments.py`:
+ETF, volatility and dollar market series come from Yahoo Finance's unofficial v8 chart endpoint. The canonical mapping is in `backend/app/data/instruments.py`:
 
 | Instruments / retained API IDs | Yahoo ticker(s) |
 | --- | --- |
@@ -14,10 +14,11 @@ All 25 supported market series come from Yahoo Finance's unofficial v8 chart end
 | Sector SPDRs | XLK, XLF, XLE, XLV, XLY, XLP, XLI, XLB, XLU, XLRE, XLC |
 | Commodity ETFs | USO, GLD, CPER |
 | VIX / DXY | `^VIX` / `DX-Y.NYB` |
-| DGS3MO / DGS5 / DGS10 / DGS30 | `^IRX` / `^FVX` / `^TNX` / `^TYX` |
-| DGS2 | `2YY=F` (2-year yield futures, futures-implied) |
+| Treasury curve | FRED `DGS3MO`, `DGS2`, `DGS5`, `DGS10`, `DGS30` |
+| Official spreads | FRED `T10Y2Y`, `T10Y3M` |
 
-DGS identifiers are retained to avoid breaking API consumers; they no longer imply FRED or constant-maturity Treasury data. The curve uses 3M, 2Y*, 5Y, 10Y and 30Y, all quoted directly in percent (5.24 = 5.24%). 3M is a discount yield. Yahoo has no equivalent cash 2Y index. We chose its [CME 2-year yield future](https://www.cmegroup.com/education/articles-and-reports/introducing-yield-futures) to keep the market feed Yahoo-only, with explicit API/UI labels. **The 10Y–2Y* spread mixes a Treasury index and a futures-implied yield; it is not the standard cash recession spread.** Futures rolls, liquidity and settlement timing can affect it. `ZT=F` is not used because it is a price-based Treasury future, not a quoted yield. Futures freshness uses its own CME settlement cadence (14:00 CT, adjusted for shortened sessions), rather than the NYSE close. Null futures bars accept only a same-session, post-settlement Yahoo meta quote. One missing futures session is labelled on that observation alone; longer delays affect the group. See [the date and freshness policy](docs/formulas.md#observation-dates-and-freshness).
+The curve uses same-date Treasury constant-maturity yields from FRED, quoted in percent. The 10Y–2Y and 10Y–3M spreads use the official FRED series on that curve date. A one-business-day publication lag is normal. Yahoo live quotes never overwrite these yields or enter their spreads. See [methodology](docs/methodology.md).
+
 
 Macro data comes from [FRED, Federal Reserve Bank of St. Louis](https://fred.stlouisfed.org/). The retained API keys and new additive fields are:
 
@@ -116,7 +117,7 @@ Yahoo is unofficial, may rate-limit, revise adjusted history or omit bars, and o
 
 ### Intraday quotes
 
-Yahoo's unauthenticated **v7 spark** endpoint returns metadata for batches of at most 20 symbols; all 25 instruments use two concurrent requests through one HTTPX client with minimal `Mozilla/5.0` User-Agent. The v8 spark response tested here is flat and lacks `regularMarketTime`, so v7 spark is used to verify quote observation times. The crumb-protected v7 **quote** endpoint is not used. Quotes have a separate single-flight cache, four-second request timeout and five-second total deadline. On 401/429 or transport failure, preserve the last good observations and back off the next batch (60 → 120 → … → 900 seconds); do not immediately retry and amplify a rate limit. Telemetry is additive in `quote_delivery`; `market_status` reports the exchange clock. Older-session/stale quotes never replace a current daily close in the UI. Futures and FX follow the same NYSE refresh schedule; overnight trading is intentionally not polled.
+Yahoo's unauthenticated **v7 spark** endpoint returns metadata for batches of at most 20 symbols; symbols are batched into groups of at most 20 through one HTTPX client with minimal `Mozilla/5.0` User-Agent. The v8 spark response tested here is flat and lacks `regularMarketTime`, so v7 spark is used to verify quote observation times. The crumb-protected v7 **quote** endpoint is not used. Quotes have a separate single-flight cache, four-second request timeout and five-second total deadline. On 401/429 or transport failure, preserve the last good observations and back off the next batch (60 → 120 → … → 900 seconds); do not immediately retry and amplify a rate limit. Telemetry is additive in `quote_delivery`; `market_status` reports the exchange clock. Older-session/stale quotes never replace a current daily close in the UI. FX follows the same NYSE refresh schedule; overnight trading is intentionally not polled.
 
 Daily classifications and the legacy daily fields remain based on completed sessions. `live_quotes` alone supplies the intraday endpoint: 1D uses Yahoo's previous regular close (or the prior daily bar if missing); calendar returns use live price over adjusted historical close. Yahoo may delay quotes or corporate-action adjustments, especially on an ex-dividend day. FRED remains daily/monthly, cached for one hour. `MARKET_REGIME_CLOCK=<ISO timestamp>` allows local/preview calendar verification and is ignored in production. `MARKET_REGIME_FORCE_QUOTE_FAILURE=1` exercises fallback without deliberately triggering upstream rate limits.
 

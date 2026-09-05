@@ -727,83 +727,54 @@
         "source": "yahoo_finance"
       },
       "rates": {
-        "date": "2025-01-15",
-        "maturities": [
-          {
-            "symbol": "DGS3MO",
-            "date": "2025-01-15",
-            "value": 4.205,
-            "source": "yahoo_finance",
-            "observation_date": "2025-01-15",
-            "yahoo_ticker": "^IRX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "3-month Treasury"
-          },
-          {
-            "symbol": "DGS2",
-            "date": "2025-01-15",
-            "value": 4.254,
-            "source": "yahoo_finance",
-            "observation_date": "2025-01-15",
-            "yahoo_ticker": "2YY=F",
-            "unit": "percent",
-            "instrument_type": "yield_futures",
-            "label": "2-year yield futures (futures-implied)"
-          },
-          {
-            "symbol": "DGS5",
-            "date": "2025-01-15",
-            "value": 4.444,
-            "source": "yahoo_finance",
-            "observation_date": "2025-01-15",
-            "yahoo_ticker": "^FVX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "5-year Treasury"
-          },
-          {
-            "symbol": "DGS10",
-            "date": "2025-01-15",
-            "value": 4.653,
-            "source": "yahoo_finance",
-            "observation_date": "2025-01-15",
-            "yahoo_ticker": "^TNX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "10-year Treasury"
-          },
-          {
-            "symbol": "DGS30",
-            "date": "2025-01-15",
-            "value": 4.879,
-            "source": "yahoo_finance",
-            "observation_date": "2025-01-15",
-            "yahoo_ticker": "^TYX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "30-year Treasury"
-          }
-        ],
+        "date": null,
+        "maturities": [],
         "spreads": {
-          "10y_2y": 0.399,
-          "10y_3m": 0.448,
-          "30y_10y": 0.226
+          "10y_2y": null,
+          "10y_3m": null,
+          "30y_10y": null
         },
         "units": "percent",
+        "source": "fred",
         "spread_metadata": {
           "10y_2y": {
-            "label": "10Y Treasury minus 2Y futures-implied yield",
+            "label": "10Y\u20132Y Treasury spread",
             "unit": "percentage_points",
-            "is_cash_treasury_spread": false,
+            "source": "fred",
+            "fred_series_id": null,
+            "calculation": "same-date constant-maturity yields",
+            "date": null,
+            "is_cash_treasury_spread": true,
             "observation_dates": {
-              "DGS10": "2025-01-15",
-              "DGS2": "2025-01-15"
+              "DGS10": null,
+              "DGS2": null
             }
           },
           "10y_3m": {
-            "label": "10Y Treasury minus 3M discount yield",
-            "unit": "percentage_points"
+            "label": "10Y\u20133M Treasury spread",
+            "unit": "percentage_points",
+            "source": "fred",
+            "fred_series_id": null,
+            "calculation": "same-date constant-maturity yields",
+            "date": null,
+            "is_cash_treasury_spread": true,
+            "observation_dates": {
+              "DGS10": null,
+              "DGS3MO": null
+            }
+          },
+          "30y_10y": {
+            "label": "30Y\u201310Y Treasury spread",
+            "unit": "percentage_points",
+            "source": "fred",
+            "fred_series_id": null,
+            "calculation": "same-date constant-maturity yields",
+            "date": null,
+            "is_cash_treasury_spread": true,
+            "observation_dates": {
+              "DGS30": null,
+              "DGS10": null
+            }
           }
         }
       }
@@ -817,7 +788,7 @@
       "risk_score": -2.0,
       "growth_score": -1.0,
       "inflation_score": 2.0,
-      "rates_pressure_score": 1.0,
+      "rates_pressure_score": 0.0,
       "signals": {
         "top_positive": [
           {
@@ -893,24 +864,6 @@
             "value": -0.016439,
             "threshold": "> 0",
             "evidence": "Utilities and staples average return minus cyclicals average return."
-          },
-          {
-            "name": "two_year_rising_sharply_1m",
-            "display_name": "2Y futures-implied yield rising sharply (1M)",
-            "passed": false,
-            "available": true,
-            "value": 0.06,
-            "threshold": "> 0.25 percentage points",
-            "evidence": "2-year futures-implied yield change over roughly 21 trading days."
-          },
-          {
-            "name": "yield_curve_inverted",
-            "display_name": "Yield curve inverted",
-            "passed": false,
-            "available": true,
-            "value": 0.399,
-            "threshold": "< 0",
-            "evidence": "10-year Treasury yield minus 2-year futures-implied yield (not a cash Treasury spread)."
           }
         ],
         "all": [
@@ -998,40 +951,40 @@
           {
             "name": "ten_year_rising_sharply_1m",
             "display_name": "10Y yield rising sharply (1M)",
-            "passed": true,
-            "available": true,
-            "value": 0.329,
+            "passed": false,
+            "available": false,
+            "value": null,
             "threshold": "> 0.25 percentage points",
             "evidence": "10-year Treasury yield change over roughly 21 trading days."
           },
           {
             "name": "two_year_rising_sharply_1m",
-            "display_name": "2Y futures-implied yield rising sharply (1M)",
+            "display_name": "2Y Treasury yield rising sharply (1M)",
             "passed": false,
-            "available": true,
-            "value": 0.06,
+            "available": false,
+            "value": null,
             "threshold": "> 0.25 percentage points",
-            "evidence": "2-year futures-implied yield change over roughly 21 trading days."
+            "evidence": "2-year Treasury yield change over roughly 21 trading days."
           },
           {
             "name": "yield_curve_inverted",
             "display_name": "Yield curve inverted",
             "passed": false,
-            "available": true,
-            "value": 0.399,
+            "available": false,
+            "value": null,
             "threshold": "< 0",
-            "evidence": "10-year Treasury yield minus 2-year futures-implied yield (not a cash Treasury spread)."
+            "evidence": "10-year Treasury yield minus 2-year Treasury yield."
           }
         ],
         "what_changed": "No prior regime snapshot is available.",
         "data_limitations": [
           "Yahoo Finance daily bars are unofficial and may be delayed or revised. ETF adjusted closes drive returns; prices use raw closes.",
-          "2Y uses 2YY=F yield futures. The 10Y\u20132Y* spread mixes a cash index and futures-implied yield; contract rolls may affect changes.",
+          "The curve uses same-date FRED Treasury constant-maturity yields and official spreads, with next-business-day publication eligibility.",
           "CPI is unavailable. The CPI signal contributes no inflation point; model coverage is incomplete.",
           "Regime classification uses completed daily closes. Live quotes and intraday returns update separately during NYSE hours."
         ]
       },
-      "summary": "As of Jan 15, 2025, the dashboard classifies the market as Inflation pressure with medium confidence. The strongest confirming evidence is VIX below 3-month average. The main watch item is S&P 500 above 50-day MA. The 10Y\u20132Y* futures-implied spread is 0.40 percentage points. No prior regime snapshot is available. This note is deterministic and only uses computed dashboard metrics."
+      "summary": "As of Jan 15, 2025, the dashboard classifies the market as Inflation pressure with medium confidence. The strongest confirming evidence is VIX below 3-month average. The main watch item is S&P 500 above 50-day MA. The 10Y\u20132Y Treasury spread is not available. No prior regime snapshot is available. This note is deterministic and only uses computed dashboard metrics."
     },
     "charts": {
       "1d": [
@@ -2482,83 +2435,54 @@
         "source": "yahoo_finance"
       },
       "rates": {
-        "date": "2025-12-31",
-        "maturities": [
-          {
-            "symbol": "DGS3MO",
-            "date": "2025-12-31",
-            "value": 3.547,
-            "source": "yahoo_finance",
-            "observation_date": "2025-12-31",
-            "yahoo_ticker": "^IRX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "3-month Treasury"
-          },
-          {
-            "symbol": "DGS2",
-            "date": "2025-12-31",
-            "value": 3.458,
-            "source": "yahoo_finance",
-            "observation_date": "2025-12-31",
-            "yahoo_ticker": "2YY=F",
-            "unit": "percent",
-            "instrument_type": "yield_futures",
-            "label": "2-year yield futures (futures-implied)"
-          },
-          {
-            "symbol": "DGS5",
-            "date": "2025-12-31",
-            "value": 3.722,
-            "source": "yahoo_finance",
-            "observation_date": "2025-12-31",
-            "yahoo_ticker": "^FVX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "5-year Treasury"
-          },
-          {
-            "symbol": "DGS10",
-            "date": "2025-12-31",
-            "value": 4.163,
-            "source": "yahoo_finance",
-            "observation_date": "2025-12-31",
-            "yahoo_ticker": "^TNX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "10-year Treasury"
-          },
-          {
-            "symbol": "DGS30",
-            "date": "2025-12-31",
-            "value": 4.84,
-            "source": "yahoo_finance",
-            "observation_date": "2025-12-31",
-            "yahoo_ticker": "^TYX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "30-year Treasury"
-          }
-        ],
+        "date": null,
+        "maturities": [],
         "spreads": {
-          "10y_2y": 0.705,
-          "10y_3m": 0.616,
-          "30y_10y": 0.677
+          "10y_2y": null,
+          "10y_3m": null,
+          "30y_10y": null
         },
         "units": "percent",
+        "source": "fred",
         "spread_metadata": {
           "10y_2y": {
-            "label": "10Y Treasury minus 2Y futures-implied yield",
+            "label": "10Y\u20132Y Treasury spread",
             "unit": "percentage_points",
-            "is_cash_treasury_spread": false,
+            "source": "fred",
+            "fred_series_id": null,
+            "calculation": "same-date constant-maturity yields",
+            "date": null,
+            "is_cash_treasury_spread": true,
             "observation_dates": {
-              "DGS10": "2025-12-31",
-              "DGS2": "2025-12-31"
+              "DGS10": null,
+              "DGS2": null
             }
           },
           "10y_3m": {
-            "label": "10Y Treasury minus 3M discount yield",
-            "unit": "percentage_points"
+            "label": "10Y\u20133M Treasury spread",
+            "unit": "percentage_points",
+            "source": "fred",
+            "fred_series_id": null,
+            "calculation": "same-date constant-maturity yields",
+            "date": null,
+            "is_cash_treasury_spread": true,
+            "observation_dates": {
+              "DGS10": null,
+              "DGS3MO": null
+            }
+          },
+          "30y_10y": {
+            "label": "30Y\u201310Y Treasury spread",
+            "unit": "percentage_points",
+            "source": "fred",
+            "fred_series_id": null,
+            "calculation": "same-date constant-maturity yields",
+            "date": null,
+            "is_cash_treasury_spread": true,
+            "observation_dates": {
+              "DGS30": null,
+              "DGS10": null
+            }
           }
         }
       }
@@ -2648,15 +2572,6 @@
             "value": -0.026875,
             "threshold": "> 5%",
             "evidence": "USO 1-month return."
-          },
-          {
-            "name": "ten_year_rising_sharply_1m",
-            "display_name": "10Y yield rising sharply (1M)",
-            "passed": false,
-            "available": true,
-            "value": 0.067,
-            "threshold": "> 0.25 percentage points",
-            "evidence": "10-year Treasury yield change over roughly 21 trading days."
           }
         ],
         "all": [
@@ -2745,39 +2660,39 @@
             "name": "ten_year_rising_sharply_1m",
             "display_name": "10Y yield rising sharply (1M)",
             "passed": false,
-            "available": true,
-            "value": 0.067,
+            "available": false,
+            "value": null,
             "threshold": "> 0.25 percentage points",
             "evidence": "10-year Treasury yield change over roughly 21 trading days."
           },
           {
             "name": "two_year_rising_sharply_1m",
-            "display_name": "2Y futures-implied yield rising sharply (1M)",
+            "display_name": "2Y Treasury yield rising sharply (1M)",
             "passed": false,
-            "available": true,
-            "value": 0.039,
+            "available": false,
+            "value": null,
             "threshold": "> 0.25 percentage points",
-            "evidence": "2-year futures-implied yield change over roughly 21 trading days."
+            "evidence": "2-year Treasury yield change over roughly 21 trading days."
           },
           {
             "name": "yield_curve_inverted",
             "display_name": "Yield curve inverted",
             "passed": false,
-            "available": true,
-            "value": 0.705,
+            "available": false,
+            "value": null,
             "threshold": "< 0",
-            "evidence": "10-year Treasury yield minus 2-year futures-implied yield (not a cash Treasury spread)."
+            "evidence": "10-year Treasury yield minus 2-year Treasury yield."
           }
         ],
         "what_changed": "No prior regime snapshot is available.",
         "data_limitations": [
           "Yahoo Finance daily bars are unofficial and may be delayed or revised. ETF adjusted closes drive returns; prices use raw closes.",
-          "2Y uses 2YY=F yield futures. The 10Y\u20132Y* spread mixes a cash index and futures-implied yield; contract rolls may affect changes.",
+          "The curve uses same-date FRED Treasury constant-maturity yields and official spreads, with next-business-day publication eligibility.",
           "CPI is unavailable. The CPI signal contributes no inflation point; model coverage is incomplete.",
           "Regime classification uses completed daily closes. Live quotes and intraday returns update separately during NYSE hours."
         ]
       },
-      "summary": "As of Dec 31, 2025, the dashboard classifies the market as Mixed transition with low confidence. The strongest confirming evidence is S&P 500 above 50-day MA. The main watch item is Nasdaq 100 outperforming S&P 500 (1M). The 10Y\u20132Y* futures-implied spread is 0.70 percentage points. No prior regime snapshot is available. This note is deterministic and only uses computed dashboard metrics."
+      "summary": "As of Dec 31, 2025, the dashboard classifies the market as Mixed transition with low confidence. The strongest confirming evidence is S&P 500 above 50-day MA. The main watch item is Nasdaq 100 outperforming S&P 500 (1M). The 10Y\u20132Y Treasury spread is not available. No prior regime snapshot is available. This note is deterministic and only uses computed dashboard metrics."
     },
     "charts": {
       "1d": [
@@ -7701,83 +7616,54 @@
         "source": "yahoo_finance"
       },
       "rates": {
-        "date": "2026-03-31",
-        "maturities": [
-          {
-            "symbol": "DGS3MO",
-            "date": "2026-03-31",
-            "value": 3.6,
-            "source": "yahoo_finance",
-            "observation_date": "2026-03-31",
-            "yahoo_ticker": "^IRX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "3-month Treasury"
-          },
-          {
-            "symbol": "DGS2",
-            "date": "2026-03-31",
-            "value": 3.795,
-            "source": "yahoo_finance",
-            "observation_date": "2026-03-31",
-            "yahoo_ticker": "2YY=F",
-            "unit": "percent",
-            "instrument_type": "yield_futures",
-            "label": "2-year yield futures (futures-implied)"
-          },
-          {
-            "symbol": "DGS5",
-            "date": "2026-03-31",
-            "value": 3.945,
-            "source": "yahoo_finance",
-            "observation_date": "2026-03-31",
-            "yahoo_ticker": "^FVX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "5-year Treasury"
-          },
-          {
-            "symbol": "DGS10",
-            "date": "2026-03-31",
-            "value": 4.311,
-            "source": "yahoo_finance",
-            "observation_date": "2026-03-31",
-            "yahoo_ticker": "^TNX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "10-year Treasury"
-          },
-          {
-            "symbol": "DGS30",
-            "date": "2026-03-31",
-            "value": 4.891,
-            "source": "yahoo_finance",
-            "observation_date": "2026-03-31",
-            "yahoo_ticker": "^TYX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "30-year Treasury"
-          }
-        ],
+        "date": null,
+        "maturities": [],
         "spreads": {
-          "10y_2y": 0.516,
-          "10y_3m": 0.711,
-          "30y_10y": 0.58
+          "10y_2y": null,
+          "10y_3m": null,
+          "30y_10y": null
         },
         "units": "percent",
+        "source": "fred",
         "spread_metadata": {
           "10y_2y": {
-            "label": "10Y Treasury minus 2Y futures-implied yield",
+            "label": "10Y\u20132Y Treasury spread",
             "unit": "percentage_points",
-            "is_cash_treasury_spread": false,
+            "source": "fred",
+            "fred_series_id": null,
+            "calculation": "same-date constant-maturity yields",
+            "date": null,
+            "is_cash_treasury_spread": true,
             "observation_dates": {
-              "DGS10": "2026-03-31",
-              "DGS2": "2026-03-31"
+              "DGS10": null,
+              "DGS2": null
             }
           },
           "10y_3m": {
-            "label": "10Y Treasury minus 3M discount yield",
-            "unit": "percentage_points"
+            "label": "10Y\u20133M Treasury spread",
+            "unit": "percentage_points",
+            "source": "fred",
+            "fred_series_id": null,
+            "calculation": "same-date constant-maturity yields",
+            "date": null,
+            "is_cash_treasury_spread": true,
+            "observation_dates": {
+              "DGS10": null,
+              "DGS3MO": null
+            }
+          },
+          "30y_10y": {
+            "label": "30Y\u201310Y Treasury spread",
+            "unit": "percentage_points",
+            "source": "fred",
+            "fred_series_id": null,
+            "calculation": "same-date constant-maturity yields",
+            "date": null,
+            "is_cash_treasury_spread": true,
+            "observation_dates": {
+              "DGS30": null,
+              "DGS10": null
+            }
           }
         }
       }
@@ -7785,13 +7671,13 @@
     "regime": {
       "id": "04dec35e-ee11-597e-832e-4f2083989e40",
       "date": "2026-03-31",
-      "regime_label": "rates_pressure",
-      "display_label": "Rates pressure",
-      "confidence": "medium",
+      "regime_label": "mixed_transition",
+      "display_label": "Mixed transition",
+      "confidence": "low",
       "risk_score": -1.0,
       "growth_score": 0.0,
       "inflation_score": 1.0,
-      "rates_pressure_score": 2.0,
+      "rates_pressure_score": 0.0,
       "signals": {
         "top_positive": [
           {
@@ -7811,24 +7697,6 @@
             "value": 0.552776,
             "threshold": "> 5%",
             "evidence": "USO 1-month return."
-          },
-          {
-            "name": "ten_year_rising_sharply_1m",
-            "display_name": "10Y yield rising sharply (1M)",
-            "passed": true,
-            "available": true,
-            "value": 0.263,
-            "threshold": "> 0.25 percentage points",
-            "evidence": "10-year Treasury yield change over roughly 21 trading days."
-          },
-          {
-            "name": "two_year_rising_sharply_1m",
-            "display_name": "2Y futures-implied yield rising sharply (1M)",
-            "passed": true,
-            "available": true,
-            "value": 0.385,
-            "threshold": "> 0.25 percentage points",
-            "evidence": "2-year futures-implied yield change over roughly 21 trading days."
           }
         ],
         "top_negative": [
@@ -7963,40 +7831,40 @@
           {
             "name": "ten_year_rising_sharply_1m",
             "display_name": "10Y yield rising sharply (1M)",
-            "passed": true,
-            "available": true,
-            "value": 0.263,
+            "passed": false,
+            "available": false,
+            "value": null,
             "threshold": "> 0.25 percentage points",
             "evidence": "10-year Treasury yield change over roughly 21 trading days."
           },
           {
             "name": "two_year_rising_sharply_1m",
-            "display_name": "2Y futures-implied yield rising sharply (1M)",
-            "passed": true,
-            "available": true,
-            "value": 0.385,
+            "display_name": "2Y Treasury yield rising sharply (1M)",
+            "passed": false,
+            "available": false,
+            "value": null,
             "threshold": "> 0.25 percentage points",
-            "evidence": "2-year futures-implied yield change over roughly 21 trading days."
+            "evidence": "2-year Treasury yield change over roughly 21 trading days."
           },
           {
             "name": "yield_curve_inverted",
             "display_name": "Yield curve inverted",
             "passed": false,
-            "available": true,
-            "value": 0.516,
+            "available": false,
+            "value": null,
             "threshold": "< 0",
-            "evidence": "10-year Treasury yield minus 2-year futures-implied yield (not a cash Treasury spread)."
+            "evidence": "10-year Treasury yield minus 2-year Treasury yield."
           }
         ],
         "what_changed": "No prior regime snapshot is available.",
         "data_limitations": [
           "Yahoo Finance daily bars are unofficial and may be delayed or revised. ETF adjusted closes drive returns; prices use raw closes.",
-          "2Y uses 2YY=F yield futures. The 10Y\u20132Y* spread mixes a cash index and futures-implied yield; contract rolls may affect changes.",
+          "The curve uses same-date FRED Treasury constant-maturity yields and official spreads, with next-business-day publication eligibility.",
           "CPI is unavailable. The CPI signal contributes no inflation point; model coverage is incomplete.",
           "Regime classification uses completed daily closes. Live quotes and intraday returns update separately during NYSE hours."
         ]
       },
-      "summary": "As of Mar 31, 2026, the dashboard classifies the market as Rates pressure with medium confidence. The strongest confirming evidence is Nasdaq 100 outperforming S&P 500 (1M). The main watch item is S&P 500 above 50-day MA. The 10Y\u20132Y* futures-implied spread is 0.52 percentage points. No prior regime snapshot is available. This note is deterministic and only uses computed dashboard metrics."
+      "summary": "As of Mar 31, 2026, the dashboard classifies the market as Mixed transition with low confidence. The strongest confirming evidence is Nasdaq 100 outperforming S&P 500 (1M). The main watch item is S&P 500 above 50-day MA. The 10Y\u20132Y Treasury spread is not available. No prior regime snapshot is available. This note is deterministic and only uses computed dashboard metrics."
     },
     "charts": {
       "1d": [
@@ -11590,83 +11458,54 @@
         "source": "yahoo_finance"
       },
       "rates": {
-        "date": "2026-09-28",
-        "maturities": [
-          {
-            "symbol": "DGS3MO",
-            "date": "2026-09-28",
-            "value": 4.057,
-            "source": "yahoo_finance",
-            "observation_date": "2026-09-28",
-            "yahoo_ticker": "^IRX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "3-month Treasury"
-          },
-          {
-            "symbol": "DGS2",
-            "date": "2026-09-28",
-            "value": 4.5,
-            "source": "yahoo_finance",
-            "observation_date": "2026-09-28",
-            "yahoo_ticker": "2YY=F",
-            "unit": "percent",
-            "instrument_type": "yield_futures",
-            "label": "2-year yield futures (futures-implied)"
-          },
-          {
-            "symbol": "DGS5",
-            "date": "2026-09-28",
-            "value": 5.068,
-            "source": "yahoo_finance",
-            "observation_date": "2026-09-28",
-            "yahoo_ticker": "^FVX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "5-year Treasury"
-          },
-          {
-            "symbol": "DGS10",
-            "date": "2026-09-28",
-            "value": 5.24,
-            "source": "yahoo_finance",
-            "observation_date": "2026-09-28",
-            "yahoo_ticker": "^TNX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "10-year Treasury"
-          },
-          {
-            "symbol": "DGS30",
-            "date": "2026-09-28",
-            "value": 5.561,
-            "source": "yahoo_finance",
-            "observation_date": "2026-09-28",
-            "yahoo_ticker": "^TYX",
-            "unit": "percent",
-            "instrument_type": "yield_index",
-            "label": "30-year Treasury"
-          }
-        ],
+        "date": null,
+        "maturities": [],
         "spreads": {
-          "10y_2y": 0.74,
-          "10y_3m": 1.183,
-          "30y_10y": 0.321
+          "10y_2y": null,
+          "10y_3m": null,
+          "30y_10y": null
         },
         "units": "percent",
+        "source": "fred",
         "spread_metadata": {
           "10y_2y": {
-            "label": "10Y Treasury minus 2Y futures-implied yield",
+            "label": "10Y\u20132Y Treasury spread",
             "unit": "percentage_points",
-            "is_cash_treasury_spread": false,
+            "source": "fred",
+            "fred_series_id": null,
+            "calculation": "same-date constant-maturity yields",
+            "date": null,
+            "is_cash_treasury_spread": true,
             "observation_dates": {
-              "DGS10": "2026-09-28",
-              "DGS2": "2026-09-28"
+              "DGS10": null,
+              "DGS2": null
             }
           },
           "10y_3m": {
-            "label": "10Y Treasury minus 3M discount yield",
-            "unit": "percentage_points"
+            "label": "10Y\u20133M Treasury spread",
+            "unit": "percentage_points",
+            "source": "fred",
+            "fred_series_id": null,
+            "calculation": "same-date constant-maturity yields",
+            "date": null,
+            "is_cash_treasury_spread": true,
+            "observation_dates": {
+              "DGS10": null,
+              "DGS3MO": null
+            }
+          },
+          "30y_10y": {
+            "label": "30Y\u201310Y Treasury spread",
+            "unit": "percentage_points",
+            "source": "fred",
+            "fred_series_id": null,
+            "calculation": "same-date constant-maturity yields",
+            "date": null,
+            "is_cash_treasury_spread": true,
+            "observation_dates": {
+              "DGS30": null,
+              "DGS10": null
+            }
           }
         }
       }
@@ -11674,13 +11513,13 @@
     "regime": {
       "id": "7a8c372f-a596-5dc4-b730-cd8aa4f644b9",
       "date": "2026-09-28",
-      "regime_label": "rates_pressure",
-      "display_label": "Rates pressure",
-      "confidence": "medium",
+      "regime_label": "mixed_transition",
+      "display_label": "Mixed transition",
+      "confidence": "low",
       "risk_score": 0.0,
       "growth_score": 0.0,
       "inflation_score": 1.0,
-      "rates_pressure_score": 2.0,
+      "rates_pressure_score": 0.0,
       "signals": {
         "top_positive": [
           {
@@ -11718,15 +11557,6 @@
             "value": 0.156592,
             "threshold": "> 5%",
             "evidence": "USO 1-month return."
-          },
-          {
-            "name": "ten_year_rising_sharply_1m",
-            "display_name": "10Y yield rising sharply (1M)",
-            "passed": true,
-            "available": true,
-            "value": 0.568,
-            "threshold": "> 0.25 percentage points",
-            "evidence": "10-year Treasury yield change over roughly 21 trading days."
           }
         ],
         "top_negative": [
@@ -11765,15 +11595,6 @@
             "value": 0.000252,
             "threshold": "> 5%",
             "evidence": "CPER 1-month return."
-          },
-          {
-            "name": "yield_curve_inverted",
-            "display_name": "Yield curve inverted",
-            "passed": false,
-            "available": true,
-            "value": 0.74,
-            "threshold": "< 0",
-            "evidence": "10-year Treasury yield minus 2-year futures-implied yield (not a cash Treasury spread)."
           }
         ],
         "all": [
@@ -11861,40 +11682,40 @@
           {
             "name": "ten_year_rising_sharply_1m",
             "display_name": "10Y yield rising sharply (1M)",
-            "passed": true,
-            "available": true,
-            "value": 0.568,
+            "passed": false,
+            "available": false,
+            "value": null,
             "threshold": "> 0.25 percentage points",
             "evidence": "10-year Treasury yield change over roughly 21 trading days."
           },
           {
             "name": "two_year_rising_sharply_1m",
-            "display_name": "2Y futures-implied yield rising sharply (1M)",
-            "passed": true,
-            "available": true,
-            "value": 0.33,
+            "display_name": "2Y Treasury yield rising sharply (1M)",
+            "passed": false,
+            "available": false,
+            "value": null,
             "threshold": "> 0.25 percentage points",
-            "evidence": "2-year futures-implied yield change over roughly 21 trading days."
+            "evidence": "2-year Treasury yield change over roughly 21 trading days."
           },
           {
             "name": "yield_curve_inverted",
             "display_name": "Yield curve inverted",
             "passed": false,
-            "available": true,
-            "value": 0.74,
+            "available": false,
+            "value": null,
             "threshold": "< 0",
-            "evidence": "10-year Treasury yield minus 2-year futures-implied yield (not a cash Treasury spread)."
+            "evidence": "10-year Treasury yield minus 2-year Treasury yield."
           }
         ],
         "what_changed": "No prior regime snapshot is available.",
         "data_limitations": [
           "Yahoo Finance daily bars are unofficial and may be delayed or revised. ETF adjusted closes drive returns; prices use raw closes.",
-          "2Y uses 2YY=F yield futures. The 10Y\u20132Y* spread mixes a cash index and futures-implied yield; contract rolls may affect changes.",
+          "The curve uses same-date FRED Treasury constant-maturity yields and official spreads, with next-business-day publication eligibility.",
           "CPI is unavailable. The CPI signal contributes no inflation point; model coverage is incomplete.",
           "Regime classification uses completed daily closes. Live quotes and intraday returns update separately during NYSE hours."
         ]
       },
-      "summary": "As of Sep 28, 2026, the dashboard classifies the market as Rates pressure with medium confidence. The strongest confirming evidence is S&P 500 above 50-day MA. The main watch item is VIX below 3-month average. The 10Y\u20132Y* futures-implied spread is 0.74 percentage points. No prior regime snapshot is available. This note is deterministic and only uses computed dashboard metrics."
+      "summary": "As of Sep 28, 2026, the dashboard classifies the market as Mixed transition with low confidence. The strongest confirming evidence is S&P 500 above 50-day MA. The main watch item is VIX below 3-month average. The 10Y\u20132Y Treasury spread is not available. No prior regime snapshot is available. This note is deterministic and only uses computed dashboard metrics."
     },
     "charts": {
       "1d": [
