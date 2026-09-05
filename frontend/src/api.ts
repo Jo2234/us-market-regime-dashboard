@@ -200,12 +200,6 @@ function withLiveQuotes(raw: BackendSummary): BackendSummary {
     const spy = usable("SPY")?.returns ?? raw.major_indices.find(i => i.symbol === "SPY")?.returns ?? {};
     return { ...item, date: usable(item.symbol)?.observation_date ?? item.date, returns, relative_to_spy: Object.fromEntries(Object.entries(returns).map(([key, value]) => [key, value != null && spy[key] != null ? value - spy[key]! : null])) };
   });
-  const maturities = raw.rates_summary.maturities.map(item => {
-    const quote = usable(item.symbol);
-    return quote ? { ...item, value: quote.price, date: quote.observation_date } : item;
-  });
-  const ten = maturities.find(item => item.symbol === "DGS10");
-  const two = maturities.find(item => item.symbol === "DGS2");
   const performance = [...(raw.performance_series ?? [])];
   const last = performance[performance.length - 1];
   if (last && ["SPY", "QQQ", "IWM", "DIA"].every(symbol => usable(symbol))) {
@@ -218,7 +212,7 @@ function withLiveQuotes(raw: BackendSummary): BackendSummary {
   }
   return { ...raw, major_indices: raw.major_indices.map(overlay), sectors,
     commodities_summary: raw.commodities_summary.map(overlay), volatility_summary: overlay(raw.volatility_summary),
-    rates_summary: { ...raw.rates_summary, maturities, spreads: { ...raw.rates_summary.spreads, "10y_2y": ten && two ? ten.value - two.value : null } }, performance_series: performance };
+    rates_summary: raw.rates_summary, performance_series: performance };
 }
 
 export function adaptBackendSummary(raw: BackendSummary): DashboardData {
@@ -238,7 +232,7 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
   const names: Record<string, string> = { SPY: "S&P 500", QQQ: "Nasdaq 100", IWM: "Russell 2000", DIA: "Dow Jones" };
   const maturities: Record<string, [string, number]> = {
     DGS3MO: ["3M", 0.25],
-    DGS2: ["2Y*", 2],
+    DGS2: ["2Y", 2],
     DGS5: ["5Y", 5],
     DGS10: ["10Y", 10],
     DGS30: ["30Y", 30]

@@ -16,7 +16,6 @@ from app.data import database
 from app.data.instruments import YAHOO_TICKERS, PRICE_SYMBOLS
 from app.ingestion.yahoo import fetch_snapshot
 from app.services.calendar import latest_completed_session
-from app.services.futures_calendar import latest_completed_settlement
 
 SNAPSHOT_PATH = Path(__file__).resolve().parents[1] / "data" / "yahoo_snapshot.json"
 _lock = threading.Lock()
@@ -38,7 +37,7 @@ def validate_snapshot(snapshot: dict) -> dict:
     for symbol, series in snapshot["series"].items():
         if series.get("source") != "yahoo_finance" or series.get("yahoo_ticker") != YAHOO_TICKERS[symbol]:
             raise ValueError(f"Invalid provenance for {symbol}")
-        symbol_cutoff = latest_completed_settlement() if symbol == "DGS2" else cutoff
+        symbol_cutoff = cutoff
         bars = series["bars"]
         if len(bars) < 260:
             raise ValueError(f"Insufficient history for {symbol}")
