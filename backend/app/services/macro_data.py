@@ -11,7 +11,7 @@ from pathlib import Path
 
 from app.core.telemetry import log_event
 from app.data import database
-from app.data.instruments import FRED_SERIES, provenance
+from app.data.instruments import FRED_SERIES, MONTHLY_FRED, provenance
 from app.ingestion.fred import fetch_batch
 from app.services.calendar import latest_completed_session, missed_sessions
 
@@ -34,7 +34,7 @@ def validate_series(series_id: str, series: dict) -> dict:
     dates = [date.fromisoformat(r["date"]) for r in observations]
     if dates != sorted(set(dates)) or dates[-1] > datetime.now(timezone.utc).date():
         raise ValueError("Invalid FRED observation dates")
-    if series_id != "DFF" and any(d.day != 1 for d in dates):
+    if series_id in MONTHLY_FRED and any(d.day != 1 for d in dates):
         raise ValueError("Monthly FRED dates must denote the observation month")
     for row in observations:
         value = row["value"]
@@ -142,10 +142,10 @@ def delivery_metadata(conn):
 
 def freshness(symbol: str, latest: date | None, today: date | None = None) -> dict:
     today = today or datetime.now(timezone.utc).date()
-    if symbol == "FEDFUNDS":
+    if FRED_SERIES.get(symbol) not in MONTHLY_FRED:
         lag = missed_sessions(latest, latest_completed_session()) if latest else None
-        stale = lag is not None and lag > 2
-        policy = "Daily DFF: allow two completed NYSE sessions for FRED publication lag (holiday-aware proxy, not an exact release calendar)."
+        stale = lag is not None and lag > (2 if symbol == "FEDFUNDS" else 1)
+        policy = "Daily FRED: allow one completed business session of publication lag (two for DFF); exchange-calendar proxy."
     else:
         # Conservative publication windows: first ten days for jobs/monthly funds,
         # first twenty for CPI. No invented publication dates or daily resampling.
@@ -168,7 +168,7 @@ def summary(conn, history, as_of):
             day = date.fromisoformat(value["date"])
             value.update(delivery.get(symbol, {}))
             value.update(freshness(symbol, day))
-            value["observation_label"] = day.isoformat() if symbol == "FEDFUNDS" else day.strftime("%b %Y")
+            value["observation_label"] = day.isoformat() if FRED_SERIES.get(symbol) not in MONTHLY_FRED else day.strftime("%b %Y")
         result[symbol] = value
     return result
 
@@ -177,7 +177,7 @@ def available_on(symbol, observed):
     """Approximate release date, using revised vintage; not a point-in-time feed."""
     from datetime import timedelta
     from app.services.calendar import session_close
-    if symbol == "FEDFUNDS":
+    if FRED_SERIES.get(symbol) not in MONTHLY_FRED:
         day = observed + timedelta(days=1)
         while session_close(day) is None:
             day += timedelta(days=1)
