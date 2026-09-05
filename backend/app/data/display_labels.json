@@ -10,7 +10,7 @@
     "copper_up_more_than_5pct_1m": "Copper up more than 5% (1M)",
     "cpi_above_target": "CPI above target",
     "ten_year_rising_sharply_1m": "10Y yield rising sharply (1M)",
-    "two_year_rising_sharply_1m": "2Y futures-implied yield rising sharply (1M)",
+    "two_year_rising_sharply_1m": "2Y Treasury yield rising sharply (1M)",
     "yield_curve_inverted": "Yield curve inverted"
   },
   "regimes": {
