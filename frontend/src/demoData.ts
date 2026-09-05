@@ -117,14 +117,14 @@ export const demoDashboardData: DashboardData = {
     { name: "10Y yield 1M change", category: "rates", value: "+22 bps", direction: "negative", weight: 0.16, evidence: "Long yields are rising fast enough to pressure duration." },
     { name: "Oil 1M return", category: "inflation", value: "+6.4%", direction: "negative", weight: 0.1, evidence: "Energy is adding to inflation-sensitive signals." },
     { name: "Defensives vs cyclicals", category: "risk", value: "-1.9 pp", direction: "positive", weight: 0.09, evidence: "Defensives are lagging cyclical groups." },
-    { name: "Yield curve 10Y–2Y*", category: "rates", value: "-22 bps", direction: "neutral", weight: 0.09, evidence: "Curve remains inverted but less deeply than last quarter." }
+    { name: "Yield curve 10Y–2Y", category: "rates", value: "-22 bps", direction: "neutral", weight: 0.09, evidence: "Curve remains inverted but less deeply than last quarter." }
   ],
   analystNote: {
     title: "Market tone is constructive but rate-sensitive.",
     bullets: [
       "Large-cap growth is leading: QQQ is up 4.91% over one month versus 3.28% for SPY.",
       "Sector leadership is cyclical and technology-heavy, while staples, utilities, and real estate trail.",
-      "Rates are the main counterweight: the 10Y yield rose to 4.06% and the 10Y–2Y* spread remains inverted at -22 bps.",
+      "Rates are the main counterweight: the 10Y yield rose to 4.06% and the 10Y–2Y spread remains inverted at -22 bps.",
       "Commodity proxies are firm, led by oil and copper, keeping inflation pressure from falling into the background.",
       "Volatility remains contained, but breadth is only moderate because small caps and equal weight lag."
     ],
