@@ -86,8 +86,8 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
         _signal("copper_up_more_than_5pct_1m", bool(cper_1m and cper_1m > 0.05), cper_1m, "> 5%", "CPER 1-month return."),
         _signal("cpi_above_target", bool(cpi and cpi["value"] > 2.5), cpi["value"] if cpi else None, "> 2.5%", "Latest CPI year-over-year observation."),
         _signal("ten_year_rising_sharply_1m", bool(dgs10_change and dgs10_change > 0.25), dgs10_change, "> 0.25 percentage points", "10-year Treasury yield change over roughly 21 trading days."),
-        _signal("two_year_rising_sharply_1m", bool(dgs2_change and dgs2_change > 0.25), dgs2_change, "> 0.25 percentage points", "2-year futures-implied yield change over roughly 21 trading days."),
-        _signal("yield_curve_inverted", bool(spread_10y_2y is not None and spread_10y_2y < 0), spread_10y_2y, "< 0", "10-year Treasury yield minus 2-year futures-implied yield (not a cash Treasury spread)."),
+        _signal("two_year_rising_sharply_1m", bool(dgs2_change and dgs2_change > 0.25), dgs2_change, "> 0.25 percentage points", "2-year Treasury yield change over roughly 21 trading days."),
+        _signal("yield_curve_inverted", bool(spread_10y_2y is not None and spread_10y_2y < 0), spread_10y_2y, "< 0", "10-year Treasury yield minus 2-year Treasury yield."),
     ]
     signal_by_name = {item["name"]: item for item in signals}
 
@@ -164,7 +164,7 @@ def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHi
             "what_changed": change_note,
             "data_limitations": [
                 "Yahoo Finance daily bars are unofficial and may be delayed or revised. ETF adjusted closes drive returns; prices use raw closes.",
-                "2Y uses 2YY=F yield futures. The 10Y–2Y* spread mixes a cash index and futures-implied yield; contract rolls may affect changes.",
+                "The curve uses same-date FRED Treasury constant-maturity yields and official spreads, with next-business-day publication eligibility.",
                 ("Headline CPI YoY uses FRED CPIAUCSL, seasonally adjusted, latest vintage. Historical CPI becomes available on the 15th of the following month, an approximate release lag. Values are latest revised vintage, not point-in-time backtests. Fed funds and unemployment are display-only inputs." if cpi else "CPI is unavailable. The CPI signal contributes no inflation point; model coverage is incomplete."),
                 "Regime classification uses completed daily closes. Live quotes and intraday returns update separately during NYSE hours.",
             ],
@@ -189,7 +189,7 @@ def deterministic_summary(
     return (
         f"As of {observed_date.strftime('%b')} {observed_date.day}, {observed_date.year}, the dashboard classifies the market as {_LABELS['regimes'][label]} "
         f"with {confidence} confidence. The strongest confirming evidence is {leadership}. "
-        f"The main watch item is {watch}. The 10Y–2Y* futures-implied spread is {spread_text}. "
+        f"The main watch item is {watch}. The 10Y–2Y Treasury spread is {spread_text}. "
         f"{change_note} This note is deterministic and only uses computed dashboard metrics."
     )
 

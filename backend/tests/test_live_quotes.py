@@ -14,12 +14,11 @@ def recorded():
     return live.normalize_spark(json.loads((FIXTURES / 'spark_meta_0.json').read_text())) | live.normalize_spark(json.loads((FIXTURES / 'spark_meta_1.json').read_text()))
 
 
-def test_spark_metadata_null_bars_old_futures_and_missing_fields():
+def test_spark_metadata_null_bars_and_missing_fields():
     quotes = recorded()
-    assert len(quotes) == 25
+    assert len(quotes) == 20
     assert quotes['SPY']['price'] == pytest.approx(764.2)
     assert quotes['SPY']['observed_at'].startswith('2026-09-29T20:00:00')
-    assert quotes['2YY=F']['observation_date'] == '2026-09-22'
     payload = json.loads((FIXTURES / 'spark_meta_0.json').read_text())
     item = payload['spark']['result'][0]['response'][0]
     item['indicators']['quote'][0]['close'][-1] = None
@@ -54,7 +53,6 @@ def test_quote_cache_backoff_and_closed_no_fetch(monkeypatch):
     monkeypatch.setattr(live, 'fetch_quotes', fetch)
     quotes, delivery = live.get_quotes()
     assert quotes['SPY']['is_current_session']
-    assert quotes['DGS2']['is_stale']
     assert delivery['cache'] == 'miss'
     assert live.get_quotes()[1]['cache'] == 'hit'
     assert len(calls) == 1
@@ -114,6 +112,5 @@ def test_open_api_replay_preserves_completed_regime(monkeypatch, empty_conn):
         assert payload['major_indices'][0]['price'] == 765.61
         assert payload['live_quotes']['SPY']['price'] == 764.2
         assert payload['live_quotes']['SPY']['returns']['1d'] < 0
-        assert payload['live_quotes']['DGS2']['is_stale']
         assert len(payload['historical_regimes']) >= 245
         assert 'demo_seed' not in response.text

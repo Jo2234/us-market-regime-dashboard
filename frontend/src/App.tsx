@@ -61,7 +61,7 @@ const metricTooltips = {
   qqqVsSpy:
     "QQQ one-month return minus SPY one-month return, in percentage points.",
   tenTwo:
-    "10-year Treasury yield minus 2-year futures-implied yield, shown in basis points.",
+    "10-year Treasury yield minus 2-year Treasury yield, shown in basis points.",
   vix: "Current VIX level; falling VIX is treated as supportive for risk appetite.",
 };
 
@@ -673,7 +673,7 @@ function MarketSummary({ data }: { data: DashboardData }) {
           </dd>
         </div>
         <div>
-          <dt title={metricTooltips.tenTwo}>10Y–2Y*</dt>
+          <dt title={metricTooltips.tenTwo}>10Y–2Y</dt>
           <dd className={performanceClass(data.rates.tenTwoSpread)}>
             {formatNumber(
               data.rates.tenTwoSpread === null
@@ -1036,11 +1036,11 @@ function YieldCurvePanel({ data }: { data: DashboardData }) {
               : data.rates.tenTwoSpread * 100,
             0,
           )}{" "}
-          bps 10Y–2Y*
+          bps 10Y–2Y
         </span>
       </div>
       <YieldCurve points={points} />
-      <p className="chart-note">*2Y is futures-implied (Yahoo 2YY=F), not a cash Treasury yield. The 10Y–2Y* spread mixes these bases. 3M uses the ^IRX discount yield. All yields are in percent.</p>
+      <p className="chart-note">Official FRED Treasury constant-maturity yields. All maturities and spreads use the same observation date; one business day of publication lag is normal. All yields are in percent.</p>
       <p className="chart-note">{points.map(point => `${point.maturity} ${point.yield.toFixed(2)}%${point.date ? ` (${formatDate(point.date)})` : ""}${point.isStale ? " · Delayed observation" : ""}`).join(" · ")}</p>
       <div className="legend yield-legend">
         <span>
