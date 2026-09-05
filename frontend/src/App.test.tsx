@@ -209,7 +209,7 @@ it.each(["live", "snapshot"] as const)("renders the %s chip with the real date",
   render(<App />);
   const label = mode === "live" ? "Live · Yahoo Finance · as of Sep 28, 2026" : "Snapshot · as of Sep 28, 2026";
   expect((await screen.findAllByText(label)).length).toBeGreaterThan(0);
-  expect(screen.getByText(/2Y is futures-implied/)).toBeInTheDocument();
+  expect(screen.getByText(/Official FRED Treasury/)).toBeInTheDocument();
 });
 
 // Deferred responses exercise the visible intermediate states, not just final HTML.

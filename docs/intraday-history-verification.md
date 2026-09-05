@@ -17,7 +17,7 @@ Production revision: `59517d156d80765fd3347c0a2f682ff796bfbe4c`. Tests: 62 backe
 
 Yahoo left the final ETF daily close null while its timestamped regular-market metadata already held the completed close. The parser now accepts that metadata only for the same session at/after the official NYSE close, marks it `yahoo_meta`, and prefers a subsequently filled daily bar. Its provisional adjusted close equals the raw close. Holidays and early closes use the checked-in exchange calendar.
 
-The production freshness response flags only **2YY=F**, whose last valid daily observation is Sep 28 (4.50%). Yahoo’s older metadata is dated Sep 22 and is deliberately rejected as a Sep 29 close. Other equity, sector, commodity and Treasury index observations are Sep 29; macro freshness follows publication cadence.
+The production freshness response flags only **retired_yield_future**, whose last valid daily observation is Sep 28 (4.50%). Yahoo’s older metadata is dated Sep 22 and is deliberately rejected as a Sep 29 close. Other equity, sector, commodity and Treasury index observations are Sep 29; macro freshness follows publication cadence.
 
 ## Quotes, caching and history
 
@@ -72,7 +72,7 @@ Native date inputs retain the browser’s locale format; API and CSV dates remai
 | `copper_up_more_than_5pct_1m` | Copper up more than 5% (1M) |
 | `cpi_above_target` | CPI above target |
 | `ten_year_rising_sharply_1m` | 10Y yield rising sharply (1M) |
-| `two_year_rising_sharply_1m` | 2Y futures-implied yield rising sharply (1M) |
+| `two_year_rising_sharply_1m` | Retired yield-futures proxy rising sharply (1M) |
 | `yield_curve_inverted` | Yield curve inverted |
 
 ## Verification output
@@ -87,7 +87,7 @@ SPY        1M %      2026-09-29  2026-09-29    -0.42270    -0.42274  PASS
 QQQ        price     2026-09-29  2026-09-29   737.93000   737.92999  PASS
 QQQ        1M %      2026-09-29  2026-09-29     3.10830     3.10832  PASS
 ^IRX       yield %   2026-09-29  2026-09-29     4.06500     4.06500  PASS
-2YY=F      yield %   2026-09-28  2026-09-28     4.50000     4.50000  PASS
+retired_yield_future      yield %   2026-09-28  2026-09-28     4.50000     4.50000  PASS
 ^FVX       yield %   2026-09-29  2026-09-29     5.06300     5.06300  PASS
 ^TNX       yield %   2026-09-29  2026-09-29     5.25500     5.25500  PASS
 ^TYX       yield %   2026-09-29  2026-09-29     5.59400     5.59400  PASS
