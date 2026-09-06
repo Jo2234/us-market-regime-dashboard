@@ -39,6 +39,7 @@ type BackendSummary = {
   cache?: "hit" | "miss" | "stale";
   retry_after_seconds?: number;
   regime: {
+    days_in_regime?: number; raw_label?: string; official_label?: string; emerging_label?: string | null; emerging_days?: number;
     regime_label: string;
     confidence: "low" | "medium" | "high";
     risk_score: number;
@@ -284,6 +285,10 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
     },
     regime: {
       label: payload.regime.regime_label,
+      daysInRegime: payload.regime.days_in_regime,
+      rawLabel: payload.regime.raw_label,
+      emergingLabel: payload.regime.emerging_label ? regimeLabel(payload.regime.emerging_label) : null,
+      emergingDays: payload.regime.emerging_days,
       displayLabel: regimeLabel(payload.regime.regime_label),
       confidence: payload.regime.confidence,
       asOf: payload.as_of,
