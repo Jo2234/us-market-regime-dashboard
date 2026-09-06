@@ -37,9 +37,13 @@ class DashboardSummaryResponse(BaseModel):
     as_of: str
     regime: dict[str, Any]
     major_indices: list[dict[str, Any]]
+    performance_series: list[dict[str, Any]]
+    historical_regimes: list[dict[str, Any]]
+    sectors: list[dict[str, Any]]
     sector_leaders: list[dict[str, Any]]
     sector_laggards: list[dict[str, Any]]
     rates_summary: dict[str, Any]
+    macro_summary: dict[str, Any]
     commodities_summary: list[dict[str, Any]]
     volatility_summary: dict[str, Any]
     analyst_summary: str

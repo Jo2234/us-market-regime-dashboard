@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import io
 from datetime import date, datetime, timezone
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
@@ -37,19 +37,36 @@ def _parse_windows(windows: str) -> tuple[str, ...]:
 
 
 @router.get("/dashboard/summary", response_model=DashboardSummaryResponse)
-def dashboard_summary(date_: Annotated[date | None, Query(alias="date")] = None, conn=Depends(get_db)):
-    snapshot = database.load_latest_regime(conn, date_)
-    if snapshot is None:
-        snapshot = regime.classify_regime(conn, date_)
-        database.save_regime_snapshot(conn, snapshot)
-    blocks = analytics.dashboard_market_blocks(conn, date_)
+def dashboard_summary(
+    date_: Annotated[date | None, Query(alias="date")] = None,
+    conn=Depends(get_db),
+    range_: Annotated[Literal["1d", "1w", "1m", "3m", "ytd", "1y"], Query(alias="range")] = "1m",
+):
+    # Classify against current inputs on every request. Stored snapshots support
+    # history/change notes, not an unversioned cache of potentially revised data.
+    history = analytics.MarketHistory(conn)
+    try:
+        snapshot = regime.classify_regime(conn, date_, history=history)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    database.save_regime_snapshot(conn, snapshot)
+    observed_date = date.fromisoformat(snapshot["date"])
+    blocks = analytics.dashboard_market_blocks(history, observed_date)
     return {
         "as_of": snapshot["date"],
         "regime": snapshot,
         "major_indices": blocks["indices"],
+        "performance_series": analytics.indexed_performance(history, observed_date, range_),
+        "historical_regimes": [dict(row) for row in conn.execute(
+            "SELECT date, regime_label, risk_score, growth_score, inflation_score, rates_pressure_score "
+            "FROM regime_snapshots WHERE date <= ? ORDER BY date", (snapshot["date"],)
+        )],
+        "sectors": blocks["sectors"],
         "sector_leaders": blocks["sector_leaders"],
         "sector_laggards": blocks["sector_laggards"],
         "rates_summary": blocks["rates"],
+        "macro_summary": {symbol: analytics.latest_macro_value(history, symbol, observed_date)
+                          for symbol in ("FEDFUNDS", "CPI_YOY", "UNRATE")},
         "commodities_summary": blocks["commodities"],
         "volatility_summary": blocks["volatility"],
         "analyst_summary": snapshot["summary"],

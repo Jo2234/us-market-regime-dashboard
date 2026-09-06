@@ -2,12 +2,14 @@ import type { DashboardData, RangeKey } from "./types";
 
 export const ranges: RangeKey[] = ["1D", "1W", "1M", "3M", "YTD", "1Y"];
 
-export function formatPercent(value: number, precision = 2): string {
+export function formatPercent(value: number | null, precision = 2): string {
+  if (value === null) return "n/a";
   const sign = value > 0 ? "+" : "";
   return `${sign}${value.toFixed(precision)}%`;
 }
 
-export function formatNumber(value: number, precision = 2): string {
+export function formatNumber(value: number | null, precision = 2): string {
+  if (value === null) return "n/a";
   return value.toLocaleString("en-US", {
     minimumFractionDigits: precision,
     maximumFractionDigits: precision
@@ -38,13 +40,15 @@ export function scoreClass(value: number): string {
   return "score-low";
 }
 
-export function performanceClass(value: number): string {
+export function performanceClass(value: number | null): string {
+  if (value === null) return "neutral";
   if (value > 0.05) return "positive";
   if (value < -0.05) return "negative";
   return "neutral";
 }
 
-export function heatColor(value: number): string {
+export function heatColor(value: number | null): string {
+  if (value === null) return "transparent";
   const clipped = Math.max(-8, Math.min(8, value));
   const intensity = Math.abs(clipped) / 8;
   if (clipped > 0.05) {
