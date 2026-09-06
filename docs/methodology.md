@@ -45,3 +45,7 @@ Hold other signal percentiles, weights and the historical reference distribution
 ## Sensitivity protocol
 
 Report change counts on a common eligible sample for persistence N=3/5/10; percentile baselines 504/630/756; equal horizon weights versus 0.25/0.50/0.25; breadth MAs 150/200/250; claims averages 3/4/5 weeks; stress cut-offs 55/75, 60/80 and 65/85; strong margins 20/25/30 with agreement 2/3, 0.75 and 0.80; and confidence cut-offs 30/60, 40/70 and 50/80. These checks are descriptive and do not choose parameters. No forward-return fitting, transition odds or Phase 2 statistics are included.
+
+### Legacy stability check, September 30, 2026
+
+On the same trailing 252 observations after the official Treasury correction, raw classifications changed 69 times; persistence N=3/5/10 produced 16/12/5 changes. The pre-correction saved window had 66 changes (the earlier September 29 review reported 65). Five was chosen before these counts and is unchanged. The curve correction and one-session window shift explain why 69, rather than 65, is the appropriate matched baseline.

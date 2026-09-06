@@ -66,3 +66,7 @@ The chart uses four aligned 0–100 panels and a categorical regime ribbon. Raw 
 ## Signal value display
 
 API and CSV signal values remain unrounded. The Value column formats fractional returns as percentages (one decimal), differences between fractional returns as percentage points (two decimals), and yield changes/spreads as percentage points (already in that unit). CPI is a percent level; the SPY-minus-MA input is an adjusted USD difference; VIX-minus-average is an index-point difference. A raw-value tooltip identifies the original unit. Support and Pressure show the signal display name first and its evidence second.
+
+## Official-label persistence
+
+Raw daily labels and scores remain visible. The official label changes after five consecutive trading observations of a candidate, or the strong-evidence override documented in [methodology](methodology.md). History applies the same rule after a warm-up; it does not reset at the chart boundary. `raw_label`, `official_label`, `days_in_regime`, `emerging_label` and `emerging_days` are additive fields.
