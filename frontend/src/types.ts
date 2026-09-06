@@ -11,6 +11,10 @@ export interface FreshnessSource {
 }
 
 export interface RegimeSnapshot {
+  daysInRegime?: number;
+  rawLabel?: string;
+  emergingLabel?: string | null;
+  emergingDays?: number;
   label: string;
   displayLabel: string;
   confidence: "low" | "medium" | "high";

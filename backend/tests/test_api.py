@@ -121,7 +121,10 @@ def test_summary_uses_requested_observation_date_and_revised_inputs(seeded_conn)
     revised = dashboard_summary(date(2026, 6, 25), seeded_conn)
     previous = classify_regime(seeded_conn, date(2026, 6, 24))
     expected = classify_regime(seeded_conn, date(2026, 6, 25), previous=previous)
-    assert revised["regime"] == expected
+    assert revised["regime"]["raw_label"] == expected["regime_label"]
+    assert revised["regime"]["risk_score"] == expected["risk_score"]
+    assert revised["regime"]["official_label"] == revised["regime"]["regime_label"]
+    assert revised["regime"]["days_in_regime"] >= 1
     assert revised["regime"]["risk_score"] != later["regime"]["risk_score"]
 
 
