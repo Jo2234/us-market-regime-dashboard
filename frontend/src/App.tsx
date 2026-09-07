@@ -112,7 +112,7 @@ export default function App() {
       if (controller.signal.aborted) return;
       setData(nextData);
       setError(null);
-      if (nextData.provenance?.mode === "snapshot") {
+      if (nextData.provenance?.mode === "snapshot" && !nextData.scheduledFresh) {
         failures.current += 1;
         schedule(Math.max(nextData.retryAfterSeconds ?? 0, Math.min(900, 5 * 2 ** Math.min(failures.current - 1, 8))) * 1000);
       } else {
@@ -182,8 +182,8 @@ export default function App() {
       </nav>
       <div className="refresh-status" role="status" aria-live="polite" aria-atomic="true">
         <span><UpdatedAge timestamp={data.fetchedAt} /> · Yahoo Finance · as of <time className="observation-date" dateTime={data.intraday ? data.marketStatus!.session_date : data.selectedDate}>{formatDate(data.intraday ? data.marketStatus!.session_date : data.selectedDate)}</time></span>
-        <span className={error || data.provenance?.mode === "snapshot" ? "refresh-warning" : ""}>
-          {loading ? "Updating with the latest numbers…" : error || data.provenance?.mode === "snapshot"
+        <span className={error || (data.provenance?.mode === "snapshot" && !data.scheduledFresh) ? "refresh-warning" : ""}>
+          {loading ? "Updating with the latest numbers…" : error || (data.provenance?.mode === "snapshot" && !data.scheduledFresh)
             ? `Showing close of ${formatDate(data.selectedDate)}; live refresh unavailable, retrying automatically.`
             : data.marketStatus?.is_open ? data.quoteStatus?.cache === "stale" ? "Live quote refresh unavailable; retaining the last real observations and retrying." : "Live intraday prices · regime based on completed daily closes" : "Latest completed daily close"}
         </span>
@@ -552,8 +552,8 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
         </p>
         <p>{provenance.description}</p>
         <p>During NYSE hours, price is the regular-market quote and 1D is its change from the previous close. Otherwise price is the completed daily close. Longer returns and indexed charts use Yahoo adjusted historical closes (splits and distributions), with the live price as the endpoint intraday; 1W, 1M, 3M and 1Y use the close on or before the same calendar date earlier (7 days, 1 month, 3 months, 1 year). YTD starts at the last close of the prior year. Month-end dates clamp to the last day of the target month. Missing history displays n/a.</p>
-        <p>Yahoo is an unofficial data service and may rate-limit. Live quotes refresh every 60 seconds during NYSE hours, only while this tab is visible. Daily history refreshes every 15 minutes and after the close; closed-market responses cache for up to 15 minutes. CDN revalidation may add 15 seconds during market hours or 60 seconds when closed. Rate limits extend quote refresh intervals up to 15 minutes. A scheduled Yahoo snapshot is the labelled fallback. Observation dates are preserved.</p>
-        <p>Macro indicators come from FRED, with a separate one-hour cache and per-series snapshot fallback. Fed funds uses daily DFF; the monthly FEDFUNDS average is secondary context. Headline and core CPI YoY equal 100 × (this month’s seasonally adjusted index / the same month one year earlier − 1), using CPIAUCSL and CPILFESL. Monthly dates identify observation months, not release dates. Historical CPI uses an approximate release date on the 15th of the following month; unemployment uses the first Friday, and DFF the next business day. Values use the latest revised vintage, not point-in-time releases.</p>
+        <p>Yahoo is an unofficial data service and may rate-limit. Live quotes refresh every 60 seconds during NYSE hours, only while this tab is visible. Daily history and research calculations are precomputed at 14:00, 20:45 and 22:30 UTC on weekdays; closed-market responses cache for up to 15 minutes. CDN revalidation may add 15 seconds during market hours or 60 seconds when closed. Rate limits extend quote refresh intervals up to 15 minutes. The versioned daily artifact is the primary research source. Visitor requests only refresh live quotes; overdue artifacts retain their true dates. Observation dates are preserved.</p>
+        <p>Macro indicators come from FRED, in the same scheduled artifact with per-series observation dates. Fed funds uses daily DFF; the monthly FEDFUNDS average is secondary context. Headline and core CPI YoY equal 100 × (this month’s seasonally adjusted index / the same month one year earlier − 1), using CPIAUCSL and CPILFESL. Monthly dates identify observation months, not release dates. Historical CPI uses an approximate release date on the 15th of the following month; unemployment uses the first Friday, and DFF the next business day. Values use the latest revised vintage, not point-in-time releases.</p>
       </div>
       <div>
         <span>Selected {formatDate(provenance.selectedDate)}</span>
@@ -1003,7 +1003,7 @@ function MacroPanel({ data, loading, onRefresh }: { data: DashboardData; loading
         <h3>{label}</h3><strong className="macro-value">{item ? `${formatNumber(item.value, 2)}%` : "Unavailable"}</strong>
         <p>{item ? observationLabel(item.observation_label ?? item.observation_date) : "No observation available"}</p>
         <a href={`https://fred.stlouisfed.org/series/${series}`} target="_blank" rel="noreferrer">FRED: {series}</a><span className="macro-frequency">{frequency}</span>
-        <p className="macro-notice">{!item ? "Live refresh unavailable; retrying." : item.mode === "snapshot" ? `Snapshot · ${observationLabel(item.observation_label ?? item.observation_date)}; live refresh unavailable, retrying.` : item.is_stale ? "Observation is behind its publication window." : "Latest supplied observation"}</p>
+        <p className="macro-notice">{!item ? "Live refresh unavailable; retrying." : item.mode === "snapshot" && !item.scheduled ? `Snapshot · ${observationLabel(item.observation_label ?? item.observation_date)}; live refresh unavailable, retrying.` : item.is_stale ? "Observation is behind its publication window." : "Latest supplied observation"}</p>
         {symbol === "FEDFUNDS" && monthly && <p className="macro-secondary">Monthly average: {formatNumber(monthly.value, 2)}% · {monthly.observation_label} · <a href="https://fred.stlouisfed.org/series/FEDFUNDS" target="_blank" rel="noreferrer">FEDFUNDS</a>{monthly.mode === "snapshot" ? " · Snapshot" : ""}</p>}
       </section>;
     })}</div>
