@@ -47,7 +47,7 @@ async def fetch_quotes():
     tickers = list(YAHOO_TICKERS.values())
     stats = {"requests": 0, "http_429": 0, "http_401": 0, "retries": 0, "batches": []}
     started = time.perf_counter()
-    async with httpx.AsyncClient(headers={"User-Agent": "Mozilla/5.0"}, timeout=4.0,
+    async with httpx.AsyncClient(headers={"User-Agent": "Mozilla/5.0"}, timeout=1.5,
                                  limits=httpx.Limits(max_connections=2)) as client:
         async def batch(symbols):
             tick = time.perf_counter()
@@ -62,7 +62,7 @@ async def fetch_quotes():
         try:
             if os.getenv("MARKET_REGIME_FORCE_QUOTE_FAILURE") == "1":
                 raise RuntimeError("Quote failure simulation")
-            batches = await asyncio.wait_for(asyncio.gather(*(batch(tickers[i:i+20]) for i in range(0, len(tickers), 20)), return_exceptions=True), timeout=5)
+            batches = await asyncio.wait_for(asyncio.gather(*(batch(tickers[i:i+20]) for i in range(0, len(tickers), 20)), return_exceptions=True), timeout=2)
             merged = {}
             for item in batches:
                 if isinstance(item, dict):

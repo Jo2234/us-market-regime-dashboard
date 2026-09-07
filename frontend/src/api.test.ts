@@ -151,14 +151,14 @@ it("rejects synthetic API observations in production", async () => {
   await expect(api.fetchDashboardData("", "1M")).rejects.toThrow("synthetic data");
 });
 
-it("delivers the real bootstrap snapshot before a slow live response", async () => {
+it("delivers the persisted real snapshot without a second bootstrap request", async () => {
   const snapshot = { ...summary(), data_mode: "snapshot" as const, fetched_at: "2025-01-16T00:00:00Z", cache: "stale" as const };
   const live = { ...snapshot, data_mode: "live" as const, cache: "miss" as const };
   let finish!: (value: unknown) => void;
   vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => url.includes("cached_only=true")
     ? Promise.resolve({ ok: true, json: async () => snapshot })
     : new Promise(resolve => { finish = resolve; })));
-  localStorage.clear();
+  localStorage.setItem("market-regime-real-snapshot-v1", JSON.stringify({ key: ":1M", payload: snapshot }));
   const api = await productionApi();
   const cached = vi.fn();
   const request = api.fetchDashboardData("", "1M", { onCached: cached });
@@ -166,6 +166,7 @@ it("delivers the real bootstrap snapshot before a slow live response", async () 
   expect(cached.mock.calls[0][0].provenance.mode).toBe("snapshot");
   finish({ ok: true, json: async () => live });
   expect((await request).provenance?.mode).toBe("live");
+  expect(fetch).toHaveBeenCalledTimes(1);
   expect(JSON.parse(localStorage.getItem("market-regime-real-snapshot-v1")!).payload.data_mode).toBe("live");
   localStorage.clear();
 });
