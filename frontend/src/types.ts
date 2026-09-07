@@ -47,20 +47,20 @@ export interface HistoricalRegimePoint {
 export interface IndexReturn {
   symbol: string;
   name: string;
-  price: number;
-  dayReturn: number;
-  monthReturn: number;
-  ytdReturn: number;
-  oneYearReturn: number;
-  drawdown52w: number;
-  volatility20d: number;
+  price: number | null;
+  dayReturn: number | null;
+  monthReturn: number | null;
+  ytdReturn: number | null;
+  oneYearReturn: number | null;
+  drawdown52w: number | null;
+  volatility20d: number | null;
 }
 
 export interface SectorPerformance {
   symbol: string;
   name: string;
-  relativeToSpy1m: number;
-  returns: Record<RangeKey, number>;
+  relativeToSpy1m: number | null;
+  returns: Record<RangeKey, number | null>;
 }
 
 export interface ChartPoint {
@@ -75,23 +75,23 @@ export interface YieldPoint {
   maturity: string;
   years: number;
   yield: number;
-  previousYield: number;
+  previousYield?: number;
 }
 
 export interface RatesSummary {
-  fedFundsRate: number;
-  cpiYoY: number;
-  unemploymentRate: number;
-  tenTwoSpread: number;
+  fedFundsRate: number | null;
+  cpiYoY: number | null;
+  unemploymentRate: number | null;
+  tenTwoSpread: number | null;
   points: YieldPoint[];
 }
 
 export interface RiskAssetMetric {
   symbol: string;
   name: string;
-  value: number;
-  dayChange: number;
-  monthReturn: number;
+  value: number | null;
+  dayChange: number | null;
+  monthReturn: number | null;
   signal: string;
 }
 

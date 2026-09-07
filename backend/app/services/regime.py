@@ -30,26 +30,27 @@ def _latest_as_of(conn, requested: date | None = None) -> date:
     return latest
 
 
-def classify_regime(conn, as_of: date | None = None) -> dict[str, Any]:
-    observed_date = _latest_as_of(conn, as_of)
-    spy = analytics._price_frame(conn, "SPY", end=observed_date)
-    qqq_1m = _ret(conn, "QQQ", "1m", observed_date)
-    spy_1m = _ret(conn, "SPY", "1m", observed_date)
-    iwm_1m = _ret(conn, "IWM", "1m", observed_date)
-    vix = analytics._price_frame(conn, "VIX", end=observed_date)
-    uso_1m = _ret(conn, "USO", "1m", observed_date)
-    gld_1m = _ret(conn, "GLD", "1m", observed_date)
-    cper_1m = _ret(conn, "CPER", "1m", observed_date)
-    xlu_1m = _ret(conn, "XLU", "1m", observed_date)
-    xlp_1m = _ret(conn, "XLP", "1m", observed_date)
-    xlk_1m = _ret(conn, "XLK", "1m", observed_date)
-    xly_1m = _ret(conn, "XLY", "1m", observed_date)
-    xli_1m = _ret(conn, "XLI", "1m", observed_date)
-    xlf_1m = _ret(conn, "XLF", "1m", observed_date)
-    cpi = analytics.latest_macro_value(conn, "CPI_YOY", observed_date)
-    dgs10_change = analytics.macro_change(conn, "DGS10", 21, observed_date)
-    dgs2_change = analytics.macro_change(conn, "DGS2", 21, observed_date)
-    curve = analytics.yield_curve(conn, observed_date)
+def classify_regime(conn, as_of: date | None = None, history: analytics.MarketHistory | None = None) -> dict[str, Any]:
+    source = history if history is not None else conn
+    observed_date = _latest_as_of(source, as_of)
+    spy = analytics._price_frame(source, "SPY", end=observed_date)
+    qqq_1m = _ret(source, "QQQ", "1m", observed_date)
+    spy_1m = _ret(source, "SPY", "1m", observed_date)
+    iwm_1m = _ret(source, "IWM", "1m", observed_date)
+    vix = analytics._price_frame(source, "VIX", end=observed_date)
+    uso_1m = _ret(source, "USO", "1m", observed_date)
+    gld_1m = _ret(source, "GLD", "1m", observed_date)
+    cper_1m = _ret(source, "CPER", "1m", observed_date)
+    xlu_1m = _ret(source, "XLU", "1m", observed_date)
+    xlp_1m = _ret(source, "XLP", "1m", observed_date)
+    xlk_1m = _ret(source, "XLK", "1m", observed_date)
+    xly_1m = _ret(source, "XLY", "1m", observed_date)
+    xli_1m = _ret(source, "XLI", "1m", observed_date)
+    xlf_1m = _ret(source, "XLF", "1m", observed_date)
+    cpi = analytics.latest_macro_value(source, "CPI_YOY", observed_date)
+    dgs10_change = analytics.macro_change(source, "DGS10", 21, observed_date)
+    dgs2_change = analytics.macro_change(source, "DGS2", 21, observed_date)
+    curve = analytics.yield_curve(source, observed_date)
     spread_10y_2y = curve["spreads"].get("10y_2y")
 
     spy_latest = float(spy.iloc[-1]["value"])
@@ -179,14 +180,15 @@ def deterministic_summary(
 
 
 def recalculate_regimes(conn, as_of: date | None = None, trailing_days: int = 260) -> dict[str, Any]:
-    frame = analytics._price_frame(conn, "SPY", end=as_of)
+    history = analytics.MarketHistory(conn)
+    frame = analytics._price_frame(history, "SPY", end=as_of)
     if frame.empty:
         raise ValueError("No SPY data is available to recalculate regimes")
     dates = [item.date() for item in frame["date"].tail(trailing_days)]
     count = 0
     latest_snapshot = None
     for observed_date in dates:
-        latest_snapshot = classify_regime(conn, observed_date)
+        latest_snapshot = classify_regime(conn, observed_date, history=history)
         save_regime_snapshot(conn, latest_snapshot)
         count += 1
     return {"recalculated": count, "latest": latest_snapshot}

@@ -12,6 +12,37 @@ from app.data.instruments import COMMODITY_SYMBOLS, INDEX_SYMBOLS, RATE_SYMBOLS,
 WINDOW_TRADING_DAYS = {"1d": 1, "1w": 5, "1m": 21, "3m": 63, "1y": 252}
 
 
+class MarketHistory:
+    """Request-local price and macro frames, loaded once for a historical backfill."""
+
+    def __init__(self, conn):
+        prices = pd.read_sql_query(
+            "SELECT i.symbol, p.* FROM market_prices p JOIN instruments i ON i.id = p.instrument_id ORDER BY p.date",
+            conn, parse_dates=["date"],
+        )
+        macro = pd.read_sql_query(
+            "SELECT i.symbol, m.date, m.value, m.source FROM macro_observations m "
+            "JOIN instruments i ON i.id = m.instrument_id ORDER BY m.date",
+            conn, parse_dates=["date"],
+        )
+        self.prices = {symbol: frame.drop(columns="symbol").reset_index(drop=True)
+                       for symbol, frame in prices.groupby("symbol")}
+        self.macro = {symbol: frame.drop(columns="symbol").reset_index(drop=True)
+                      for symbol, frame in macro.groupby("symbol")}
+
+    @staticmethod
+    def select(frames, symbol, start, end):
+        frame = frames.get(symbol.upper())
+        if frame is None:
+            return pd.DataFrame()
+        # SQL slices before calculating daily returns; preserve that same contract.
+        if start:
+            frame = frame[frame["date"] >= pd.Timestamp(start)]
+        if end:
+            frame = frame[frame["date"] <= pd.Timestamp(end)]
+        return frame.copy()
+
+
 def parse_date(value: str | date | None) -> date | None:
     if value is None or isinstance(value, date):
         return value
@@ -19,6 +50,8 @@ def parse_date(value: str | date | None) -> date | None:
 
 
 def _price_frame(conn, symbol: str, start: date | None = None, end: date | None = None) -> pd.DataFrame:
+    if isinstance(conn, MarketHistory):
+        return _with_price_metrics(conn.select(conn.prices, symbol, start, end))
     query = """
         SELECT p.date, p.open, p.high, p.low, p.close, p.adjusted_close, p.volume, p.source
         FROM market_prices p
@@ -34,6 +67,10 @@ def _price_frame(conn, symbol: str, start: date | None = None, end: date | None 
         params.append(end.isoformat())
     query += " ORDER BY p.date"
     frame = pd.read_sql_query(query, conn, params=params, parse_dates=["date"])
+    return _with_price_metrics(frame)
+
+
+def _with_price_metrics(frame: pd.DataFrame) -> pd.DataFrame:
     if frame.empty:
         return frame
     frame["value"] = frame["adjusted_close"].fillna(frame["close"])
@@ -42,6 +79,8 @@ def _price_frame(conn, symbol: str, start: date | None = None, end: date | None 
 
 
 def _macro_frame(conn, symbol: str, start: date | None = None, end: date | None = None) -> pd.DataFrame:
+    if isinstance(conn, MarketHistory):
+        return conn.select(conn.macro, symbol, start, end)
     query = """
         SELECT m.date, m.value, m.source
         FROM macro_observations m
@@ -242,9 +281,30 @@ def dashboard_market_blocks(conn, as_of: date | None = None) -> dict[str, Any]:
     sector_with_1m = [row for row in sectors if row["returns"].get("1m") is not None]
     return {
         "indices": [instrument_snapshot(conn, symbol, as_of) for symbol in INDEX_SYMBOLS],
+        "sectors": sectors,
         "sector_leaders": sector_with_1m[:3],
         "sector_laggards": list(reversed(sector_with_1m[-3:])),
         "commodities": [instrument_snapshot(conn, symbol, as_of) for symbol in COMMODITY_SYMBOLS],
         "volatility": instrument_snapshot(conn, "VIX", as_of),
         "rates": yield_curve(conn, as_of),
     }
+
+
+def indexed_performance(conn, as_of: date, window: str = "1m") -> list[dict[str, Any]]:
+    """Rebase common index observations to 100 over the selected window."""
+    columns = {}
+    for symbol in INDEX_SYMBOLS:
+        frame = _price_frame(conn, symbol, end=as_of)
+        if frame.empty:
+            return []
+        columns[symbol] = frame.set_index("date")["value"]
+    frame = pd.DataFrame(columns).dropna()
+    if window == "ytd":
+        frame = frame[frame.index.year == as_of.year]
+    else:
+        frame = frame.tail(WINDOW_TRADING_DAYS[window] + 1)
+    if frame.empty or (frame.iloc[0] == 0).any():
+        return []
+    indexed = frame.div(frame.iloc[0]).mul(100)
+    return [{"date": observed.date().isoformat(), **{symbol: round(value, 4) for symbol, value in row.items()}}
+            for observed, row in indexed.iterrows()]

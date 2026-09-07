@@ -1,5 +1,5 @@
 import { demoDashboardData } from "./demoData";
-import type { DashboardData, FreshnessSource, RangeKey, RegimeSignal } from "./types";
+import type { DashboardData, FreshnessSource, RangeKey, RegimeSignal, ChartPoint } from "./types";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
@@ -9,6 +9,7 @@ const DISABLE_DEMO_FALLBACK = import.meta.env.VITE_DISABLE_DEMO_FALLBACK === "tr
 
 type BackendInstrument = {
   symbol: string;
+  available?: boolean;
   value: number;
   returns: Record<string, number | null>;
   volatility: Record<string, number | null>;
@@ -40,6 +41,13 @@ type BackendSummary = {
     };
   };
   major_indices: BackendInstrument[];
+  performance_series?: ChartPoint[];
+  historical_regimes?: Array<{
+    date: string; regime_label: string; risk_score: number; growth_score: number;
+    inflation_score: number; rates_pressure_score: number;
+  }>;
+  sectors?: Array<{ symbol: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
+  macro_summary?: Record<string, { value: number } | null>;
   sector_leaders: Array<{ symbol: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
   sector_laggards: Array<{ symbol: string; returns: Record<string, number | null>; relative_to_spy: Record<string, number | null> }>;
   rates_summary: {
@@ -66,11 +74,10 @@ export async function fetchDashboardData(date: string, range: RangeKey): Promise
     return markDemo(demoDashboardData, "Demo mode enabled with VITE_USE_DEMO_DATA=true.");
   }
 
-  const url = new URL(`${API_BASE_URL}/dashboard/summary`);
-  if (date) url.searchParams.set("date", date);
-  url.searchParams.set("range", range.toLowerCase());
-
   try {
+    const url = new URL(`${API_BASE_URL}/dashboard/summary`, window.location.origin);
+    if (date) url.searchParams.set("date", date);
+    url.searchParams.set("range", range.toLowerCase());
     const response = await fetch(url.toString(), {
       headers: { Accept: "application/json" }
     });
@@ -110,7 +117,11 @@ function markDemo(data: DashboardData, message: string): DashboardData {
 
 export function adaptBackendSummary(payload: BackendSummary): DashboardData {
   const freshness = adaptFreshness(payload.data_freshness.instruments);
-  const sectorUpdates = [...payload.sector_leaders, ...payload.sector_laggards];
+  const sectorUpdates = payload.sectors ?? [...payload.sector_leaders, ...payload.sector_laggards];
+  const sectorNames: Record<string, string> = {
+    XLK: "Technology", XLF: "Financials", XLE: "Energy", XLV: "Health Care", XLY: "Cons. Disc.",
+    XLP: "Staples", XLI: "Industrials", XLB: "Materials", XLU: "Utilities", XLRE: "Real Estate", XLC: "Comm. Svcs."
+  };
   const names: Record<string, string> = { SPY: "S&P 500", QQQ: "Nasdaq 100", IWM: "Russell 2000", DIA: "Dow Industrials" };
   const maturities: Record<string, [string, number]> = {
     DGS3MO: ["3M", 0.25],
@@ -120,14 +131,21 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
   };
 
   return {
-    ...demoDashboardData,
+    performanceSeries: payload.performance_series ?? [],
+    historicalRegimes: (payload.historical_regimes ?? []).map((point) => ({
+      date: point.date, displayLabel: titleCase(point.regime_label),
+      riskScore: scorePercent(point.risk_score), growthScore: scorePercent(point.growth_score),
+      inflationScore: scorePercent(point.inflation_score), ratesPressureScore: scorePercent(point.rates_pressure_score),
+      note: "Computed from stored regime classifications."
+    })),
+    breadth: [],
     generatedAt: payload.data_freshness.generated_at,
     selectedDate: payload.as_of,
     sourceMode: "api",
     apiBaseUrl: API_BASE_URL,
     stale: freshness.some((item) => item.status === "stale"),
-    partial: freshness.some((item) => item.status === "stale"),
-    optionalProvidersMissing: [],
+    partial: true,
+    optionalProvidersMissing: ["Market breadth feed"],
     errors: [],
     freshness,
     provenance: {
@@ -152,7 +170,7 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
       negativeSignals: payload.regime.signals.top_negative.map((signal) => signal.evidence),
       limitations: payload.regime.signals.data_limitations
     },
-    indices: payload.major_indices.map((item) => ({
+    indices: payload.major_indices.filter((item) => item.available !== false).map((item) => ({
       symbol: item.symbol,
       name: names[item.symbol] ?? item.symbol,
       price: item.value,
@@ -163,39 +181,35 @@ export function adaptBackendSummary(payload: BackendSummary): DashboardData {
       drawdown52w: percent(item.drawdown_52w),
       volatility20d: percent(item.volatility["20d"])
     })),
-    sectors: demoDashboardData.sectors.map((sector) => {
-      const update = sectorUpdates.find((item) => item.symbol === sector.symbol);
-      if (!update) return sector;
-      return {
-        ...sector,
-        relativeToSpy1m: percent(update.relative_to_spy["1m"]),
-        returns: {
-          "1D": percent(update.returns["1d"]),
-          "1W": percent(update.returns["1w"]),
-          "1M": percent(update.returns["1m"]),
-          "3M": percent(update.returns["3m"]),
-          YTD: percent(update.returns.ytd),
-          "1Y": percent(update.returns["1y"])
-        }
-      };
-    }),
+    sectors: sectorUpdates.map((item) => ({
+      symbol: item.symbol,
+      name: sectorNames[item.symbol] ?? item.symbol,
+      relativeToSpy1m: percent(item.relative_to_spy["1m"]),
+      returns: {
+        "1D": percent(item.returns["1d"]), "1W": percent(item.returns["1w"]),
+        "1M": percent(item.returns["1m"]), "3M": percent(item.returns["3m"]),
+        YTD: percent(item.returns.ytd), "1Y": percent(item.returns["1y"])
+      }
+    })),
     rates: {
-      ...demoDashboardData.rates,
-      tenTwoSpread: payload.rates_summary.spreads["10y_2y"] ?? 0,
+      fedFundsRate: payload.macro_summary?.FEDFUNDS?.value ?? null,
+      cpiYoY: payload.macro_summary?.CPI_YOY?.value ?? null,
+      unemploymentRate: payload.macro_summary?.UNRATE?.value ?? null,
+      tenTwoSpread: payload.rates_summary.spreads["10y_2y"] ?? null,
       points: payload.rates_summary.maturities.flatMap((item) => {
         const maturity = maturities[item.symbol];
-        return maturity ? [{ maturity: maturity[0], years: maturity[1], yield: item.value, previousYield: item.value }] : [];
+        return maturity ? [{ maturity: maturity[0], years: maturity[1], yield: item.value }] : [];
       })
     },
-    commodities: payload.commodities_summary.map((item) => ({
+    commodities: payload.commodities_summary.filter((item) => item.available !== false).map((item) => ({
       symbol: item.symbol,
-      name: demoDashboardData.commodities.find((value) => value.symbol === item.symbol)?.name ?? item.symbol,
+      name: ({ USO: "Crude oil proxy", GLD: "Gold", CPER: "Copper" } as Record<string, string>)[item.symbol] ?? item.symbol,
       value: item.value,
       dayChange: percent(item.returns["1d"]),
       monthReturn: percent(item.returns["1m"]),
       signal: "Deterministic API market proxy"
     })),
-    volatility: [{
+    volatility: payload.volatility_summary.available === false ? [] : [{
       symbol: payload.volatility_summary.symbol,
       name: "CBOE VIX proxy",
       value: payload.volatility_summary.value,
@@ -253,8 +267,8 @@ function adaptSignal(signal: BackendSignal): RegimeSignal {
   };
 }
 
-function percent(value: number | null | undefined): number {
-  return Math.round((value ?? 0) * 10_000) / 100;
+function percent(value: number | null | undefined): number | null {
+  return value == null ? null : Math.round(value * 10_000) / 100;
 }
 
 function scorePercent(value: number): number {

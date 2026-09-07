@@ -44,3 +44,40 @@ def test_regime_rules_identify_risk_off_defensive(empty_conn):
     assert snapshot["regime_label"] == "risk_off_defensive"
     assert snapshot["confidence"] in {"medium", "high"}
     assert any(signal["name"] == "defensives_outperform_cyclicals_1m" for signal in snapshot["signals"]["top_positive"])
+
+
+def test_loaded_history_classification_matches_sql_and_does_not_look_ahead(seeded_conn):
+    from app.services.analytics import MarketHistory
+
+    history = MarketHistory(seeded_conn)
+    for observed in [date(2022, 8, 1), date(2023, 6, 1), date(2024, 6, 3), date(2025, 6, 2), date(2026, 6, 25)]:
+        assert classify_regime(seeded_conn, observed, history=history) == classify_regime(seeded_conn, observed)
+
+
+def test_backfill_matches_sequential_classification_with_bounded_queries(seeded_conn):
+    from app.data.database import connect, save_regime_snapshot
+    from app.services import analytics
+    from app.services.regime import recalculate_regimes
+
+    reference = connect(":memory:")
+    seeded_conn.commit()
+    seeded_conn.backup(reference)
+    try:
+        dates = analytics._price_frame(reference, "SPY")["date"].tail(20)
+        expected = []
+        for timestamp in dates:
+            snapshot = classify_regime(reference, timestamp.date())
+            save_regime_snapshot(reference, snapshot)
+            expected.append(snapshot)
+        queries = []
+        seeded_conn.set_trace_callback(queries.append)
+        result = recalculate_regimes(seeded_conn, trailing_days=20)
+        seeded_conn.set_trace_callback(None)
+        assert result == {"recalculated": 20, "latest": expected[-1]}
+        columns = "date, signals, summary, risk_score, growth_score, inflation_score, rates_pressure_score"
+        reference_rows = [tuple(row) for row in reference.execute(f"SELECT {columns} FROM regime_snapshots ORDER BY date")]
+        actual_rows = [tuple(row) for row in seeded_conn.execute(f"SELECT {columns} FROM regime_snapshots ORDER BY date")]
+        assert actual_rows == reference_rows
+        assert sum(query.lstrip().upper().startswith("SELECT") for query in queries) <= 25
+    finally:
+        reference.close()

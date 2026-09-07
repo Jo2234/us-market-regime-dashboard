@@ -1,5 +1,5 @@
 import { AlertTriangle, CalendarDays, Download, RefreshCw, ServerCrash, WifiOff } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchDashboardData } from "./api";
 import type { ChartPoint, DashboardData, FreshnessSource, HistoricalRegimePoint, RangeKey, RegimeSignal, RiskAssetMetric, YieldPoint } from "./types";
 import {
@@ -345,6 +345,7 @@ function MarketSummary({ data }: { data: DashboardData }) {
   const spy = data.indices.find((item) => item.symbol === "SPY");
   const qqq = data.indices.find((item) => item.symbol === "QQQ");
   const vix = data.volatility.find((item) => item.symbol === "VIX");
+  const relativeReturn = qqq?.monthReturn != null && spy?.monthReturn != null ? qqq.monthReturn - spy.monthReturn : null;
 
   return (
     <article className="panel summary-panel">
@@ -357,21 +358,21 @@ function MarketSummary({ data }: { data: DashboardData }) {
       <dl className="metric-list">
         <div>
           <dt title={metricTooltips.spyMonth}>SPY 1M</dt>
-          <dd className={performanceClass(spy?.monthReturn ?? 0)}>{formatPercent(spy?.monthReturn ?? 0)}</dd>
+          <dd className={performanceClass(spy?.monthReturn ?? null)}>{formatPercent(spy?.monthReturn ?? null)}</dd>
         </div>
         <div>
           <dt title={metricTooltips.qqqVsSpy}>QQQ vs SPY 1M</dt>
-          <dd className={performanceClass((qqq?.monthReturn ?? 0) - (spy?.monthReturn ?? 0))}>
-            {formatPercent((qqq?.monthReturn ?? 0) - (spy?.monthReturn ?? 0))}
+          <dd className={performanceClass(relativeReturn)}>
+            {formatPercent(relativeReturn)}
           </dd>
         </div>
         <div>
           <dt title={metricTooltips.tenTwo}>10Y - 2Y</dt>
-          <dd className={performanceClass(data.rates.tenTwoSpread)}>{formatNumber(data.rates.tenTwoSpread * 100, 0)} bps</dd>
+          <dd className={performanceClass(data.rates.tenTwoSpread)}>{formatNumber(data.rates.tenTwoSpread === null ? null : data.rates.tenTwoSpread * 100, 0)} bps</dd>
         </div>
         <div>
           <dt title={metricTooltips.vix}>VIX</dt>
-          <dd className={performanceClass(-(vix?.monthReturn ?? 0))}>{formatNumber(vix?.value ?? 0, 1)}</dd>
+          <dd className={performanceClass(vix?.monthReturn == null ? null : -vix.monthReturn)}>{formatNumber(vix?.value ?? null, 1)}</dd>
         </div>
       </dl>
       <p className="timestamp">Generated {formatDateTime(data.generatedAt)}</p>
@@ -554,7 +555,7 @@ function YieldCurvePanel({ data }: { data: DashboardData }) {
           <span className="eyebrow">Rates</span>
           <h2>Yield Curve</h2>
         </div>
-        <span className={performanceClass(data.rates.tenTwoSpread)}>{formatNumber(data.rates.tenTwoSpread * 100, 0)} bps 10Y-2Y</span>
+        <span className={performanceClass(data.rates.tenTwoSpread)}>{formatNumber(data.rates.tenTwoSpread === null ? null : data.rates.tenTwoSpread * 100, 0)} bps 10Y-2Y</span>
       </div>
       <YieldCurve points={points} />
       <dl className="compact-kpis">
@@ -579,7 +580,7 @@ function YieldCurve({ points }: { points: YieldPoint[] }) {
   const width = 480;
   const height = 190;
   const pad = 30;
-  const values = points.flatMap((point) => [point.yield, point.previousYield]).filter(Number.isFinite);
+  const values = points.flatMap((point) => [point.yield, point.previousYield]).filter((value): value is number => value !== undefined && Number.isFinite(value));
   if (values.length === 0) {
     return <EmptyState title="Yield curve unavailable" body="No numeric Treasury yield values were returned." compact />;
   }
@@ -591,14 +592,17 @@ function YieldCurve({ points }: { points: YieldPoint[] }) {
   const max = rawMax + padding;
   const xFor = (index: number) => pad + (index / Math.max(1, points.length - 1)) * (width - pad * 2);
   const yFor = (value: number) => height - pad - ((value - min) / (max - min)) * (height - pad * 2);
-  const lineFor = (field: "yield" | "previousYield") => points.map((point, index) => `${xFor(index)},${yFor(point[field])}`).join(" ");
+  const lineFor = (field: "yield" | "previousYield") => points.flatMap((point, index) => {
+    const value = point[field];
+    return value === undefined ? [] : [`${xFor(index)},${yFor(value)}`];
+  }).join(" ");
 
   return (
     <svg className="yield-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Treasury yield curve">
       <text x={width - pad} y={18} textAnchor="end" className="axis-label axis-title">
         Yield (%)
       </text>
-      <polyline points={lineFor("previousYield")} fill="none" stroke="var(--chart-previous)" strokeWidth="2" strokeDasharray="4 4" />
+      {points.every((point) => point.previousYield !== undefined) && <polyline points={lineFor("previousYield")} fill="none" stroke="var(--chart-previous)" strokeWidth="2" strokeDasharray="4 4" />}
       <polyline points={lineFor("yield")} fill="none" stroke="var(--positive)" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
       {points.map((point, index) => (
         <g key={point.maturity}>
@@ -633,7 +637,7 @@ function RiskPanel({ title, items }: { title: string; items: RiskAssetMetric[] }
               <span>{item.name}</span>
             </div>
             <div>
-              <strong>{formatNumber(item.value, item.value > 50 ? 2 : 1)}</strong>
+              <strong>{formatNumber(item.value, item.value !== null && item.value > 50 ? 2 : 1)}</strong>
               <span className={performanceClass(item.dayChange)}>{formatPercent(item.dayChange, 1)} 1D</span>
               <span className={performanceClass(item.monthReturn)}>{formatPercent(item.monthReturn, 1)} 1M</span>
             </div>
