@@ -19,7 +19,7 @@ from app.api.schemas import (
     YieldCurveResponse,
 )
 from app.data import database
-from app.services import analytics, regime, macro_data, live_quotes, regime_history
+from app.services import analytics, regime, macro_data, live_quotes, regime_history, artifact
 from app.services.market_data import get_snapshot, populate_database, demo_enabled, delivery_metadata, DataUnavailable
 from app.services.calendar import latest_completed_session, missed_sessions, market_status
 from app.data.instruments import provenance
@@ -28,24 +28,21 @@ router = APIRouter()
 
 
 def get_db(request: Request, cached_only: bool = False):
-    # A fresh in-memory database cannot inherit synthetic rows from an old /tmp DB.
+    if not demo_enabled():
+        try:
+            bundle, cache = artifact.load(cached_only=cached_only)
+        except (OSError, ValueError, KeyError) as exc:
+            raise HTTPException(503, 'The verified daily artifact is unavailable') from exc
+        request.state.market_delivery = {"cache": cache, "fetch_ms": 0}
+        # Request-local flag; shared immutable bundle is never mutated.
+        view = artifact.Artifact(bundle.payload)
+        view.cached_only = cached_only
+        yield view
+        return
     with database.session(":memory:") as conn:
         database.init_schema(conn)
-        if demo_enabled():
-            from app.data.seed import seed_demo_data
-            seed_demo_data(conn)
-        else:
-            try:
-                with ThreadPoolExecutor(max_workers=2) as pool:
-                    market_future = pool.submit(get_snapshot, cached_only=cached_only)
-                    macro_future = pool.submit(macro_data.get_snapshot, cached_only=cached_only)
-                    snapshot, mode = market_future.result()
-                    macro, macro_delivery = macro_future.result()
-            except DataUnavailable as exc:
-                raise HTTPException(status_code=503, detail=str(exc)) from exc
-            request.state.market_delivery = snapshot.get("_delivery", {})
-            populate_database(conn, snapshot, mode)
-            macro_data.populate_database(conn, macro, macro_delivery)
+        from app.data.seed import seed_demo_data
+        seed_demo_data(conn)
         yield conn
 
 
@@ -64,6 +61,8 @@ def dashboard_summary(
     conn=Depends(get_db),
     range_: Annotated[Literal["1d", "1w", "1m", "3m", "ytd", "1y"], Query(alias="range")] = "1m",
 ):
+    if isinstance(conn, artifact.Artifact):
+        return artifact.summary(conn, date_, range_, cached_only=getattr(conn, 'cached_only', False))
     # Classify against current inputs on every request. Stored snapshots support
     # history/change notes, not an unversioned cache of potentially revised data.
     history = analytics.MarketHistory(conn)
@@ -80,8 +79,8 @@ def dashboard_summary(
         "live_quotes": live_quotes.with_returns(quotes, history),
         "quote_delivery": quote_delivery,
         "as_of": snapshot["date"],
-        "data_mode": delivery_metadata(conn)["mode"],
-        "fetched_at": delivery_metadata(conn)["fetched_at"],
+        "data_mode": ("snapshot" if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["mode"]),
+        "fetched_at": (conn.payload["fetched_at"] if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["fetched_at"]),
         "refresh_pending": delivery_metadata(conn).get("refresh_pending", False),
         "retry_after_seconds": delivery_metadata(conn).get("retry_after_seconds", 0),
         "fetch_ms": delivery_metadata(conn).get("fetch_ms", 0),
@@ -108,25 +107,27 @@ def dashboard_summary(
 
 @router.get("/series/{symbol}", response_model=SeriesResponse)
 def series(symbol: str, start: date | None = None, end: date | None = None, conn=Depends(get_db)):
-    rows = analytics.price_series(conn, symbol.upper(), start, end)
+    rows = artifact.series(conn, symbol, start, end) if isinstance(conn, artifact.Artifact) else analytics.price_series(conn, symbol.upper(), start, end)
     if not rows:
         raise HTTPException(status_code=404, detail=f"No series data found for {symbol.upper()}")
-    return {"data_mode": delivery_metadata(conn)["mode"], "fetched_at": delivery_metadata(conn)["fetched_at"], "symbol": symbol.upper(), "start": start.isoformat() if start else None, "end": end.isoformat() if end else None, "data": rows}
+    return {"data_mode": ("snapshot" if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["mode"]), "fetched_at": (conn.payload["fetched_at"] if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["fetched_at"]), "symbol": symbol.upper(), "start": start.isoformat() if start else None, "end": end.isoformat() if end else None, "data": rows}
 
 
 @router.get("/sectors/performance", response_model=SectorPerformanceResponse)
 def sectors_performance(windows: str = "1d,1w,1m,3m,ytd,1y", date_: Annotated[date | None, Query(alias="date")] = None, conn=Depends(get_db)):
     parsed = _parse_windows(windows)
-    return {"data_mode": delivery_metadata(conn)["mode"], "fetched_at": delivery_metadata(conn)["fetched_at"], "windows": parsed, "sectors": analytics.sector_performance(conn, parsed, date_)}
+    return {"data_mode": ("snapshot" if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["mode"]), "fetched_at": (conn.payload["fetched_at"] if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["fetched_at"]), "windows": parsed, "sectors": (conn.selected(date_)["sectors"] if isinstance(conn, artifact.Artifact) else analytics.sector_performance(conn, parsed, date_))}
 
 
 @router.get("/rates/yield-curve", response_model=YieldCurveResponse)
 def rates_yield_curve(date_: Annotated[date | None, Query(alias="date")] = None, conn=Depends(get_db)):
-    return {**analytics.yield_curve(conn, date_), "data_mode": delivery_metadata(conn)["mode"]}
+    return {**(conn.selected(date_)["rates_summary"] if isinstance(conn, artifact.Artifact) else analytics.yield_curve(conn, date_)), "data_mode": ("snapshot" if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["mode"])}
 
 
 @router.post("/regime/recalculate", response_model=RecalculateResponse)
 def regime_recalculate(date_: Annotated[date | None, Query(alias="date")] = None, trailing_days: int = Query(260, ge=1, le=1500), conn=Depends(get_db)):
+    if isinstance(conn, artifact.Artifact):
+        return {"recalculated": 0, "latest": conn.selected(date_)["regime"]}
     try:
         return regime.recalculate_regimes(conn, date_, trailing_days)
     except ValueError as exc:
@@ -141,7 +142,7 @@ def data_freshness_endpoint(conn=Depends(get_db)):
 @router.get("/export/sectors.csv")
 def export_sectors_csv(windows: str = "1d,1w,1m,3m,ytd,1y", date_: Annotated[date | None, Query(alias="date")] = None, conn=Depends(get_db)):
     parsed = _parse_windows(windows)
-    rows = analytics.sector_performance(conn, parsed, date_)
+    rows = (conn.selected(date_)["sectors"] if isinstance(conn, artifact.Artifact) else analytics.sector_performance(conn, parsed, date_))
     fieldnames = ["symbol"] + [f"return_{window}" for window in parsed] + [f"relative_to_spy_{window}" for window in parsed]
     flat_rows = [
         {
@@ -156,7 +157,7 @@ def export_sectors_csv(windows: str = "1d,1w,1m,3m,ytd,1y", date_: Annotated[dat
 
 @router.get("/export/series/{symbol}.csv")
 def export_series_csv(symbol: str, start: date | None = None, end: date | None = None, conn=Depends(get_db)):
-    rows = analytics.price_series(conn, symbol.upper(), start, end)
+    rows = artifact.series(conn, symbol, start, end) if isinstance(conn, artifact.Artifact) else analytics.price_series(conn, symbol.upper(), start, end)
     if not rows:
         raise HTTPException(status_code=404, detail=f"No series data found for {symbol.upper()}")
     preferred = ["date", "open", "high", "low", "close", "adjusted_close", "value", "daily_return", "volume", "source"]
@@ -177,6 +178,8 @@ def _csv_response(filename: str, fieldnames: list[str], rows: list[dict]) -> Res
 
 
 def data_freshness(conn) -> dict:
+    if isinstance(conn, artifact.Artifact):
+        return artifact.freshness(conn)
     settings = get_settings()
     rows = conn.execute(
         """
@@ -226,8 +229,8 @@ def data_freshness(conn) -> dict:
         "generated_at": generated_at,
         "as_of_date": overall_latest,
         "expected_session_date": expected.isoformat(),
-        "data_mode": delivery_metadata(conn)["mode"],
-        "fetched_at": delivery_metadata(conn)["fetched_at"],
+        "data_mode": ("snapshot" if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["mode"]),
+        "fetched_at": (conn.payload["fetched_at"] if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["fetched_at"]),
         "stale_after_days": settings.stale_after_days,
         "freshness_policy": "Instrument/source rows are stale when behind the latest completed NYSE session; weekends, US market holidays and early closes are respected. FRED macro uses separate daily/monthly publication grace windows, reported per instrument. Treasury yields use daily FRED publication grace. Source status aggregates each instrument's cadence-aware status.",
         "sources": [

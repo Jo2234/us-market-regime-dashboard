@@ -132,11 +132,13 @@ export interface MacroValue {
   source_url?: string;
   frequency?: string;
   mode?: "live" | "snapshot" | "unavailable";
+  scheduled?: boolean;
   fetched_at?: string;
   is_stale?: boolean;
 }
 
 export interface DashboardData {
+  scheduledFresh?: boolean;
   marketStatus?: { is_open: boolean; session_date: string; refresh_seconds: number; next_open: string };
   quoteStatus?: { cache?: string; fetched_at?: string; refresh_seconds?: number; retry_after_seconds?: number };
   intraday?: boolean;
