@@ -102,17 +102,18 @@ def test_live_cache_fallback_and_production_demo_guard(monkeypatch, tmp_path, cl
         for _ in range(2):
             response = client.get("/api/dashboard/summary")
             assert response.status_code == 200
-            assert response.json()["data_mode"] == "live"
+            assert response.json()["data_mode"] == "snapshot"
             assert "demo_seed" not in response.text
             assert "s-maxage=900" in response.headers["cache-control"]
-        assert len(calls) == 1
+        assert len(calls) == 0
         async def fail():
             raise YahooUnavailable("simulated")
         monkeypatch.setattr(market_data, "fetch_snapshot", fail)
         monkeypatch.setattr(market_data, "_expires", 0)
         response = client.get("/api/dashboard/summary")
         assert response.json()["data_mode"] == "snapshot"
-        assert response.json()["as_of"] == "2026-09-28"
+        from app.services import artifact
+        assert response.json()["as_of"] == artifact.load(cached_only=True)[0].payload["as_of"]
         assert "demo_seed" not in response.text
 
 
@@ -124,12 +125,12 @@ def test_kill_flag_uses_file_then_503_without_snapshot(monkeypatch, tmp_path, cl
         assert response.status_code == 200
         assert response.json()["data_mode"] == "snapshot"
         assert "demo_seed" not in response.text
-        monkeypatch.setattr(market_data, "_cached", None)
-        monkeypatch.setattr(market_data, "_expires", 0)
-        monkeypatch.setattr(market_data, "SNAPSHOT_PATH", tmp_path / "missing.json")
+        from app.services import artifact
+        monkeypatch.setattr(artifact, "_cached", None)
+        monkeypatch.setattr(artifact, "PATH", tmp_path / "missing.gz")
         response = client.get("/api/dashboard/summary")
         assert response.status_code == 503
-        assert "Live data unavailable" in response.text
+        assert "artifact is unavailable" in response.text
         assert response.headers["cache-control"] == "no-store"
 
 
@@ -289,4 +290,3 @@ def test_official_close_respects_early_close_and_holiday():
     from app.services.calendar import session_close
     assert session_close(date(2026, 11, 27)) == datetime(2026, 11, 27, 18, tzinfo=timezone.utc)
     assert session_close(date(2026, 9, 7)) is None
-
