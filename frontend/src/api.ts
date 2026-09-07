@@ -34,6 +34,7 @@ type BackendSummary = {
   quote_delivery?: DashboardData["quoteStatus"];
   live_quotes?: Record<string, LiveQuote>;
   as_of: string;
+  artifact_delivery?: { scheduled?: boolean; fresh?: boolean };
   data_mode?: "live" | "snapshot" | "demo";
   fetched_at?: string;
   cache?: "hit" | "miss" | "stale";
@@ -140,7 +141,7 @@ export async function fetchDashboardData(date: string, range: RangeKey, options:
           stored = true;
         }
       } catch { /* Storage is optional; blocked/quota/corrupt storage cannot break live data. */ }
-      if (!stored) {
+      if (!stored && (qa === "background" || qa === "stale")) {
         const cachedUrl = new URL(url); cachedUrl.searchParams.set("cached_only", "true");
         bootstrap = read(cachedUrl).then(payload => {
           if (!finished && !controller.signal.aborted) options.onCached?.(verified(payload));
@@ -240,6 +241,7 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
   };
 
   return {
+    scheduledFresh: Boolean(payload.artifact_delivery?.scheduled && payload.artifact_delivery?.fresh),
     marketStatus: payload.market_status,
     quoteStatus: payload.quote_delivery,
     intraday: Boolean(payload.market_status?.is_open && Object.values(payload.live_quotes ?? {}).some(q => q.is_current_session && !q.is_stale)),
@@ -267,7 +269,7 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
     provenance: {
       mode: payload.data_mode === "snapshot" ? "snapshot" : payload.data_mode === "live" ? "live" : onlyDemoSources ? "demo" : hasDemoSource ? "mixed" : "api",
       description: payload.data_mode === "snapshot"
-        ? "Saved Yahoo Finance daily closes with their original observation dates. Live refresh is pending or unavailable."
+        ? payload.artifact_delivery?.fresh ? "Scheduled daily research snapshot from Yahoo Finance and FRED, with original observation dates. Live quotes refresh during NYSE hours." : "Saved real observations; the scheduled update is overdue."
         : payload.data_mode === "live"
           ? "Yahoo Finance quotes refresh every 60 seconds during NYSE hours; closed markets show completed daily closes. Longer returns use adjusted history with a live endpoint intraday. The regime model uses completed daily closes."
           : onlyDemoSources

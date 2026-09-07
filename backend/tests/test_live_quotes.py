@@ -96,7 +96,13 @@ def test_open_api_replay_preserves_completed_regime(monkeypatch, empty_conn):
     snapshot = {'version': 1, 'fetched_at': '2026-09-29T19:59:00Z', 'series': {
         symbol: {'source': 'yahoo_finance', 'yahoo_ticker': ticker, 'bars': normalize_chart(symbol, json.loads((FIXTURES / f'{symbol}.json').read_text()), date(2026,9,28))}
         for symbol,ticker in YAHOO_TICKERS.items()}}
-    monkeypatch.setattr(routes, 'get_snapshot', lambda **kwargs: (snapshot, 'live'))
+    from app.services import artifact
+    import copy
+    recorded_bundle = artifact.decode(artifact.PATH.read_bytes())
+    data = copy.deepcopy(recorded_bundle.payload)
+    data['days'] = {k:v for k,v in data['days'].items() if k <= '2026-09-28'}
+    data['as_of'] = max(data['days'])
+    monkeypatch.setattr(artifact, 'load', lambda **kwargs: (artifact.Artifact(data), 'hit'))
     monkeypatch.setattr(macro_data, 'get_snapshot', lambda **kwargs: ({}, {}))
     for key, value in [('_cached', {}), ('_expires', 0), ('_interval', 60), ('_last_stats', {})]:
         monkeypatch.setattr(live, key, value)
