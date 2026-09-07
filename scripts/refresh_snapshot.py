@@ -78,6 +78,8 @@ def main():
             failed.append(name)
     from refresh_regime_history import refresh
     refresh()
+    from build_daily_artifact import build
+    build()
     if failed:
         raise SystemExit(1)
 
