@@ -151,6 +151,8 @@ def seed_demo_data(conn, today: date | None = None) -> None:
     for idx, observed_date in enumerate(dates):
         phase = _phase(idx, len(dates))
         for symbol in PRICE_SYMBOLS:
+            if symbol not in current_prices:
+                continue  # Explicit offline legacy demo does not synthesize new v2 inputs.
             previous = current_prices[symbol]
             close = max(previous * (1.0 + _daily_return(symbol, phase, idx)), 1.0)
             intraday = 0.004 + abs(math.sin(idx / 11.0)) * 0.006

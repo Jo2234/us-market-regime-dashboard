@@ -43,9 +43,13 @@ try {
       if (!state.text.includes(price.toFixed(2))) throw new Error(`${symbol} price does not match the API`);
     }
     if (state.text.includes('Partial freshness') || state.header?.includes('Last updated')) throw new Error('Freshness or duplicate timestamp regression');
-    if (await page.locator('.history-chart .score-panel').count() !== 4) throw new Error('Missing small multiples');
+    if (await page.locator('.history-chart .score-panel').count() !== (api.regime_v2 ? 3 : 4)) throw new Error('Missing small multiples');
     if ((await page.locator('.signal-value').allTextContents()).some(value => /\.\d{4,}/.test(value))) throw new Error('Unformatted signal values');
     await page.screenshot({ path: new URL(`${name}-overview.png`, directory).pathname });
+    if (api.regime_v2) {
+      await page.locator('.bottom-line').screenshot({ path: new URL(`${name}-bottom-line.png`, directory).pathname });
+      if (!(await page.locator('.bottom-line').textContent()).includes(api.regime_v2.headline)) throw new Error('Headline does not match API');
+    }
     await page.locator('.regime-panel').screenshot({ path: new URL(`${name}-scores.png`, directory).pathname });
     await page.locator('.signal-table-panel').screenshot({ path: new URL(`${name}-signals.png`, directory).pathname });
     const history = page.locator('.history-panel');
@@ -85,7 +89,7 @@ try {
       }
     }
     await page.screenshot({ path: new URL(`${name}-full.png`, directory).pathname, fullPage: true });
-    const result = { name, renderMs, settledMs, historyPoints: api.historical_regimes.length, ...state, errors };
+    const result = { name, renderMs, settledMs, historyPoints: (api.historical_regimes_v2?.length || api.historical_regimes.length), ...state, errors };
     results.push(result);
     console.log(JSON.stringify({ ...result, text: undefined }));
     if (state.overflow || errors.length || /demo_seed/.test(state.text)) throw new Error(`${name} browser check failed`);

@@ -1,0 +1,444 @@
+{
+  "axis_scores": {
+    "Dollar": 65.74074074074075,
+    "Growth": 48.302469135802475,
+    "Inflation": 53.68165784832451,
+    "Rates": 81.90035273368606,
+    "Stress": 36.91798941798942
+  },
+  "confidence": {
+    "agreement": 55.56,
+    "interpretation": "Descriptive signal agreement, not a calibrated probability",
+    "label": "Low",
+    "magnitude": 3.4,
+    "score": 29.48
+  },
+  "date": "2026-09-30",
+  "days_in_regime": 2,
+  "driver_sentence": "Initial claims, 4-week average supports growth (98/100); CPI acceleration softens inflation (1/100); Chicago Fed financial conditions softens stress (8/100).",
+  "emerging_days": 0,
+  "emerging_label": null,
+  "headline": "Stagflation \u00b7 Calm \u00b7 day 2",
+  "nearest_flip_note": "One input at a time, holding other inputs and empirical baselines fixed. Raw quadrant flips still require persistence. These are arithmetic scenarios, not forecasts.",
+  "nearest_flips": [
+    {
+      "axis": "Growth",
+      "boundary": 50,
+      "composite_after": 50.00000000000001,
+      "current_raw": 0.10137703818109611,
+      "increasing": true,
+      "key": "copper_gold",
+      "name": "Copper/gold trend",
+      "percentile_distance": 10.185185185185176,
+      "target_percentile": 98.28042328042328,
+      "target_raw": 0.21255442238581204,
+      "text": "Growth turns up at 50 if the copper/gold ratio rises about 10.1%."
+    },
+    {
+      "axis": "Growth",
+      "boundary": 50,
+      "composite_after": 50.00000000000001,
+      "current_raw": 0.08925548963827123,
+      "increasing": true,
+      "key": "cyclical_defensive",
+      "name": "Cyclicals versus defensives",
+      "percentile_distance": 10.185185185185176,
+      "target_percentile": 98.94179894179894,
+      "target_raw": 0.1161858713211076,
+      "text": "Growth turns up at 50 if the cyclicals-minus-defensives blended return rises 2.69 percentage points."
+    },
+    {
+      "axis": "Growth",
+      "boundary": 50,
+      "composite_after": 50.00000000000001,
+      "current_raw": -0.052960841194101826,
+      "increasing": true,
+      "key": "equal_weight",
+      "name": "Equal-weight participation",
+      "percentile_distance": 10.185185185185185,
+      "target_percentile": 14.153439153439153,
+      "target_raw": -0.040314504808593214,
+      "text": "Growth turns up at 50 if the RSP/SPY ratio rises about 1.3%."
+    }
+  ],
+  "official_label": "Stagflation",
+  "persistence_days": 5,
+  "quadrant": "Stagflation",
+  "raw_label": "Stagflation",
+  "raw_quadrant": "Stagflation",
+  "regime_label": "Stagflation",
+  "signals": [
+    {
+      "available_on": "2026-09-30",
+      "axis": "Growth",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "equal_weight",
+      "name": "Equal-weight participation",
+      "observations": {
+        "RSP": "2026-09-30",
+        "SPY": "2026-09-30"
+      },
+      "percentile": 3.9682539682539684,
+      "raw_percentile": 3.9682539682539684,
+      "raw_value": -0.052960841194101826,
+      "unit": "ratio_trend",
+      "weight": 0.16666666666666666
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Growth",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "copper_gold",
+      "name": "Copper/gold trend",
+      "observations": {
+        "CPER": "2026-09-30",
+        "GLD": "2026-09-30"
+      },
+      "percentile": 88.0952380952381,
+      "raw_percentile": 88.0952380952381,
+      "raw_value": 0.10137703818109611,
+      "unit": "ratio_trend",
+      "weight": 0.16666666666666666
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Growth",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "small_large",
+      "name": "Small versus large companies",
+      "observations": {
+        "IWM": "2026-09-30",
+        "SPY": "2026-09-30"
+      },
+      "percentile": 6.349206349206349,
+      "raw_percentile": 6.349206349206349,
+      "raw_value": -0.06985163717460574,
+      "unit": "ratio_trend",
+      "weight": 0.16666666666666666
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Stress",
+      "baseline_count": 756,
+      "direction": "Lower raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": true,
+      "key": "credit",
+      "name": "High-yield / investment-grade credit trend",
+      "observations": {
+        "HYG": "2026-09-30",
+        "LQD": "2026-09-30"
+      },
+      "percentile": 8.068783068783063,
+      "raw_percentile": 91.93121693121694,
+      "raw_value": 0.03032444193667172,
+      "unit": "ratio_trend",
+      "weight": 0.2
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Dollar",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "dollar",
+      "name": "US dollar trend",
+      "observations": {
+        "DXY": "2026-09-30"
+      },
+      "percentile": 65.74074074074075,
+      "raw_percentile": 65.74074074074075,
+      "raw_value": 0.008010912241538826,
+      "unit": "return",
+      "weight": 1.0
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Growth",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "sector_breadth",
+      "name": "Sectors above 200-day MA",
+      "observations": {
+        "XLB": "2026-09-30",
+        "XLC": "2026-09-30",
+        "XLE": "2026-09-30",
+        "XLF": "2026-09-30",
+        "XLI": "2026-09-30",
+        "XLK": "2026-09-30",
+        "XLP": "2026-09-30",
+        "XLRE": "2026-09-30",
+        "XLU": "2026-09-30",
+        "XLV": "2026-09-30",
+        "XLY": "2026-09-30"
+      },
+      "percentile": 4.894179894179894,
+      "raw_percentile": 4.894179894179894,
+      "raw_value": 0.36363636363636365,
+      "unit": "breadth",
+      "weight": 0.16666666666666666
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Growth",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "cyclical_defensive",
+      "name": "Cyclicals versus defensives",
+      "observations": {
+        "XLF": "2026-09-30",
+        "XLI": "2026-09-30",
+        "XLK": "2026-09-30",
+        "XLP": "2026-09-30",
+        "XLU": "2026-09-30",
+        "XLY": "2026-09-30"
+      },
+      "percentile": 88.75661375661376,
+      "raw_percentile": 88.75661375661376,
+      "raw_value": 0.08925548963827123,
+      "unit": "return_difference",
+      "weight": 0.16666666666666666
+    },
+    {
+      "available_on": "2026-09-24",
+      "axis": "Growth",
+      "baseline_count": 756,
+      "direction": "Lower raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": true,
+      "key": "claims",
+      "name": "Initial claims, 4-week average",
+      "observations": {
+        "ICSA": "2026-09-19"
+      },
+      "percentile": 97.75132275132275,
+      "raw_percentile": 2.248677248677249,
+      "raw_value": 202250.0,
+      "unit": "claims",
+      "weight": 0.16666666666666666
+    },
+    {
+      "available_on": "2026-09-15",
+      "axis": "Inflation",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "cpi_acceleration",
+      "name": "CPI acceleration",
+      "observations": {
+        "CPIAUCSL": "2026-08-01"
+      },
+      "percentile": 0.7275132275132276,
+      "raw_percentile": 0.7275132275132276,
+      "raw_value": -3.1708446311329963,
+      "unit": "percentage_points",
+      "weight": 0.3333333333333333
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Inflation",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "breakeven",
+      "name": "10-year breakeven inflation",
+      "observations": {
+        "T10YIE": "2026-09-29"
+      },
+      "percentile": 71.29629629629629,
+      "raw_percentile": 71.29629629629629,
+      "raw_value": 2.35,
+      "unit": "percent",
+      "weight": 0.3333333333333333
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Stress",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "financial_conditions",
+      "name": "Chicago Fed financial conditions",
+      "observations": {
+        "NFCI": "2026-09-25"
+      },
+      "percentile": 7.87037037037037,
+      "raw_percentile": 7.87037037037037,
+      "raw_value": -0.548,
+      "unit": "index_points",
+      "weight": 0.2
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Rates",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "real_yield",
+      "name": "10-year real yield",
+      "observations": {
+        "DFII10": "2026-09-29"
+      },
+      "percentile": 100.0,
+      "raw_percentile": 100.0,
+      "raw_value": 2.91,
+      "unit": "percent",
+      "weight": 0.3333333333333333
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Rates",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "nominal_yield",
+      "name": "10-year nominal yield",
+      "observations": {
+        "DGS10": "2026-09-29"
+      },
+      "percentile": 100.0,
+      "raw_percentile": 100.0,
+      "raw_value": 5.26,
+      "unit": "percent",
+      "weight": 0.3333333333333333
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Rates",
+      "baseline_count": 756,
+      "direction": "Lower raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": true,
+      "key": "curve",
+      "name": "10Y\u20132Y Treasury curve",
+      "observations": {
+        "T10Y2Y": "2026-09-29"
+      },
+      "percentile": 45.7010582010582,
+      "raw_percentile": 54.2989417989418,
+      "raw_value": 0.37,
+      "unit": "percentage_points",
+      "weight": 0.3333333333333333
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Inflation",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "commodities",
+      "name": "Oil and broad-commodity trend",
+      "observations": {
+        "DBC": "2026-09-30",
+        "USO": "2026-09-30"
+      },
+      "percentile": 89.02116402116403,
+      "raw_percentile": 89.02116402116403,
+      "raw_value": 0.19510001498033147,
+      "unit": "return",
+      "weight": 0.3333333333333333
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Stress",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "vix",
+      "name": "VIX level",
+      "observations": {
+        "VIX": "2026-09-30"
+      },
+      "percentile": 47.22222222222222,
+      "raw_percentile": 47.22222222222222,
+      "raw_value": 16.34000015258789,
+      "unit": "index_points",
+      "weight": 0.2
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Stress",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "vol_term",
+      "name": "VIX / VIX3M",
+      "observations": {
+        "VIX": "2026-09-30",
+        "VIX3M": "2026-09-30"
+      },
+      "percentile": 57.142857142857146,
+      "raw_percentile": 57.142857142857146,
+      "raw_value": 0.8894937074629866,
+      "unit": "ratio",
+      "weight": 0.2
+    },
+    {
+      "available_on": "2026-09-30",
+      "axis": "Stress",
+      "baseline_count": 756,
+      "direction": "Higher raw values increase this axis",
+      "held_for_missing_month": false,
+      "inverse": false,
+      "key": "drawdown",
+      "name": "S&P 500 drawdown magnitude",
+      "observations": {
+        "SPY": "2026-09-30"
+      },
+      "percentile": 64.28571428571429,
+      "raw_percentile": 64.28571428571429,
+      "raw_value": 0.01717008370108053,
+      "unit": "return",
+      "weight": 0.2
+    }
+  ],
+  "stress_label": "Calm",
+  "strong_evidence": false,
+  "strong_override": false,
+  "top_contributors": [
+    {
+      "axis": "Growth",
+      "contribution": 7.96,
+      "key": "claims",
+      "name": "Initial claims, 4-week average",
+      "percentile": 97.8
+    },
+    {
+      "axis": "Inflation",
+      "contribution": -16.42,
+      "key": "cpi_acceleration",
+      "name": "CPI acceleration",
+      "percentile": 0.7
+    },
+    {
+      "axis": "Stress",
+      "contribution": -8.43,
+      "key": "financial_conditions",
+      "name": "Chicago Fed financial conditions",
+      "percentile": 7.9
+    }
+  ],
+  "version": 1
+}
