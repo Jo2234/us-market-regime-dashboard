@@ -31,7 +31,7 @@ async def fetch_series(client, series_id, *, api_key=None, fixture_dir=None, sta
     stats = stats if stats is not None else {}
     stats.update(attempts=0, retries=0, http_429=0, http_401=0, http_5xx=0)
     started = time.perf_counter()
-    start = f"{date.today().year - 4}-01-01"
+    start = f"{date.today().year - 7}-01-01"
     try:
         for attempt in range(3):
             stats["attempts"] += 1
@@ -88,7 +88,7 @@ async def fetch_batch(series_ids, *, fixture_dir=None):
                                                        fixture_dir=fixture_dir, stats=detail)
             except Exception as exc:
                 detail["error"] = type(exc).__name__  # Never log response URLs/keys.
-        tasks = [asyncio.create_task(one(s)) for s in series_ids]
+        tasks = [asyncio.create_task(one(s)) for s in dict.fromkeys(series_ids)]
         done, pending = await asyncio.wait(tasks, timeout=BUDGET_SECONDS)
         for task in pending:
             task.cancel()
