@@ -16,7 +16,7 @@ For the legacy model, immediate shock overrides require risk-off with risk score
 
 ## Phase 1 measurement chosen in advance
 
-Five years of Yahoo adjusted daily history supplies warm-up, three-year baselines and the displayed trailing 252 trading sessions. A feature is standardized against its preceding 756 valid daily observations using the empirical midrank: 100 × (count below + half the count equal) / 756. The current observation is excluded from the baseline. A constant series ranks 50. Unavailable inputs stay unavailable; they are not replaced by 50. A complete signal family is required for its composite and quadrant classification.
+At least six years of Yahoo adjusted daily history supplies warm-up, three-year baselines and the displayed trailing 252 trading sessions. Six years (queried from January six years ago) leave enough warm-up for a complete 252-day drawdown window before the full 756-day standardization baseline; no baseline is shortened to fill the chart. A feature is standardized against its preceding 756 valid daily observations using the empirical midrank: 100 × (count below + half the count equal) / 756. The current observation is excluded from the baseline. A constant series ranks 50. Unavailable inputs stay unavailable; they are not replaced by 50. A complete signal family is required for its composite and quadrant classification.
 
 Trend features blend calendar 1M/3M/6M returns with weights 0.25/0.50/0.25. These are conventional short/intermediate horizons; the emphasis on the middle horizon is a design choice, not an estimated optimum. Sector breadth uses 200 trading-day moving averages, and claims use four weekly observations. Percentiles of slowly published series are computed on the daily information set, so held observations repeat until their next approximate release. Percentiles measure historical position, not probabilities of a future outcome.
 
@@ -49,3 +49,43 @@ Report change counts on a common eligible sample for persistence N=3/5/10; perce
 ### Legacy stability check, September 30, 2026
 
 On the same trailing 252 observations after the official Treasury correction, raw classifications changed 69 times; persistence N=3/5/10 produced 16/12/5 changes. The pre-correction saved window had 66 changes (the earlier September 29 review reported 65). Five was chosen before these counts and is unchanged. The curve correction and one-session window shift explain why 69, rather than 65, is the appropriate matched baseline.
+
+Weekly publication references: [Chicago Fed NFCI schedule](https://www.chicagofed.org/research/data/nfci/current-data-aws), [Department of Labor weekly claims](https://www.dol.gov/ui/data.pdf). Their usual lags are approximations; holiday schedules and subsequent revisions can differ. Drawdown-window sensitivity also compares 126/252/378 sessions.
+
+## Missing transformation inputs
+
+A derived macro observation is published only when all required months exist. If a newer index month lacks a required comparison month, the model retains the last computable published acceleration with that derived observation's original date and an explicit `held_for_missing_month` flag. It does not interpolate the missing index or discard trading dates. This matters for January 2026's three-month acceleration because FRED CPIAUCSL omits October 2025. Current/latest CPI cards still show their separately available level/YoY readings. Holding a published macro measurement until its next computable update follows the same daily information-set convention as other macro inputs.
+
+
+## Recorded Phase 1 sensitivity, September 30, 2026
+
+All variants use 2025-09-30 through 2026-09-30 (the same 252 trading observations). Counts did not select parameters. Each row changes only the stated setting; confidence counts are High/Medium/Low. The main model has 22 raw changes and 8 official changes.
+
+| Setting | Variant | Raw quadrant changes | Official changes | Stress changes | Confidence counts |
+| --- | --- | ---: | ---: | ---: | --- |
+| persistence | 3 | 22 | 13 | 20 | 5/147/100 |
+| persistence | 5 | 22 | 8 | 20 | 5/136/111 |
+| persistence | 10 | 22 | 4 | 20 | 5/121/126 |
+| baseline | 504 | 28 | 9 | 24 | 8/136/108 |
+| baseline | 630 | 35 | 9 | 22 | 6/125/121 |
+| baseline | 756 | 22 | 8 | 20 | 5/136/111 |
+| horizon weights | equal | 24 | 5 | 24 | 11/134/107 |
+| horizon weights | 0.25/0.5/0.25 | 22 | 8 | 20 | 5/136/111 |
+| breadth ma | 150 | 29 | 7 | 20 | 3/133/116 |
+| breadth ma | 200 | 22 | 8 | 20 | 5/136/111 |
+| breadth ma | 250 | 26 | 7 | 20 | 14/128/110 |
+| claims weeks | 3 | 24 | 8 | 20 | 5/133/114 |
+| claims weeks | 4 | 22 | 8 | 20 | 5/136/111 |
+| claims weeks | 5 | 24 | 8 | 20 | 5/135/112 |
+| drawdown | 126 | 22 | 8 | 20 | 5/136/111 |
+| drawdown | 252 | 22 | 8 | 20 | 5/136/111 |
+| drawdown | 378 | 22 | 8 | 20 | 5/136/111 |
+| stress cuts | (55, 75) | 22 | 8 | 30 | 5/136/111 |
+| stress cuts | (60, 80) | 22 | 8 | 20 | 5/136/111 |
+| stress cuts | (65, 85) | 22 | 8 | 14 | 5/136/111 |
+| strong evidence | 20/0.67 | 22 | 8 | 20 | 5/136/111 |
+| strong evidence | 25/0.75 | 22 | 8 | 20 | 5/136/111 |
+| strong evidence | 30/0.80 | 22 | 8 | 20 | 5/136/111 |
+| confidence cuts | (30, 60) | 22 | 8 | 20 | 29/180/43 |
+| confidence cuts | (40, 70) | 22 | 8 | 20 | 5/136/111 |
+| confidence cuts | (50, 80) | 22 | 8 | 20 | 0/82/170 |

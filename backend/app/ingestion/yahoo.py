@@ -84,7 +84,7 @@ async def fetch_chart(client: httpx.AsyncClient, ticker: str, *, stats=None, his
         try:
             stats["attempts"] += 1
             stats["retries"] = attempt
-            response = await client.get(url, params={"range": history_range, "interval": "1d"})
+            response = await client.get(url, params=({"period1": int(datetime(datetime.now().year - 6, 1, 1, tzinfo=timezone.utc).timestamp()), "period2": int(datetime.now(timezone.utc).timestamp()), "interval": "1d"} if history_range == "6y" else {"range": history_range, "interval": "1d"}))
             stats["responses"] += 1
             stats["http_429"] += response.status_code == 429
             stats["http_401"] += response.status_code == 401
@@ -99,7 +99,7 @@ async def fetch_chart(client: httpx.AsyncClient, ticker: str, *, stats=None, his
     raise AssertionError("unreachable")
 
 
-async def fetch_snapshot(*, fixture_dir=None, history_range="2y") -> dict:
+async def fetch_snapshot(*, fixture_dir=None, history_range="6y") -> dict:
     started = time.perf_counter()
     telemetry = {"symbols": {}, "history_range": history_range}
     now = datetime.now(timezone.utc)

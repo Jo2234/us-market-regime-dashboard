@@ -47,7 +47,7 @@ def test_expired_artifact_survives_remote_failure(monkeypatch):
     def fail(*args, **kwargs):
         calls.append(1)
         raise httpx.ConnectError('offline')
-    monkeypatch.setattr(httpx, 'get', fail)
+    monkeypatch.setattr(artifact, '_download', fail)
     first, _ = artifact.load()
     second, mode = artifact.load()
     assert first.payload == second.payload and mode == 'stale'
