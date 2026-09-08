@@ -90,3 +90,10 @@ def prohibit_network(monkeypatch):
         raise AssertionError("Network access is forbidden in unit tests")
     monkeypatch.setattr(socket.socket, "connect", blocked)
     monkeypatch.setattr(socket, "create_connection", blocked)
+
+@pytest.fixture(autouse=True)
+def stable_default_artifact_clock(monkeypatch):
+    """Recorded artifact tests must not depend on CI's wall clock or refresh it."""
+    from app.services import artifact
+    monkeypatch.setattr(artifact, 'overdue', lambda bundle: False)
+    monkeypatch.setenv('MARKET_REGIME_CLOCK', '2026-10-01T05:00:00Z')

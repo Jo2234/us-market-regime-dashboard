@@ -40,6 +40,8 @@ export interface DataProvenance {
 }
 
 export interface HistoricalRegimePoint {
+  stressScore?: number;
+  emergingLabel?: string | null;
   date: string;
   displayLabel: string;
   riskScore: number;
@@ -107,10 +109,12 @@ export interface RiskAssetMetric {
 }
 
 export interface RegimeSignal {
+  percentile?: number;
+  directionText?: string;
   displayValue?: string;
   rawUnit?: string;
   name: string;
-  category: "risk" | "growth" | "inflation" | "rates" | "volatility";
+  category: "risk" | "growth" | "inflation" | "rates" | "volatility" | "stress" | "dollar";
   value: string;
   direction: "positive" | "negative" | "neutral";
   weight: number;
@@ -138,6 +142,7 @@ export interface MacroValue {
 }
 
 export interface DashboardData {
+  regimeV2?: RegimeV2;
   scheduledFresh?: boolean;
   marketStatus?: { is_open: boolean; session_date: string; refresh_seconds: number; next_open: string };
   quoteStatus?: { cache?: string; fetched_at?: string; refresh_seconds?: number; retry_after_seconds?: number };
@@ -167,4 +172,16 @@ export interface DashboardData {
   breadth: RiskAssetMetric[];
   signals: RegimeSignal[];
   analystNote: AnalystNote;
+}
+
+export interface V2Signal {
+ key:string; name:string; axis:string; raw_value:number; unit:string; percentile:number; direction:string;
+ held_for_missing_month?:boolean; weight:number; observations:Record<string,string>; available_on:string; baseline_count:number;
+}
+export interface RegimeV2 {
+ date:string; quadrant:string; raw_quadrant:string; stress_label:string; headline:string;
+ axis_scores:Record<string,number>; days_in_regime:number; emerging_label:string|null; emerging_days:number;
+ confidence:{label:string; score:number; magnitude:number; agreement:number};
+ signals:V2Signal[]; driver_sentence:string; nearest_flip_note:string;
+ nearest_flips:Array<{key:string; text:string}>;
 }
