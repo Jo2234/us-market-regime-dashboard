@@ -113,7 +113,7 @@ def test_cache_single_flight_partial_failure_and_cooldown(monkeypatch, fred_seri
         results = list(pool.map(lambda _: macro_data.get_snapshot(), range(5)))
     assert len(calls) == 1
     assert all(item[1]["series"]["FEDFUNDS"]["mode"] == "live" for item in results)
-    assert len(macro_data._expires) == len(FRED_SERIES)
+    assert len(macro_data._expires) == len(set(FRED_SERIES.values()))
     async def fail(ids):
         calls.append(ids)
         return {}, {"fetch_ms": 6}
