@@ -120,3 +120,43 @@ def test_open_api_replay_preserves_completed_regime(monkeypatch, empty_conn):
         assert payload['live_quotes']['SPY']['returns']['1d'] < 0
         assert len(payload['historical_regimes']) >= 245
         assert 'demo_seed' not in response.text
+
+
+def test_v2_spark_batches_cover_25_symbols_without_quote_endpoint(monkeypatch):
+    import httpx
+    import asyncio
+    seen=[]
+    async def handle(request):
+        seen.append(request)
+        symbols=request.url.params['symbols'].split(',')
+        assert len(symbols)<=20
+        assert request.url.path=='/v7/finance/spark'
+        assert request.headers['User-Agent']=='Mozilla/5.0'
+        number=1 if 'SPY' in symbols else 2
+        return httpx.Response(200,json=json.loads((FIXTURES/f'spark_v2_{number}.json').read_text()))
+    original=httpx.AsyncClient
+    monkeypatch.setattr(live.httpx,'AsyncClient',lambda **kw:original(**kw,transport=httpx.MockTransport(handle)))
+    quotes,stats=asyncio.run(live.fetch_quotes())
+    assert len(seen)==2 and len(quotes)==25
+    assert stats['http_429']==stats['http_401']==0
+    assert {'^VIX3M','HYG','LQD','RSP','DBC'}<=quotes.keys()
+
+
+def test_v2_quote_failure_keeps_artifact_model_and_official_curve(monkeypatch):
+    from app.services import artifact
+    from app.main import create_app
+    from fastapi.testclient import TestClient
+    monkeypatch.setenv('MARKET_REGIME_CLOCK','2026-10-01T15:00:00Z')
+    monkeypatch.setattr(live,'_cached',{})
+    monkeypatch.setattr(live,'_expires',0)
+    monkeypatch.setattr(live,'_interval',60)
+    async def fail():
+        raise RuntimeError('Recorded outage scenario')
+    monkeypatch.setattr(live,'fetch_quotes',fail)
+    before=artifact.decode(artifact.PATH.read_bytes()).selected()
+    response=TestClient(create_app()).get('/api/dashboard/summary')
+    payload=response.json()
+    assert response.status_code==200 and payload['quote_delivery']['cache']=='stale'
+    assert payload['regime_v2']==before['regime_v2']
+    assert payload['rates_summary']==before['rates_summary']
+    assert payload['live_quotes']=={} and 'demo_seed' not in response.text

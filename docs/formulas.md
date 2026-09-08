@@ -1,72 +1,56 @@
-# Formula notes
+# Formula definitions
+
+This is descriptive research software, not investment advice. [Methodology](methodology.md) contains the fixed parameter choices, information lags, limitations and sensitivity protocol.
 
 ## Prices and returns
 
-`price` is the unadjusted Yahoo daily `close`: the actual last completed close, in USD for ETFs or index points for VIX/DXY. `adjusted_close` is Yahoo's split/distribution-adjusted close. The legacy `value` field remains adjusted close for compatibility. The frontend uses `price`.
-
-Returns are `adjusted_close_at_observation / adjusted_close_at_baseline - 1`, as decimal fractions in the API and percentages in the UI. No raw-close substitution is made when Yahoo adjusted history is missing. All windows end at the actual last observation on or before the requested date:
+Daily `price` is Yahoo's raw completed-session close; `adjusted_close` and legacy `value` include Yahoo's historical split/distribution adjustment. Return = adjusted endpoint / adjusted baseline − 1. A provisional null-bar repair uses the same-session post-close Yahoo meta price and explicitly marks that day's adjustment as pending. Once supplied, Yahoo's actual adjusted bar replaces it.
 
 | Window | Baseline |
 | --- | --- |
-| 1D | Previous available daily close |
-| 1W | Close on or before the date 7 calendar days earlier |
-| 1M | Close on or before the same date 1 calendar month earlier |
-| 3M | Close on or before the same date 3 calendar months earlier |
-| YTD | Last available close on or before December 31 of the preceding year |
-| 1Y | Close on or before the same date 1 calendar year earlier |
+| 1D | Immediately preceding observed trading close |
+| 1W | Close on or before seven calendar days earlier |
+| 1M | Close on or before the same calendar date one month earlier |
+| 3M | Close on or before the same calendar date three months earlier |
+| YTD | Last close of the prior calendar year |
+| 1Y | Close on or before the same calendar date one year earlier |
 
-Month/year offsets clamp to the last valid day (March 31 → February 28/29; February 29 → February 28 in a non-leap year). Holidays/weekends choose the preceding observation. A missing baseline returns null, not a shortened-window return. Indexed charts start at that same baseline, rebased to 100. Calendar windows align with common quote-app conventions, but providers using price-only returns can differ from these adjusted returns.
+Month/year anchors clamp to the last valid day of the destination month. Baselines never look forward. Missing history yields null, not zero. Indexed performance = 100 × adjusted close / baseline adjusted close. Relative sector performance is sector return minus SPY return, expressed in percentage points. Annualized volatility is sample standard deviation of daily adjusted returns × √252. The market-card 52-week maximum drawdown is the worst peak-to-trough adjusted return in the trailing 252 observations.
 
-Moving averages use 50/200 observed sessions of adjusted close. Rolling volatility is the sample standard deviation of daily adjusted returns over 20/60 sessions, annualized by sqrt(252). `drawdown_52w` retains its historical meaning: the worst peak-to-trough adjusted drawdown in the last 252 observations, not today's drawdown. Sector relative performance is sector return minus SPY return; either missing input produces null.
+During NYSE hours additive quotes use regular-market price and timestamp. Intraday 1D = live price / previous raw close − 1. Longer windows use the live price / historical adjusted calendar baseline − 1. A stale/older-session quote never overrides daily values. The daily regime remains on completed closes.
 
-## Yield curve
+## Official rates and macro
 
-The completed-session curve uses FRED DGS3MO, DGS2, DGS5, DGS10 and DGS30, quoted directly in percent. All maturities use their latest common observation date eligible for the model date, with next-business-day publication lag. Official T10Y2Y and T10Y3M are selected on that same date; if unavailable, only an explicitly labelled same-date constant-maturity difference may be calculated. No live Yahoo yield enters these spreads. See [methodology](methodology.md).
+All five Treasury maturities use FRED constant-maturity percent yields on the latest common observation date available by the selected model date. Official T10Y2Y and T10Y3M use that same date; a missing official spread can be calculated from those same-date FRED yields, explicitly identified. No mixed-source or mixed-date spread is permitted. Basis points = percentage-point spread × 100.
 
-## FRED macro inputs
+Headline/core CPI YoY = 100 × (index at month t / index at t−12 months − 1), using CPIAUCSL/CPILFESL. Missing required months yield unavailable. Daily effective Fed funds uses DFF; monthly FEDFUNDS is secondary context. UNRATE is the published percent level.
 
-`FEDFUNDS` retains its API key but now means the latest daily effective rate from **DFF**, in percent. `FEDFUNDS_MONTHLY` supplies the separate monthly average. `UNRATE` is FRED's seasonally adjusted unemployment rate in percent. Monthly observations are not interpolated into daily synthetic readings.
+## Continuous Phase 1 model
 
-Headline `CPI_YOY` uses CPIAUCSL and additive `CORE_CPI_YOY` uses CPILFESL. Both are seasonally adjusted index series. For observation month t:
+For a raw feature x, percentile = 100 × (number of reference observations below x + ½ the number equal to x) / 756. The reference contains the **preceding** 756 valid daily observations; today is excluded. A constant feature ranks 50. Inverted features use 100 − percentile. Each feature has exactly one family, and equal weights sum to one within each family. Missing signals do not get a neutral score; a complete family is required.
 
-`YoY_percent[t] = 100 * (index[t] / index[t minus 12 calendar months] - 1)`.
+Trend = 0.25 × calendar 1M return + 0.50 × 3M return + 0.25 × 6M return. Ratios use adjusted component prices on the same daily information set. Sector breadth is the fraction of the 11 sector ETFs above their 200-observation adjusted moving average. Claims use the four-week mean of published ICSA observations, inverted after standardization. CPI acceleration = 100 × [(CPI[t]/CPI[t−3])⁴ − 1] − CPI YoY. VIX term structure is VIX/VIX3M; above one means front-end volatility exceeds three-month volatility. Stress drawdown is the **current** shortfall from the trailing 252-session high, not the market card's worst historical drawdown. NFCI, breakevens and real yields enter as published levels. Full family membership is in [methodology](methodology.md).
 
-The denominator must be the exact year-ago month, not the twelfth preceding row if months are missing. No match means no derived observation for that month. API values are percentages, rounded to four decimal places; the UI shows two. These seasonally adjusted calculations can differ slightly from published unadjusted headline YoY figures. The raw snapshot retains the indices and full precision. Values dated `2026-08-01` mean **Aug 2026**, not a reading published on August 1.
+Growth and Inflation composites split at 50: high/low = Goldilocks, high/high = Reflation, low/high = Stagflation, low/low = Slowdown. Stress <60 is Calm, 60–<80 Elevated, ≥80 Stressed. Rates context and dollar trend have no quadrant weight.
 
-The existing `cpi_above_target` rule adds one inflation point when **headline CPI YoY > 2.5%**. The threshold and all classification precedence remain unchanged. Core CPI, DFF and unemployment are displayed but do not enter the scores. Missing CPI contributes no point and caps otherwise-high confidence at medium. With the September 28, 2026 market inputs held fixed, restoring August headline CPI (3.3530%) increases raw inflation score from 1 to 2 (UI 65 → 80); Rates pressure remains the label, with medium confidence. Risk 0, growth 0 and rates pressure 2 are unchanged.
+Axis magnitude = 2 × min(|Growth−50|, |Inflation−50|). Agreement is the fraction of Growth/Inflation signals on the official quadrant's side of neutral. Confidence score = (magnitude + agreement percentage)/2; High ≥70, Medium ≥40, otherwise Low. Magnitude is zero while raw and official quadrants disagree. This is not a probability.
 
-FRED returns the latest revised vintage, not ALFRED's point-in-time release history. Historical selections filter observation dates on or before the selected market date, but can include revisions and data published after the observation month. They are descriptive historical views, not valid point-in-time backtests.
+## Persistence and information dates
 
-## Observation dates and freshness
+The official quadrant changes only after five consecutive candidate trading observations, unless both axes are at least 25 points from neutral and ≥75% of relevant signals agree with the candidate. A different candidate restarts the count, returning to official cancels it, and a missing trading observation breaks candidate continuity. History applies the same rule after warm-up. Exposed fields include raw/official labels, days in regime, emerging label/days and strong-override status. Stress is a separate unsmoothed daily overlay.
 
-`as_of` is the last SPY observation present at the requested cutoff, never today's date. Each series includes its own `date`/`observation_date`, Yahoo ticker and source. Yahoo's unfinished current daily bar is excluded until the official NYSE close. The exchange calendar handles US equity holidays, weekends, DST, exceptional closures and early closes.
+Historical inputs respect approximate publication lags: CPI on/after the 15th of next month, unemployment first Friday, monthly Fed funds seventh, daily rates next exchange business day, ICSA observation Saturday +5 days, NFCI observation Friday +5 days. These use latest revised vintage, not point-in-time/ALFRED vintages; holidays and unusual release delays can differ. Monthly/weekly freshness is assessed by its cadence, not by counting equity sessions since the observation month/week.
 
-Freshness compares actual series dates with that latest completed NYSE session; one or more missing completed sessions is stale. FRED has separate cadence-aware policies. Daily DFF allows two completed NYSE sessions of publication lag; this holiday-aware proxy is not an exact FRED release calendar. Monthly CPI allows the previous month, or the month before that through day 20 of the current month. Unemployment and monthly Fed funds use day 10 instead. These conservative grace windows avoid treating naturally lagged monthly observations as stale; they can flag delays later than the exact release calendar. Missing macro coverage is unavailable/partial. September 29 with August CPI/UNRATE and September 25 DFF is fresh. `age_days` is retained as informational calendar age; legacy `stale_after_days` is retained for compatibility but no longer drives status. Aggregate source dates retain the oldest supplied observation; status aggregates the cadence-aware statuses of individual instruments, not their raw calendar ages. `generated_at` is response generation time, `fetched_at` is the original Yahoo fetch time, and `as_of_date` is the latest actual observation. A historical selection remains labelled by its selected observation date while freshness describes the feed's latest stored observations.
+## Arithmetic boundary scenarios
 
-## Regime and storage
+Holding other signal ranks and reference distributions fixed, solve `target rank = current rank + (boundary − composite) / signal weight`. Invert the empirical distribution to the nearest attainable raw value that actually crosses the boundary. Downward crossings require strictly below the threshold; upward crossings include equality. Signals whose required ranks lie outside 0–100 cannot flip that axis alone. Breadth is restricted to integer sector counts. Ratio trends translate to endpoint changes using the fixed historical denominators. Up to three feasible scenarios with the smallest percentile distances are shown; ties use the signal key. A raw flip still requires persistence. Scenarios do not estimate likelihood or future returns.
 
-Regime labels remain deterministic rule outputs. All price signals use adjusted history. Rules expose availability; missing CPI is not described as a failed observation. The note does not infer causality. Scores are descriptive, not probabilities or trading advice.
+## Artifact and history display
 
-Production requests construct an isolated in-memory database from the validated cached Yahoo and FRED datasets, so an old demo SQLite database cannot leak into responses. Historical selections recompute from roughly two years of available bars. `/regime/recalculate` computes a requested backfill, but its database is request-local; it does not create durable serverless history. The default summary includes the cached, deterministic trailing-year history and previous-session change note; the snapshot workflow persists the same derived history.
+All daily calculations run in the scheduled builder and are versioned in a bundled artifact. Visitor requests only load/assemble and optionally refresh live quotes. The 252-point chart uses Growth, Inflation and Stress panels, official-quadrant ribbon and emerging-period dots. Raw curves are steps by default. Optional trailing five-trading-day smoothing affects display only; labels, change counts and inspector values remain raw. Hover, tap/drag and the keyboard date slider inspect the same date and keep snapshot navigation available.
 
-## Intraday endpoints
+Legacy `regime`/`historical_regimes` remain populated for one release and are deprecated. They retain the prior binary-rule scores and `clamp(50 + 15 × score, 0, 100)` display convention plus five-day persistence. The new chart and page use `regime_v2`/`historical_regimes_v2`; they do not rescale v2 percentiles with the legacy formula.
 
-The daily API fields and regime scores use completed sessions. Additive `live_quotes` use timestamped Yahoo regular-market prices during NYSE hours. Intraday 1D = live price / previous raw close − 1; 1W/1M/3M/YTD/1Y = live price / the adjusted historical close at the same calendar baseline defined above − 1. Indexed charts append that live endpoint. Each quote carries its own observation time and stale flag. A stale or older-session quote does not override daily values in the UI; intraday values are explicitly labelled.
+## Provenance and formatting
 
-## Historical regime reconstruction
-
-Classify each available SPY session in the trailing calendar year, with at least 63 preceding price observations for warm-up. Reuse the same thresholds and precedence as the current classifier. Cache by source observation values plus model version and retain a matching derived snapshot; quote-only refreshes leave this history unchanged. The preceding daily classification supplies change notes even on a new serverless instance.
-
-For model inputs on historical date D, select the latest FRED observation whose approximate release date is on/before D: CPI month M on the 15th of M+1, unemployment on the first Friday of M+1, DFF on the next NYSE business day. These are date-level approximations, not exact release timestamps; the data are latest revised vintage. CPI is the only macro variable affecting this model. Fed funds/unemployment do not alter scores. Display scores retain the existing mapping `clamp(50 + 15 × raw score, 0, 100)`; no thresholds were tuned for the resulting labels.
-
-## Historical score display
-
-The chart uses four aligned 0–100 panels and a categorical regime ribbon. Raw daily scores use a step curve by default, preserving the discrete model decisions. The optional 5-day smoothing switch draws the trailing mean of five trading observations (or available observations at the start of the window). It affects display only: daily labels, regime changes, raw inspector scores, API history and snapshot selection are unchanged. The date slider provides keyboard access to the same synchronized inspector as pointer hover/tap/drag.
-
-## Signal value display
-
-API and CSV signal values remain unrounded. The Value column formats fractional returns as percentages (one decimal), differences between fractional returns as percentage points (two decimals), and yield changes/spreads as percentage points (already in that unit). CPI is a percent level; the SPY-minus-MA input is an adjusted USD difference; VIX-minus-average is an index-point difference. A raw-value tooltip identifies the original unit. Support and Pressure show the signal display name first and its evidence second.
-
-## Official-label persistence
-
-Raw daily labels and scores remain visible. The official label changes after five consecutive trading observations of a candidate, or the strong-evidence override documented in [methodology](methodology.md). History applies the same rule after a warm-up; it does not reset at the chart boundary. `raw_label`, `official_label`, `days_in_regime`, `emerging_label` and `emerging_days` are additive fields.
+`as_of` is an actual stored completed trading date. Each series keeps its own observation date, source ID/link and original fetch time. Response generation time is not observation time. UI dates use readable month/day/year text; API/CSV dates remain ISO. Percent returns, percentage-point differences, percent yields, claims counts, ratios and index points are formatted by unit; raw values remain in tooltips/CSV. The signal table shows its oriented percentile, direction and within-axis weight.

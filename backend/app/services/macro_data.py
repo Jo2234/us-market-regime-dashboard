@@ -140,16 +140,20 @@ def delivery_metadata(conn):
     return json.loads(conn.execute("SELECT payload FROM macro_delivery").fetchone()[0]) if exists else {}
 
 
-def freshness(symbol: str, latest: date | None, today: date | None = None) -> dict:
+def freshness(symbol: str, latest: date | None, today: date | None = None, *, expected_session=None) -> dict:
     today = today or datetime.now(timezone.utc).date()
-    if FRED_SERIES.get(symbol) not in MONTHLY_FRED:
-        lag = missed_sessions(latest, latest_completed_session()) if latest else None
+    if symbol in {"ICSA", "NFCI"}:
+        lag = (today - latest).days if latest else None
+        stale = lag is not None and lag > 14
+        policy = "Weekly: allow the observation week, publication lag and the next scheduled weekly release (14 calendar days)."
+    elif FRED_SERIES.get(symbol) not in MONTHLY_FRED:
+        lag = missed_sessions(latest, expected_session or latest_completed_session()) if latest else None
         stale = lag is not None and lag > (2 if symbol == "FEDFUNDS" else 1)
         policy = "Daily FRED: allow one completed business session of publication lag (two for DFF); exchange-calendar proxy."
     else:
         # Conservative publication windows: first ten days for jobs/monthly funds,
         # first twenty for CPI. No invented publication dates or daily resampling.
-        deadline = 20 if symbol.endswith("CPI_YOY") else 10
+        deadline = 20 if FRED_SERIES.get(symbol) in {"CPIAUCSL", "CPILFESL"} else 10
         allowed_months = 2 if today.day <= deadline else 1
         lag = (today.year - latest.year) * 12 + today.month - latest.month if latest else None
         stale = lag is not None and lag > allowed_months
@@ -158,7 +162,7 @@ def freshness(symbol: str, latest: date | None, today: date | None = None) -> di
             "freshness_policy": policy, "missing_sessions": None}
 
 
-def summary(conn, history, as_of):
+def summary(conn, history, as_of, *, freshness_as_of=None):
     from app.services.analytics import latest_macro_value
     delivery = delivery_metadata(conn).get("series", {})
     result = {}
@@ -167,24 +171,33 @@ def summary(conn, history, as_of):
         if value:
             day = date.fromisoformat(value["date"])
             value.update(delivery.get(symbol, {}))
-            value.update(freshness(symbol, day))
+            value.update(freshness(symbol, day, freshness_as_of, expected_session=freshness_as_of))
             value["observation_label"] = day.isoformat() if FRED_SERIES.get(symbol) not in MONTHLY_FRED else day.strftime("%b %Y")
         result[symbol] = value
     return result
 
 
+from functools import lru_cache
+
+
+@lru_cache(maxsize=40000)
 def available_on(symbol, observed):
     """Approximate release date, using revised vintage; not a point-in-time feed."""
     from datetime import timedelta
     from app.services.calendar import session_close
+    if symbol in {"ICSA", "NFCI"}:
+        return observed + timedelta(days=5)
     if FRED_SERIES.get(symbol) not in MONTHLY_FRED:
         day = observed + timedelta(days=1)
         while session_close(day) is None:
             day += timedelta(days=1)
         return day
     month = date(observed.year + (observed.month == 12), observed.month % 12 + 1, 1)
-    if symbol.endswith("CPI_YOY"):
-        return month.replace(day=15)
+    if FRED_SERIES.get(symbol) in {"CPIAUCSL", "CPILFESL"}:
+        day = month.replace(day=15)
+        while session_close(day) is None:
+            day += timedelta(days=1)
+        return day
     if symbol == "UNRATE":
         return month + timedelta(days=(4 - month.weekday()) % 7)
     return month + timedelta(days=6)  # Monthly average: conservative first-week proxy.
