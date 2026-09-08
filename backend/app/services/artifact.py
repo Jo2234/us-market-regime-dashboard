@@ -1,4 +1,5 @@
 """Small visitor path: validated daily artifact, optional bounded quote refresh."""
+import asyncio
 import bisect
 import copy
 import gzip
@@ -50,6 +51,18 @@ def overdue(bundle):
     return date.fromisoformat(bundle.payload['as_of']) < expected
 
 
+def _download():
+    import httpx
+    async def get():
+        async with httpx.AsyncClient(timeout=1.5) as client:
+            response = await client.get(REMOTE)
+            response.raise_for_status()
+            return response.content
+    async def bounded():
+        return await asyncio.wait_for(get(), timeout=1.5)
+    return asyncio.run(bounded())
+
+
 def load(*, cached_only=False):
     global _cached, _checked
     with _lock:
@@ -62,12 +75,10 @@ def load(*, cached_only=False):
                 # Only retrieve a newer precomputed artifact. Never run the model or
                 # hundreds of provider requests inside a visitor request.
                 import httpx
-                response = httpx.get(REMOTE, timeout=httpx.Timeout(1.5), follow_redirects=True)
-                response.raise_for_status()
-                candidate = decode(response.content)
+                candidate = decode(_download())
                 if candidate.payload['as_of'] >= _cached.payload['as_of']:
                     _cached = candidate
-            except (OSError, ValueError, KeyError, httpx.HTTPError):
+            except (OSError, ValueError, KeyError, TimeoutError, httpx.HTTPError):
                 pass  # Preserve the validated real artifact and its original dates.
         return _cached, 'miss' if first else 'stale' if overdue(_cached) else 'hit'
 
@@ -121,14 +132,17 @@ def summary(bundle, requested=None, window='1m', *, cached_only=False):
     from app.services import live_quotes
     day = bundle.selected(requested)
     result = {k: v for k, v in day.items() if k != 'performance_windows'}
+    from app.services.macro_data import freshness as fred_freshness
+    result['macro_summary'] = {symbol: {**item, **fred_freshness(symbol, date.fromisoformat(item['observation_date']), requested or market_now().date(), expected_session=requested)} if item else None for symbol,item in day['macro_summary'].items()}
     result['performance_series'] = day['performance_windows'][window]
     result['historical_regimes'] = [p for p in bundle.payload['history'] if p['date'] <= day['as_of']]
+    result['historical_regimes_v2'] = [p for p in bundle.payload.get('regime_v2_history', []) if p['date'] <= day['as_of']]
     state = market_status()
     quotes, delivery = live_quotes.get_quotes(cached_only=cached_only) if requested is None else ({}, {'cache': 'historical'})
     stale = overdue(bundle)
     result.update(market_status=state, live_quotes=quote_returns(quotes, bundle), quote_delivery=delivery,
                   data_mode='snapshot', fetched_at=bundle.payload['fetched_at'], fetch_ms=delivery.get('fetch_ms', 0),
-                  cache='stale' if stale else 'hit', refresh_pending=False, retry_after_seconds=900 if stale else 0,
+                  cache='stale' if stale else getattr(bundle,'cache','hit'), refresh_pending=False, retry_after_seconds=900 if stale else 0,
                   fetch_diagnostics={'daily_provider_requests': 0, 'model_compute_ms': 0},
                   artifact_delivery={'version': VERSION, 'scheduled': True, 'fresh': not stale, 'as_of': bundle.payload['as_of'], 'built_at': bundle.payload['built_at']},
                   history_delivery={'cache': 'artifact', 'compute_ms': 0, 'points': len(result['historical_regimes'])},

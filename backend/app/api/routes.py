@@ -37,6 +37,7 @@ def get_db(request: Request, cached_only: bool = False):
         # Request-local flag; shared immutable bundle is never mutated.
         view = artifact.Artifact(bundle.payload)
         view.cached_only = cached_only
+        view.cache = cache
         yield view
         return
     with database.session(":memory:") as conn:
