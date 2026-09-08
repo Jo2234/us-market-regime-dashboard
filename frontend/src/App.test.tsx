@@ -416,3 +416,16 @@ it("merges update times and shows formatted values with raw tooltips and named e
   expect(document.querySelector(".mini-list strong")?.textContent).toBe("Nasdaq 100 outperforming S&P 500 (1M)");
   expect(document.querySelector(".mini-list li span")?.textContent).toBe("QQQ outperformed SPY by 3.53 percentage points.");
 });
+
+it("treats a fresh scheduled artifact as normal and avoids failure retries", async () => {
+  vi.useFakeTimers();
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+  mockedFetchDashboardData.mockResolvedValue({ ...demoDashboardData, scheduledFresh:true,
+    provenance:{...demoDashboardData.provenance!,mode:"snapshot"},
+    marketStatus:{is_open:false,session_date:"2026-09-30",refresh_seconds:900,next_open:"2026-10-01"}});
+  render(<App/>);
+  await act(async()=>{await Promise.resolve();});
+  await act(async()=>{vi.advanceTimersByTime(60_000);});
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText(/live refresh unavailable, retrying/i)).not.toBeInTheDocument();
+});

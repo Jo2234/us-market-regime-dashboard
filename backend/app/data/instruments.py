@@ -33,6 +33,16 @@ INSTRUMENTS: tuple[InstrumentDefinition, ...] = (
     InstrumentDefinition("CPER", "United States Copper Index Fund", "commodity", "yahoo_finance"),
     InstrumentDefinition("VIX", "CBOE Volatility Index", "volatility", "yahoo_finance"),
     InstrumentDefinition("DXY", "US Dollar Index", "currency", "yahoo_finance"),
+    InstrumentDefinition("HYG", "High-yield corporate bond ETF", "credit", "yahoo_finance"),
+    InstrumentDefinition("LQD", "Investment-grade corporate bond ETF", "credit", "yahoo_finance"),
+    InstrumentDefinition("RSP", "S&P 500 equal-weight ETF", "breadth", "yahoo_finance"),
+    InstrumentDefinition("VIX3M", "Cboe 3-month volatility index", "volatility", "yahoo_finance"),
+    InstrumentDefinition("DBC", "Broad commodity ETF", "commodity", "yahoo_finance"),
+    InstrumentDefinition("ICSA", "Initial jobless claims", "macro_context", "fred", "weekly"),
+    InstrumentDefinition("NFCI", "Chicago Fed financial conditions", "macro_context", "fred", "weekly"),
+    InstrumentDefinition("T10YIE", "10-year breakeven inflation", "macro_context", "fred"),
+    InstrumentDefinition("DFII10", "10-year real Treasury yield", "macro_context", "fred"),
+    InstrumentDefinition("CPI_INDEX", "Headline CPI index", "macro_context", "fred", "monthly"),
     InstrumentDefinition("DGS3MO", "3-month Treasury", "rates", "fred"),
     InstrumentDefinition("DGS2", "2-year Treasury", "rates", "fred"),
     InstrumentDefinition("DGS5", "5-year Treasury", "rates", "fred"),
@@ -54,19 +64,20 @@ RATE_SYMBOLS = ("DGS3MO", "DGS2", "DGS5", "DGS10", "DGS30")
 MACRO_SYMBOLS = ("FEDFUNDS", "CPI_YOY", "UNRATE", "CORE_CPI_YOY", "FEDFUNDS_MONTHLY")
 FRED_SERIES = {"FEDFUNDS": "DFF", "CPI_YOY": "CPIAUCSL", "UNRATE": "UNRATE",
                "CORE_CPI_YOY": "CPILFESL", "FEDFUNDS_MONTHLY": "FEDFUNDS",
-               **{s: s for s in RATE_SYMBOLS + ("T10Y2Y", "T10Y3M")}}
+               **{s: s for s in RATE_SYMBOLS + ("T10Y2Y", "T10Y3M", "ICSA", "NFCI", "T10YIE", "DFII10")}, "CPI_INDEX": "CPIAUCSL"}
 MONTHLY_FRED = {"CPIAUCSL", "CPILFESL", "UNRATE", "FEDFUNDS"}
 PRICE_SYMBOLS = (
     INDEX_SYMBOLS
     + SECTOR_SYMBOLS
     + COMMODITY_SYMBOLS
-    + ("VIX", "DXY")
+    + ("VIX", "DXY", "HYG", "LQD", "RSP", "VIX3M", "DBC")
 )
 
 # Canonical internal ID -> Yahoo symbol; official Treasury yields use FRED.
 YAHOO_TICKERS = {
     **{symbol: symbol for symbol in INDEX_SYMBOLS + SECTOR_SYMBOLS + COMMODITY_SYMBOLS},
-    "VIX": "^VIX", "DXY": "DX-Y.NYB",
+    "VIX": "^VIX", "DXY": "DX-Y.NYB", "VIX3M": "^VIX3M",
+    **{s:s for s in ("HYG", "LQD", "RSP", "DBC")},
 }
 
 def provenance(symbol: str) -> dict:
@@ -74,8 +85,8 @@ def provenance(symbol: str) -> dict:
         series_id = FRED_SERIES[symbol]
         return {"yahoo_ticker": None, "fred_series_id": series_id,
                 "source_url": f"https://fred.stlouisfed.org/series/{series_id}",
-                "unit": "percent", "instrument_type": "treasury_yield" if symbol in RATE_SYMBOLS else "macro",
-                "frequency": "monthly" if series_id in MONTHLY_FRED else "daily",
+                "unit": "claims" if symbol == "ICSA" else "index_points" if symbol in {"NFCI", "CPI_INDEX"} else "percentage_points" if symbol in {"T10Y2Y", "T10Y3M"} else "percent", "instrument_type": "treasury_yield" if symbol in RATE_SYMBOLS else "macro",
+                "frequency": "monthly" if series_id in MONTHLY_FRED else "weekly" if series_id in {"ICSA", "NFCI"} else "daily",
                 "transformation": "year_over_year_percent" if symbol.endswith("CPI_YOY") else "level",
                 "label": next(item.name for item in INSTRUMENTS if item.symbol == symbol)}
     return {

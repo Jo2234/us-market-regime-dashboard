@@ -1,7 +1,8 @@
+import { applyV2 } from "./regimeV2";
 import displayLabels from "../../backend/app/data/display_labels.json";
 import { sentenceCase } from "./utils";
 import { formatSignalValue } from "./signalFormatting";
-import type { DashboardData, FreshnessSource, RangeKey, RegimeSignal, ChartPoint, MacroValue } from "./types";
+import type { DashboardData, FreshnessSource, RangeKey, RegimeSignal, ChartPoint, MacroValue, RegimeV2 } from "./types";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
@@ -34,6 +35,8 @@ type BackendSummary = {
   quote_delivery?: DashboardData["quoteStatus"];
   live_quotes?: Record<string, LiveQuote>;
   as_of: string;
+  regime_v2?: RegimeV2 | null;
+  historical_regimes_v2?: Array<{ date:string; quadrant:string; axis_scores:Record<string,number>; emerging_label:string|null; emerging_days:number; days_in_regime:number }>;
   artifact_delivery?: { scheduled?: boolean; fresh?: boolean };
   data_mode?: "live" | "snapshot" | "demo";
   fetched_at?: string;
@@ -240,7 +243,7 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
     DGS30: ["30Y", 30]
   };
 
-  return {
+  const data: DashboardData = {
     scheduledFresh: Boolean(payload.artifact_delivery?.scheduled && payload.artifact_delivery?.fresh),
     marketStatus: payload.market_status,
     quoteStatus: payload.quote_delivery,
@@ -363,6 +366,15 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
       watchItems: payload.regime.signals.top_negative.slice(0, 3).map((signal) => signal.evidence)
     }
   };
+  if (payload.regime_v2) {
+    applyV2(data,payload.regime_v2);
+    data.historicalRegimes=(payload.historical_regimes_v2??[]).map(p=>({date:p.date,displayLabel:p.quadrant,
+      growthScore:p.axis_scores.Growth,inflationScore:p.axis_scores.Inflation,stressScore:p.axis_scores.Stress,
+      riskScore:p.axis_scores.Stress,ratesPressureScore:p.axis_scores.Rates,emergingLabel:p.emerging_label,
+      note:p.emerging_label?`Emerging: ${p.emerging_label} (${p.emerging_days} of 5 days). Official quadrant, day ${p.days_in_regime}.`:`Official quadrant, day ${p.days_in_regime}.`}));
+  }
+  if (data.intraday && data.provenance) data.provenance.mode = "live";
+  return data;
 }
 
 function sourceLabels(rows: Array<{ source?: string }>): string[] {
