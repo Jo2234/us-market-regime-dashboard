@@ -117,7 +117,7 @@ def series(symbol: str, start: date | None = None, end: date | None = None, conn
 @router.get("/sectors/performance", response_model=SectorPerformanceResponse)
 def sectors_performance(windows: str = "1d,1w,1m,3m,ytd,1y", date_: Annotated[date | None, Query(alias="date")] = None, conn=Depends(get_db)):
     parsed = _parse_windows(windows)
-    return {"data_mode": ("snapshot" if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["mode"]), "fetched_at": (conn.payload["fetched_at"] if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["fetched_at"]), "windows": parsed, "sectors": (conn.selected(date_)["sectors"] if isinstance(conn, artifact.Artifact) else analytics.sector_performance(conn, parsed, date_))}
+    return {"data_mode": ("snapshot" if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["mode"]), "fetched_at": (conn.payload["fetched_at"] if isinstance(conn, artifact.Artifact) else delivery_metadata(conn)["fetched_at"]), "windows": parsed, "sectors": (artifact.sectors(conn, parsed, date_) if isinstance(conn, artifact.Artifact) else analytics.sector_performance(conn, parsed, date_))}
 
 
 @router.get("/rates/yield-curve", response_model=YieldCurveResponse)
@@ -143,7 +143,7 @@ def data_freshness_endpoint(conn=Depends(get_db)):
 @router.get("/export/sectors.csv")
 def export_sectors_csv(windows: str = "1d,1w,1m,3m,ytd,1y", date_: Annotated[date | None, Query(alias="date")] = None, conn=Depends(get_db)):
     parsed = _parse_windows(windows)
-    rows = (conn.selected(date_)["sectors"] if isinstance(conn, artifact.Artifact) else analytics.sector_performance(conn, parsed, date_))
+    rows = (artifact.sectors(conn, parsed, date_) if isinstance(conn, artifact.Artifact) else analytics.sector_performance(conn, parsed, date_))
     fieldnames = ["symbol"] + [f"return_{window}" for window in parsed] + [f"relative_to_spy_{window}" for window in parsed]
     flat_rows = [
         {
