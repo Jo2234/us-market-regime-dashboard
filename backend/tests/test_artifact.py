@@ -52,3 +52,15 @@ def test_expired_artifact_survives_remote_failure(monkeypatch):
     second, mode = artifact.load()
     assert first.payload == second.payload and mode == 'stale'
     assert len(calls) == 1
+
+
+def test_sector_endpoint_preserves_requested_window_order():
+    from app.main import create_app
+    with TestClient(create_app()) as client:
+        daily = client.get('/api/sectors/performance?windows=1d').json()
+        monthly = client.get('/api/sectors/performance?windows=1m').json()
+    assert daily['windows'] == ['1d']
+    assert [r['symbol'] for r in daily['sectors']] != [r['symbol'] for r in monthly['sectors']]
+    values = [r['returns']['1d'] for r in daily['sectors']]
+    assert values == sorted(values, reverse=True)
+    assert all(set(r['returns']) == {'1d'} and set(r['relative_to_spy']) == {'1d'} for r in daily['sectors'])
