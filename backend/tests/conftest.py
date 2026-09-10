@@ -93,7 +93,13 @@ def prohibit_network(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def stable_default_artifact_clock(monkeypatch):
-    """Recorded artifact tests must not depend on CI's wall clock or refresh it."""
+    """Recorded artifact tests must not depend on CI's wall clock or refresh it.
+
+    The default clock is one minute after the committed artifact was built, so the
+    real artifact is genuinely current and scheduled data commits cannot make the
+    committed snapshots look like future observations."""
+    import json
+    from datetime import datetime, timedelta
     from app.services import artifact
-    monkeypatch.setattr(artifact, 'overdue', lambda bundle: False)
-    monkeypatch.setenv('MARKET_REGIME_CLOCK', '2026-10-01T05:00:00Z')
+    built = datetime.fromisoformat(json.loads(artifact.MANIFEST_PATH.read_text())['built_at'])
+    monkeypatch.setenv('MARKET_REGIME_CLOCK', (built + timedelta(minutes=1)).isoformat())
