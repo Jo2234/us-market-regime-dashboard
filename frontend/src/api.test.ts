@@ -221,3 +221,44 @@ it("keeps unrounded signal values while exposing display units and support names
   expect(result.regime.positiveSignals[0]).toBe("Nasdaq 100 outperforming S&P 500 (1M)");
   expect(result.partial).toBe(false);
 });
+
+it("preserves stale observation dates while marking delivery pending", async () => {
+  const { adaptBackendSummary } = await import("./api");
+  const input = summary();
+  input.data_mode = "snapshot";
+  input.artifact_delivery = { scheduled: true, fresh: true, status: "pending", as_of: "2026-10-02",
+    expected_session: "2026-10-05", delivery_deadline: "2026-10-05T22:00:00Z", view: "latest" };
+  input.data_freshness.instruments = [{ asset_class: "equity_index", symbol: "SPY", source: "yahoo_finance",
+    latest_date: "2026-10-02", age_days: 3, is_stale: true, delivery_state: "pending" }];
+  const result = adaptBackendSummary(input);
+  expect(result.scheduledFresh).toBe(true); // Legacy means delivery grace has not expired.
+  expect(result.artifactDelivery?.status).toBe("pending");
+  expect(result.stale).toBe(true);
+  expect(result.freshness[0]).toMatchObject({ latestDate: "2026-10-02", status: "stale", deliveryState: "pending" });
+  expect(result.provenance?.description).toMatch(/Awaiting the next scheduled/);
+});
+
+it("keeps overdue research distinct from fresh intraday quotes", async () => {
+  const { adaptBackendSummary } = await import("./api");
+  const input = summary();
+  input.data_mode = "snapshot";
+  input.artifact_delivery = { scheduled: true, fresh: false, status: "overdue", as_of: "2026-10-02" };
+  input.market_status = { is_open: true, session_date: "2026-10-06", refresh_seconds: 60, next_open: "2026-10-07" };
+  input.live_quotes = { SPY: { price: 700, observation_date: "2026-10-06", observed_at: "2026-10-06T14:00:00Z", is_current_session: true, is_stale: false } };
+  const result = adaptBackendSummary(input);
+  expect(result.intraday).toBe(true);
+  expect(result.scheduledFresh).toBe(false);
+  expect(result.artifactDelivery?.status).toBe("overdue");
+  expect(result.provenance?.description).toMatch(/research update is overdue/);
+});
+
+it("secondary monthly context cannot turn a current source into pending", async () => {
+  const { adaptBackendSummary } = await import("./api");
+  const input = summary();
+  input.data_freshness.instruments = [
+    { asset_class: "macro", symbol: "FEDFUNDS", latest_date: "2026-10-02", age_days: 3, is_stale: false, delivery_state: "current" },
+    { asset_class: "macro", symbol: "FEDFUNDS_MONTHLY", latest_date: "2026-08-01", age_days: 65, is_stale: true,
+      delivery_state: "overdue", affects_group_freshness: false },
+  ];
+  expect(adaptBackendSummary(input).freshness[0]).toMatchObject({ status: "fresh", deliveryState: "current" });
+});
