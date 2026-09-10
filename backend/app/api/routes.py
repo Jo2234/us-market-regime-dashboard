@@ -38,6 +38,7 @@ def get_db(request: Request, cached_only: bool = False):
         view = artifact.Artifact(bundle.payload)
         view.cached_only = cached_only
         view.cache = cache
+        view.origin = bundle.origin
         yield view
         return
     with database.session(":memory:") as conn:
