@@ -68,8 +68,27 @@ def build():
                    'stability_sensitivity':regimes['stability_sensitivity'],
                    'regime_v2_baselines':model['baselines'], 'regime_v2_history':[{k:r[k] for k in ('date','quadrant','raw_quadrant','stress_label','axis_scores','days_in_regime','emerging_label','emerging_days')} for r in model['snapshots']]}
     encoded = gzip.compress(json.dumps(payload,sort_keys=True,separators=(',',':'),allow_nan=False).encode(),mtime=0)
-    artifact.PATH.write_bytes(encoded)
+    write(encoded)
     print(f'Daily artifact: {len(days)} dates, {len(encoded):,} compressed bytes')
 
+
+def write(encoded):
+    """Validate, then atomically replace the artifact and its manifest (artifact first)."""
+    listed = artifact.manifest(encoded)
+    for path, content in ((artifact.PATH, encoded), (artifact.MANIFEST_PATH, (json.dumps(listed, sort_keys=True, indent=1) + '\n').encode())):
+        temporary = path.with_name(path.name + '.tmp')
+        temporary.write_bytes(content)
+        temporary.replace(path)
+
+
+def check():
+    """Fail unless the committed artifact decodes and its manifest describes exactly it."""
+    encoded = artifact.PATH.read_bytes()
+    listed = json.loads(artifact.MANIFEST_PATH.read_text())
+    if listed != artifact.manifest(encoded):
+        raise SystemExit('Artifact manifest does not match dashboard_artifact.json.gz')
+    print(f"Artifact valid: as_of {listed['as_of']}, built_at {listed['built_at']}")
+
+
 if __name__ == '__main__':
-    build()
+    check() if sys.argv[1:] == ['--check'] else build()
