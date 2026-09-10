@@ -13,33 +13,59 @@ Compact market dashboard API with seeded market data, return calculations, volat
 
 - `GET /data/freshness` exposes whether the demo data is current enough for the dashboard.
 - `GET /export/sectors.csv` and `GET /export/series/{symbol}.csv` make the underlying data downloadable.
-- Backend tests cover the API and seeded data behavior; root tests cover broader project behavior.
+- Backend tests cover the application entrypoint, API, seeded data, analytics and regime behavior.
 
 ## Run
 
-```bash
-cd projects/us-market-regime-dashboard
-PYTHONPATH=backend uvicorn app.main:app --reload --port 8002
-```
+Use Python 3.11+ and Node.js 22+. Start from the repository root.
 
-Open `frontend/index.html` directly in a browser or serve it with:
+Install the backend dependencies and start the API:
 
 ```bash
-python3 -m http.server 5174 -d frontend
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r backend/requirements.txt
+PYTHONPATH=backend python -m uvicorn app.main:app --reload --port 8000
 ```
+
+In a second terminal, start the Vite/React/TypeScript frontend:
+
+```bash
+cd frontend
+npm ci
+cp .env.example .env.local
+npm run dev -- --port 5173
+```
+
+Open <http://localhost:5173>. The example frontend environment selects the API at
+<http://localhost:8000>, with embedded demo mode disabled. The API documentation is
+available at <http://localhost:8000/docs>. If you use another API address, update
+`VITE_API_BASE_URL` in `frontend/.env.local` and restart Vite.
+
+To verify a production build locally, stop the frontend dev server and run from
+`frontend/`:
+
+```bash
+npm run build
+npm run preview -- --port 5173
+```
+
+Vite writes the built site to `frontend/dist`. Keep the API running when viewing
+this local preview. Production deployment uses `vercel.json`; without a local
+`VITE_API_BASE_URL` override, the built frontend calls the same-origin `/api` routes.
 
 ## Test
 
+With the backend virtual environment active, run from the repository root:
+
 ```bash
-cd projects/us-market-regime-dashboard
-PYTHONPATH=.:backend pytest backend/tests tests
+PYTHONPATH=backend python -m pytest backend/tests
 ```
 
-For backend-only work, this shorter command is equivalent:
+Run frontend tests from `frontend/`:
 
 ```bash
-cd projects/us-market-regime-dashboard/backend
-PYTHONPATH=. pytest
+npm test
 ```
 
 ## Data And Exports
