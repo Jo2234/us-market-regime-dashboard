@@ -2,10 +2,30 @@ export type RangeKey = "1D" | "1W" | "1M" | "3M" | "YTD" | "1Y";
 
 export type FreshnessStatus = "fresh" | "stale" | "partial" | "error" | "no_key";
 
+export type DeliveryState = "current" | "pending" | "overdue" | "unavailable";
+
+export interface ArtifactDelivery {
+  status?: "current" | "pending" | "overdue";
+  scheduled?: boolean;
+  fresh?: boolean;
+  pending?: boolean;
+  overdue?: boolean;
+  as_of?: string;
+  built_at?: string;
+  evaluated_at?: string;
+  expected_session?: string;
+  delivery_deadline?: string;
+  overdue_since?: string | null;
+  view?: "latest" | "historical";
+  requested_date?: string | null;
+  origin?: string;
+}
+
 export interface FreshnessSource {
   name: string;
   latestDate: string | null;
   status: FreshnessStatus;
+  deliveryState?: DeliveryState;
   lagDays: number | null;
   note?: string;
 }
@@ -139,11 +159,14 @@ export interface MacroValue {
   scheduled?: boolean;
   fetched_at?: string;
   is_stale?: boolean;
+  delivery_state?: DeliveryState;
 }
 
 export interface DashboardData {
   regimeV2?: RegimeV2;
   scheduledFresh?: boolean;
+  artifactDelivery?: ArtifactDelivery;
+  cachedSnapshot?: boolean;
   marketStatus?: { is_open: boolean; session_date: string; refresh_seconds: number; next_open: string };
   quoteStatus?: { cache?: string; fetched_at?: string; refresh_seconds?: number; retry_after_seconds?: number };
   intraday?: boolean;
