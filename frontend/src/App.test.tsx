@@ -429,3 +429,51 @@ it("treats a fresh scheduled artifact as normal and avoids failure retries", asy
   expect(mockedFetchDashboardData).toHaveBeenCalledTimes(1);
   expect(screen.queryByText(/live refresh unavailable, retrying/i)).not.toBeInTheDocument();
 });
+
+it("shows pending research and stale dates without a false failure banner or fast retry", async () => {
+  vi.useFakeTimers();
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+  mockedFetchDashboardData.mockResolvedValue({ ...demoDashboardData, scheduledFresh: true, stale: true, partial: true,
+    selectedDate: "2026-10-02", provenance: { ...demoDashboardData.provenance!, mode: "snapshot" },
+    artifactDelivery: { status: "pending", fresh: true, view: "latest", as_of: "2026-10-02", expected_session: "2026-10-05", delivery_deadline: "2026-10-05T22:00:00Z" },
+    freshness: [{ name: "Equity indices", latestDate: "2026-10-02", status: "stale", lagDays: 3, deliveryState: "pending" }],
+    marketStatus: { is_open: false, session_date: "2026-10-05", refresh_seconds: 900, next_open: "2026-10-06" },
+  });
+  render(<App />);
+  await act(async () => { await Promise.resolve(); });
+  expect(screen.getByText("Awaiting scheduled delivery")).toBeInTheDocument();
+  expect(screen.getByText(/Awaiting scheduled research snapshot for Oct 5, 2026/)).toHaveTextContent("Showing Oct 2, 2026 observations");
+  expect(screen.getByText("Stale · Awaiting scheduled delivery")).toBeInTheDocument();
+  expect(screen.getByText("Previous completed daily close · awaiting research delivery")).toBeInTheDocument();
+  expect(screen.queryByText("Partial snapshot: at least one feed is delayed or missing latest observations.")).not.toBeInTheDocument();
+  await act(async () => { vi.advanceTimersByTime(60_000); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(1);
+});
+
+it("warns research is overdue while continuing minute intraday quote polling", async () => {
+  vi.useFakeTimers();
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+  mockedFetchDashboardData.mockResolvedValue({ ...demoDashboardData, scheduledFresh: false, intraday: true,
+    retryAfterSeconds: 900, selectedDate: "2026-10-02", provenance: { ...demoDashboardData.provenance!, mode: "snapshot" },
+    artifactDelivery: { status: "overdue", fresh: false, view: "latest", as_of: "2026-10-02", expected_session: "2026-10-05", delivery_deadline: "2026-10-05T22:00:00Z" },
+    marketStatus: { is_open: true, session_date: "2026-10-06", refresh_seconds: 60, next_open: "2026-10-07" },
+    quoteStatus: { cache: "hit", refresh_seconds: 60 },
+  });
+  render(<App />);
+  await act(async () => { await Promise.resolve(); });
+  expect(screen.getByText("Research overdue")).toBeInTheDocument();
+  expect(screen.getByText(/Research update overdue. Latest completed session: Oct 5, 2026/)).toHaveTextContent("Showing Oct 2, 2026 observations");
+  expect(screen.queryByText(/live refresh unavailable, retrying automatically/)).not.toBeInTheDocument();
+  await act(async () => { vi.advanceTimersByTime(60_000); await Promise.resolve(); });
+  expect(mockedFetchDashboardData).toHaveBeenCalledTimes(2);
+});
+
+it("labels historical view separately from latest artifact delivery", async () => {
+  mockedFetchDashboardData.mockResolvedValue({ ...demoDashboardData,
+    artifactDelivery: { status: "pending", view: "historical", requested_date: "2026-09-15" },
+  });
+  render(<App />);
+  expect(await screen.findByText("Historical snapshot")).toBeInTheDocument();
+  expect(screen.getByText("Latest stored artifact source dates · Historical prices use the selected snapshot.")).toBeInTheDocument();
+  expect(screen.queryByText(/Awaiting scheduled research snapshot for/)).not.toBeInTheDocument();
+});

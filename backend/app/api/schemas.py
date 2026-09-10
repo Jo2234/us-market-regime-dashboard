@@ -32,6 +32,12 @@ class YieldCurveResponse(BaseModel):
 
 class FreshnessResponse(BaseModel):
     expected_session_date: str | None = None
+    # Artifact path only: latest session whose delivery deadline has passed,
+    # that deadline for the expected session, and current/pending/overdue.
+    required_session_date: str | None = None
+    delivery_deadline: str | None = None
+    artifact_status: str | None = None
+    grace_seconds: int | None = None
     data_mode: str | None = None
     fetched_at: str | None = None
     overall_latest_date: str | None
