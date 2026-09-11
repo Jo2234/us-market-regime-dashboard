@@ -37,7 +37,7 @@ type BackendSummary = {
   as_of: string;
   regime_v2?: RegimeV2 | null;
   historical_regimes_v2?: Array<{ date:string; quadrant:string; axis_scores:Record<string,number>; emerging_label:string|null; emerging_days:number; days_in_regime:number }>;
-  artifact_delivery?: { scheduled?: boolean; fresh?: boolean };
+  artifact_delivery?: DashboardData["artifactDelivery"];
   data_mode?: "live" | "snapshot" | "demo";
   fetched_at?: string;
   cache?: "hit" | "miss" | "stale";
@@ -91,6 +91,7 @@ type BackendSummary = {
       latest_date: string | null;
       age_days: number | null;
       is_stale: boolean;
+      delivery_state?: FreshnessSource["deliveryState"];
       affects_group_freshness?: boolean;
     }>;
   };
@@ -245,6 +246,7 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
 
   const data: DashboardData = {
     scheduledFresh: Boolean(payload.artifact_delivery?.scheduled && payload.artifact_delivery?.fresh),
+    artifactDelivery: payload.artifact_delivery,
     marketStatus: payload.market_status,
     quoteStatus: payload.quote_delivery,
     intraday: Boolean(payload.market_status?.is_open && Object.values(payload.live_quotes ?? {}).some(q => q.is_current_session && !q.is_stale)),
@@ -272,7 +274,13 @@ export function adaptBackendSummary(raw: BackendSummary): DashboardData {
     provenance: {
       mode: payload.data_mode === "snapshot" ? "snapshot" : payload.data_mode === "live" ? "live" : onlyDemoSources ? "demo" : hasDemoSource ? "mixed" : "api",
       description: payload.data_mode === "snapshot"
-        ? payload.artifact_delivery?.fresh ? "Scheduled daily research snapshot from Yahoo Finance and FRED, with original observation dates. Live quotes refresh during NYSE hours." : "Saved real observations; the scheduled update is overdue."
+        ? payload.artifact_delivery?.view === "historical"
+          ? "Historical research snapshot with original observation dates. Current artifact delivery is reported separately."
+          : payload.artifact_delivery?.status === "pending"
+            ? "Awaiting the next scheduled research snapshot; source observations remain dated to the previous completed session. This status does not confirm a running job."
+            : payload.artifact_delivery?.status === "overdue" || payload.artifact_delivery?.fresh === false
+              ? "Saved real observations; the scheduled research update is overdue. Live quote freshness is separate."
+              : "Scheduled daily research snapshot from Yahoo Finance and FRED, with original observation dates. Live quotes refresh during NYSE hours."
         : payload.data_mode === "live"
           ? "Yahoo Finance quotes refresh every 60 seconds during NYSE hours; closed markets show completed daily closes. Longer returns use adjusted history with a live endpoint intraday. The regime model uses completed daily closes."
           : onlyDemoSources
@@ -399,12 +407,15 @@ function adaptFreshness(rows: BackendSummary["data_freshness"]["instruments"]): 
     const dates = items.flatMap((item) => item.latest_date ? [item.latest_date] : []).sort();
     const lagDays = items.reduce<number | null>((largest, item) => item.age_days === null ? largest : Math.max(largest ?? 0, item.age_days), null);
     const stale = items.some((item) => item.is_stale && item.affects_group_freshness !== false);
+    const states = items.filter(item => item.affects_group_freshness !== false).map(item => item.delivery_state);
+    const deliveryState = (["overdue", "unavailable", "pending", "current"] as const).find(state => states.includes(state));
     const sources = sourceLabels(items);
     return {
       name: labels[assetClass] ?? sentenceCase(assetClass),
       latestDate: dates[0] ?? null,
       status: dates.length < items.length ? "partial" : stale ? "stale" : "fresh",
       lagDays,
+      deliveryState,
       note: sources.length ? `Reported sources: ${sources.map(source => displayLabels.sources[source as keyof typeof displayLabels.sources] ?? sentenceCase(source)).join(", ")}.` : "Source metadata was not supplied by the API."
     };
   });
