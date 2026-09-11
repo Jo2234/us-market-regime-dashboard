@@ -40,6 +40,13 @@ def session_close(day: date) -> datetime | None:
     return datetime.fromtimestamp(closes[index], timezone.utc)
 
 
+def next_session(day: date) -> date | None:
+    """First NYSE session strictly after ``day``; None beyond the checked-in calendar."""
+    dates, _, _ = _schedule()
+    index = bisect.bisect_right(dates, day)
+    return dates[index] if index < len(dates) else None
+
+
 def market_now():
     """Clock override is restricted to local/preview verification, never production."""
     override = os.getenv("MARKET_REGIME_CLOCK")
