@@ -17,6 +17,23 @@ afterEach(() => {
 });
 
 describe("App dashboard states", () => {
+  it.each([
+    { mode: "demo" as const, label: "Demo data" },
+    { mode: "api" as const, label: "API data" },
+    { mode: "mixed" as const, label: "Mixed sources" }
+  ])("renders $label independently of API transport", async ({ mode, label }) => {
+    mockedFetchDashboardData.mockResolvedValue({
+      ...demoDashboardData,
+      sourceMode: "api",
+      apiBaseUrl: "/api",
+      provenance: { ...demoDashboardData.provenance!, mode }
+    });
+    render(<App />);
+    expect(await screen.findByText(label)).toBeInTheDocument();
+    expect(screen.getByText("API: /api")).toBeInTheDocument();
+    expect(screen.queryByText(/^live$/i)).not.toBeInTheDocument();
+  });
+
   it("renders stale, partial, and optional-provider status states", async () => {
     mockedFetchDashboardData.mockResolvedValue(demoDashboardData);
 
