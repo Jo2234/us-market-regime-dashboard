@@ -10,6 +10,13 @@ try {
   for (const [name, width, height] of [['desktop', 1440, 900], ['mobile', 375, 812]]) {
     const page = await browser.newPage({ viewport: { width, height }, hasTouch: name === 'mobile', isMobile: name === 'mobile', reducedMotion: 'reduce' });
     const errors = [];
+    if (process.env.PLAYWRIGHT_OFFLINE === '1') {
+      if (!process.env.PLAYWRIGHT_API_FIXTURE || !['localhost', '127.0.0.1'].includes(new URL(origin).hostname)) {
+        throw new Error('Offline verification requires a fixture and loopback origin');
+      }
+      await page.route('**/*', route => new URL(route.request().url()).origin === new URL(origin).origin
+        ? route.continue() : route.abort());
+    }
     if (process.env.PLAYWRIGHT_API_FIXTURE) {
       const body = await readFile(process.env.PLAYWRIGHT_API_FIXTURE, 'utf8');
       await page.route('**/api/dashboard/summary*', route => route.fulfill({ contentType: 'application/json', body }));
@@ -42,7 +49,14 @@ try {
       const price = api.market_status?.is_open && quote?.is_current_session && !quote?.is_stale ? quote.price : item.price;
       if (!state.text.includes(price.toFixed(2))) throw new Error(`${symbol} price does not match the API`);
     }
-    if (state.text.includes('Partial freshness') || state.header?.includes('Last updated')) throw new Error('Freshness or duplicate timestamp regression');
+    // Delayed/missing sources are legitimate warnings, never a reason to hide
+    // stale data just to pass browser QA. Check agreement with the API instead.
+    if (state.header?.includes('Last updated')) throw new Error('Duplicate timestamp regression');
+    const delivery = api.artifact_delivery;
+    if (delivery?.view === 'historical' && state.freshness !== 'Historical snapshot') throw new Error('Historical view label mismatch');
+    if (delivery?.view !== 'historical' && delivery?.status === 'pending' && !state.text.includes('Awaiting scheduled research snapshot')) throw new Error('Pending research label missing');
+    if (delivery?.view !== 'historical' && delivery?.status === 'overdue' && state.freshness !== 'Research overdue') throw new Error('Overdue research label missing');
+    if (state.freshness === 'Fresh' && api.data_freshness.instruments.some(row => row.affects_group_freshness !== false && (row.is_stale || !row.latest_date))) throw new Error('False fresh source label');
     if (await page.locator('.history-chart .score-panel').count() !== (api.regime_v2 ? 3 : 4)) throw new Error('Missing small multiples');
     if ((await page.locator('.signal-value').allTextContents()).some(value => /\.\d{4,}/.test(value))) throw new Error('Unformatted signal values');
     await page.screenshot({ path: new URL(`${name}-overview.png`, directory).pathname });
