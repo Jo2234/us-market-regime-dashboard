@@ -58,19 +58,30 @@ backend build dependencies run on GitHub, not in the RP watchdog. Keep the Mac
 logged in, awake and reachable. A user LaunchAgent runs in that user's GUI login
 session. RP sleep, logout, reboot before login or an offline network stops ticks.
 
+On macOS, keep the checkout and physically resolved Python/gh executables outside
+`Documents`, `Desktop` and `Downloads` unless background access has been explicitly
+permitted. Privacy controls can allow an interactive terminal to read a path while
+blocking a LaunchAgent. A symlink outside those folders still depends on access to
+its target; inspect the resolved locations, not just the paths in the plist. RP's
+deployment required moving both the checkout and the gh binary out of `Documents`.
+An executable copy contains no login credentials; gh continues to use the operator's
+existing local login. Keep the ledger/state directory when relocating or reinstalling.
+
 Example operator setup (adjust persistent executable/checkout paths):
 
 ```sh
 # Use a reviewed persistent checkout containing this revision.
-CHECKOUT="$HOME/Documents/Codex/services/us-market-regime-dashboard"
-WATCHDOG_PYTHON="/absolute/persistent/path/to/python3"
-GH_BIN="/absolute/persistent/path/to/gh"
+CHECKOUT="$HOME/.local/share/market-regime-watchdog/checkout"
+WATCHDOG_PYTHON="/usr/bin/python3"
+GH_BIN="$HOME/.local/share/market-regime-watchdog/bin/gh"
 WATCHDOG_STATE="$HOME/Library/Application Support/market-regime-watchdog"
 
+# Python and gh must be real accessible executables (or resolve to accessible paths).
 "$WATCHDOG_PYTHON" "$CHECKOUT/scripts/dispatch_watchdog.py" plan --days 7
 "$WATCHDOG_PYTHON" "$CHECKOUT/scripts/dispatch_watchdog.py" tick --dry-run \
   --state-dir "$WATCHDOG_STATE" --gh "$GH_BIN"
 
+# Foreground auth check only; also verify background access after installation.
 # gh uses the operator's existing login; this tool never stores/copies a token.
 "$GH_BIN" auth status --hostname github.com
 "$WATCHDOG_PYTHON" "$CHECKOUT/scripts/dispatch_watchdog.py" install \
@@ -162,6 +173,19 @@ Current same-session FRED updates normally arrive through the deployment trigger
 by snapshot commits; a current-artifact visitor does not poll GitHub repeatedly.
 
 ## Verify and operate
+
+Verify the actual background context after installation or any path relocation:
+
+- Inspect the loaded LaunchAgent, an advancing `last_tick`, its last exit code and
+  `launchd.out.log`/`launchd.err.log`. A plist on disk or a successful foreground
+  dry run alone does not prove the job can read its checkout or start its executables.
+- Run the same read-only `status --github` command through a one-off LaunchAgent
+  using the installed job's interpreter, gh path, checkout, working directory and
+  environment. Inspect its captured JSON for `gh_authenticated: true` and successful
+  run/manifest reads, plus its exit code/logs, then remove that probe job. Running
+  `status --github` in a terminal checks foreground auth, not background access.
+  An idle Sunday tick makes no gh calls, so a healthy heartbeat alone cannot prove
+  background gh authentication.
 
 After installation, verify all of the following before claiming the refresh
 service operational: launchctl service loaded, recent tick/state/log, a real
