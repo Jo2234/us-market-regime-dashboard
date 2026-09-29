@@ -150,3 +150,32 @@ it("rejects synthetic API observations in production", async () => {
   const api = await productionApi();
   await expect(api.fetchDashboardData("", "1M")).rejects.toThrow("synthetic data");
 });
+
+it("delivers the real bootstrap snapshot before a slow live response", async () => {
+  const snapshot = { ...summary(), data_mode: "snapshot" as const, fetched_at: "2025-01-16T00:00:00Z", cache: "stale" as const };
+  const live = { ...snapshot, data_mode: "live" as const, cache: "miss" as const };
+  let finish!: (value: unknown) => void;
+  vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => url.includes("cached_only=true")
+    ? Promise.resolve({ ok: true, json: async () => snapshot })
+    : new Promise(resolve => { finish = resolve; })));
+  localStorage.clear();
+  const api = await productionApi();
+  const cached = vi.fn();
+  const request = api.fetchDashboardData("", "1M", { onCached: cached });
+  await vi.waitFor(() => expect(cached).toHaveBeenCalledTimes(1));
+  expect(cached.mock.calls[0][0].provenance.mode).toBe("snapshot");
+  finish({ ok: true, json: async () => live });
+  expect((await request).provenance?.mode).toBe("live");
+  expect(JSON.parse(localStorage.getItem("market-regime-real-snapshot-v1")!).payload.data_mode).toBe("live");
+  localStorage.clear();
+});
+
+it("never accepts a synthetic persisted snapshot when the network fails", async () => {
+  localStorage.setItem("market-regime-real-snapshot-v1", JSON.stringify({ key: ":1M", payload: { ...summary(), data_mode: "demo" } }));
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+  const api = await productionApi();
+  const cached = vi.fn();
+  await expect(api.fetchDashboardData("", "1M", { onCached: cached })).rejects.toThrow("Live data unavailable");
+  expect(cached).not.toHaveBeenCalled();
+  localStorage.clear();
+});

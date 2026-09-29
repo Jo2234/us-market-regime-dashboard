@@ -9,7 +9,7 @@ import {
   ServerCrash,
   WifiOff,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchDashboardData } from "./api";
 import type {
   ChartPoint,
@@ -59,39 +59,47 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
 
+  const [slow, setSlow] = useState(false);
+  const failures = useRef(0);
+
   useEffect(() => {
-    let isMounted = true;
+    const controller = new AbortController();
+    let retry: ReturnType<typeof setTimeout> | undefined;
     setLoading(true);
-    setError(null);
-
-    fetchDashboardData(selectedDate, range)
-      .then((nextData) => {
-        if (!isMounted) return;
-        setData(nextData);
-        if (!selectedDate) {
-          setSelectedDate(nextData.selectedDate);
-        }
-      })
-      .catch((requestError) => {
-        if (!isMounted) return;
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : "Unable to load dashboard data.",
-        );
-        setData(null);
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
+    setSlow(false);
+    const slowTimer = setTimeout(() => setSlow(true), 4000);
+    const schedule = (milliseconds: number) => {
+      retry = setTimeout(() => setReloadTick(value => value + 1), milliseconds);
     };
+    fetchDashboardData(selectedDate, range, {
+      signal: controller.signal,
+      onCached: cached => { if (!controller.signal.aborted) setData(cached); },
+    }).then(nextData => {
+      if (controller.signal.aborted) return;
+      setData(nextData);
+      setError(null);
+      if (nextData.provenance?.mode === "snapshot") {
+        failures.current += 1;
+        schedule(Math.max(nextData.retryAfterSeconds ?? 0, Math.min(900, 5 * 2 ** Math.min(failures.current - 1, 8))) * 1000);
+      } else {
+        failures.current = 0;
+        schedule(900_000);
+      }
+    }).catch(requestError => {
+      if (controller.signal.aborted) return;
+      setData(current => current?.provenance?.mode === "live" ? { ...current, provenance: { ...current.provenance, mode: "snapshot" } } : current);
+      setError(requestError instanceof Error ? requestError.message : "Unable to load dashboard data.");
+      failures.current += 1;
+      schedule(Math.min(900, 5 * 2 ** Math.min(failures.current - 1, 8)) * 1000);
+    }).finally(() => {
+      clearTimeout(slowTimer);
+      if (!controller.signal.aborted) setLoading(false);
+    });
+    return () => { controller.abort(); clearTimeout(slowTimer); clearTimeout(retry); };
   }, [range, selectedDate, reloadTick]);
 
   if (loading && !data) {
-    return <LoadingState />;
+    return <LoadingState slow={slow} />;
   }
 
   if (error && !data) {
@@ -117,7 +125,7 @@ export default function App() {
       <Masthead />
       <TopBar
         data={data}
-        selectedDate={selectedDate}
+        selectedDate={selectedDate || data.selectedDate}
         loading={loading}
         onDateChange={setSelectedDate}
         onRefresh={() => setReloadTick((value) => value + 1)}
@@ -138,10 +146,19 @@ export default function App() {
           Data sources <ArrowDown size={13} />
         </a>
       </nav>
+      <div className="refresh-status" role="status" aria-live="polite" aria-atomic="true">
+        <span>{data.fetchedAt ? `Last updated ${formatDateTime(data.fetchedAt)}` : "Last update time unavailable"} · Yahoo Finance · as of {data.selectedDate}</span>
+        <span className={error || data.provenance?.mode === "snapshot" ? "refresh-warning" : ""}>
+          {loading ? "Updating with the latest numbers…" : error || data.provenance?.mode === "snapshot"
+            ? `Showing close of ${data.selectedDate}; live refresh unavailable, retrying automatically.`
+            : "Latest available daily close"}
+        </span>
+      </div>
       <div className="data-notice">
         <span
           className={`mode-chip ${data.provenance?.mode ?? data.sourceMode}`}
         >
+          {loading && <RefreshCw size={13} className="spinning" aria-label="Updating market data" />}
           {
             {
               live: `Live · Yahoo Finance · as of ${data.selectedDate}`,
@@ -367,6 +384,7 @@ function TopBar({
           disabled={loading}
         >
           <RefreshCw size={16} className={loading ? "spinning" : ""} />
+          <span>Refresh</span>
         </button>
         <button className="command-button" type="button" onClick={onExport}>
           <Download size={16} />
@@ -1407,16 +1425,30 @@ function AnalystNote({ data }: { data: DashboardData }) {
   );
 }
 
-function LoadingState() {
+function LoadingState({ slow }: { slow: boolean }) {
+  const lines = (count: number) => Array.from({ length: count }, (_, i) => <span className="skeleton-line" key={i} />);
   return (
     <main className="app-shell loading-shell">
       <Masthead />
-      <p role="status">Loading the market snapshot and source details…</p>
-      <div className="top-bar skeleton-block" />
-      <div className="loading-grid">
-        {Array.from({ length: 9 }, (_, index) => (
-          <div className="panel skeleton-block" key={index} />
-        ))}
+      <header className="top-bar"><div className="brand-block"><div>
+        <span className="publication-kicker">The market, in context</span>
+        <h1>US Market Regime</h1><p>A clear view of the market. Every signal explained.</p>
+      </div></div></header>
+      <p className="loading-status" role="status" aria-live="polite">
+        <RefreshCw size={15} className="spinning" aria-hidden="true" />
+        {slow ? "Still fetching, Yahoo can be slow at times…" : "Fetching the latest market data from Yahoo Finance…"}
+      </p>
+      <div className="skeleton-dashboard" aria-busy="true" aria-label="Loading market dashboard">
+        <div className="dashboard-grid first-row" aria-hidden="true">
+          <article className="panel skeleton-card"><span className="eyebrow">MARKET REGIME</span><span className="skeleton-title" />{lines(3)}<span className="skeleton-chart short" /></article>
+          <article className="panel skeleton-card"><span className="eyebrow">THE MARKET AT A GLANCE</span>{lines(5)}</article>
+        </div>
+        <div className="skeleton-indices" aria-hidden="true">{["S&P 500", "Nasdaq 100", "Russell 2000", "Dow Industrials"].map(name => <article className="panel skeleton-card" key={name}><span className="eyebrow">{name}</span><span className="skeleton-title" />{lines(2)}</article>)}</div>
+        <div className="dashboard-grid second-row" aria-hidden="true">
+          <article className="panel skeleton-card"><span className="eyebrow">INDEX PERFORMANCE</span><span className="skeleton-chart" /></article>
+          <article className="panel skeleton-card"><span className="eyebrow">TREASURY YIELD CURVE</span><span className="skeleton-chart" /></article>
+        </div>
+        <article className="panel skeleton-card skeleton-table" aria-hidden="true"><span className="eyebrow">SECTOR ROTATION</span>{lines(6)}</article>
       </div>
       <SiteFooter />
     </main>
@@ -1433,10 +1465,11 @@ function FatalErrorState({
   return (
     <main className="app-shell centered-state">
       <Masthead />
-      <section className="fatal-card">
+      <section className="fatal-card" aria-live="polite">
         <ServerCrash size={30} />
         <h1>Live data unavailable</h1>
-        <p>{message}</p>
+        <p>We couldn’t reach the market data service. We’ll retry automatically; you can also try again now.</p>
+        <p className="error-detail">{message}</p>
         <button className="command-button" type="button" onClick={onRetry}>
           <RefreshCw size={16} />
           Retry
