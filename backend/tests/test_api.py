@@ -64,7 +64,7 @@ def test_freshness_endpoint_identifies_stale_sources(seeded_conn):
     payload = response.json()
     assert payload["overall_latest_date"] is not None
     assert payload["freshness_policy"].startswith("Instrument/source rows are stale")
-    assert any(item["source"] == "demo_seed" and item["status"] in {"fresh", "stale"} for item in payload["sources"])
+    assert any(item["source"] == "demo_seed" and item["status"] in {"fresh", "stale", "partial"} for item in payload["sources"])
 
 
 def test_sector_csv_export_returns_flat_download(seeded_conn):
@@ -134,7 +134,8 @@ def test_summary_supplies_full_sectors_macros_and_selected_performance_window(se
     assert len(result["performance_series"]) == 6
     assert result["performance_series"][0]["SPY"] == 100
     assert result["performance_series"][-1]["date"] == "2026-06-01"
-    assert result["macro_summary"]["CPI_YOY"] == analytics.latest_macro_value(seeded_conn, "CPI_YOY", date(2026, 6, 1))
+    expected = analytics.latest_macro_value(seeded_conn, "CPI_YOY", date(2026, 6, 1))
+    assert all(result["macro_summary"]["CPI_YOY"][key] == value for key, value in expected.items())
     assert result["sectors"] == analytics.sector_performance(seeded_conn, ("1d", "1w", "1m", "3m", "ytd", "1y"), date(2026, 6, 1))
 
 

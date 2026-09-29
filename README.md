@@ -1,6 +1,6 @@
 # US Market Regime Dashboard
 
-Daily US market dashboard with Yahoo Finance prices, adjusted returns, a labelled yield curve, observation-level provenance and deterministic regime rules.
+Daily US market dashboard with Yahoo Finance prices, FRED macro observations, adjusted returns, a labelled yield curve and deterministic regime rules.
 
 [Live dashboard](https://market-regime-dashboard-mu.vercel.app) · [Formula definitions](docs/formulas.md)
 
@@ -19,7 +19,17 @@ All 25 supported market series come from Yahoo Finance's unofficial v8 chart end
 
 DGS identifiers are retained to avoid breaking API consumers; they no longer imply FRED or constant-maturity Treasury data. The curve uses 3M, 2Y*, 5Y, 10Y and 30Y, all quoted directly in percent (5.24 = 5.24%). 3M is a discount yield. Yahoo has no equivalent cash 2Y index. We chose its [CME 2-year yield future](https://www.cmegroup.com/education/articles-and-reports/introducing-yield-futures) to keep the market feed Yahoo-only, with explicit API/UI labels. **The 10Y−2Y* spread mixes a Treasury index and a futures-implied yield; it is not the standard cash recession spread.** Futures rolls, liquidity and settlement timing can affect it. `ZT=F` is not used because it is a price-based Treasury future, not a quoted yield.
 
-CPI YoY, unemployment and Fed funds have no equivalent Yahoo instrument in this feed. Their existing API fields remain null, their coverage is marked unavailable, and the CPI model input is neutral with reduced confidence. Nothing replaces them with synthetic values. DXY remains accessible through `/series/DXY` and the additive `currency_summary` field.
+Macro data comes from [FRED, Federal Reserve Bank of St. Louis](https://fred.stlouisfed.org/). The retained API keys and new additive fields are:
+
+| API macro key | FRED series | Measurement |
+| --- | --- | --- |
+| FEDFUNDS | [DFF](https://fred.stlouisfed.org/series/DFF) | Daily effective Fed funds rate, percent |
+| FEDFUNDS_MONTHLY | [FEDFUNDS](https://fred.stlouisfed.org/series/FEDFUNDS) | Monthly average, secondary context |
+| CPI_YOY | [CPIAUCSL](https://fred.stlouisfed.org/series/CPIAUCSL) | Headline CPI YoY, derived from the seasonally adjusted index |
+| CORE_CPI_YOY | [CPILFESL](https://fred.stlouisfed.org/series/CPILFESL) | Core CPI YoY, derived from the seasonally adjusted index |
+| UNRATE | [UNRATE](https://fred.stlouisfed.org/series/UNRATE) | Seasonally adjusted unemployment rate, percent |
+
+**Fed funds uses daily DFF for the headline**, preserving the `FEDFUNDS` API key. A monthly average can lag a policy change: the September 25, 2026 DFF observation is 3.88%, while August's monthly average is 3.63%. Both are labelled separately; neither is a target-range midpoint. Each macro value supplies `source: fred`, `fred_series_id`, `source_url`, `frequency`, `observation_date`, `observation_label`, `mode`, and `fetched_at`. Null means unavailable. DXY remains accessible through `/series/DXY` and `currency_summary`.
 
 Displayed **price** is the actual unadjusted last completed daily close. Returns and indexed charts use Yahoo **adjusted close**. The legacy `value` field remains adjusted close for compatibility. Every market series identifies `source: yahoo_finance`, `yahoo_ticker`, and its observation date. Calendar return windows and YTD are defined precisely in [docs/formulas.md](docs/formulas.md) and the UI source section.
 
@@ -31,7 +41,11 @@ Successful batches are cached in memory per instance for 15 minutes. Successful 
 
 If Yahoo fails, the API serves the newest validated last-known-good dataset from instance memory or `backend/app/data/yahoo_snapshot.json`, explicitly marked `data_mode: snapshot`. Original dates and fetch time are preserved. Successful and failed refreshes both have a 15-minute per-instance cooldown, including failures with no snapshot. A single-flight lock coalesces concurrent requests. Query/date/range changes and manual Refresh cannot bypass this cooldown. If no valid snapshot exists, the API returns 503 and the UI shows **Live data unavailable**, with automatic backoff and a Retry button. Successful direct Yahoo requests are labelled **Live · Yahoo Finance · as of DATE**; this means a live data source, not intraday quotes. Snapshot responses say **Snapshot · as of DATE**.
 
-`.github/workflows/refresh-market-data.yml` refreshes the committed snapshot on weekdays at 22:35 UTC, after the US close in both EST and EDT. It can also be dispatched manually. It commits as `github-actions[bot]` only if observations changed, rejects regressing dates, and leaves the previous file intact if Yahoo fails. GitHub schedules may be delayed and Yahoo may rate-limit or change its undocumented endpoint. An unchanged holiday dataset does not produce a timestamp-only commit. The snapshot is bundled in the Vercel Python function. `MARKET_REGIME_SNAPSHOT_ONLY=1` can explicitly select snapshots if a hosting network cannot reach Yahoo.
+FRED has an independent six-hour, single-flight per-instance cache. `FRED_API_KEY`, when set, selects the official observations JSON API; otherwise the no-key FRED graph CSV endpoint is used. Five series fetch concurrently in one lightweight HTTPX session, with 3.5-second request timeouts, up to two retries for transport/429/5xx errors, and a six-second total deadline. The existing normalization code handles CSV `observation_date`, missing values and zero rates. FRED uses the Python client's User-Agent: the Yahoo browser string timed out against FRED in local checks. No heavy analytics dependency is added. Yahoo's 18-second budget plus FRED's six-second budget stays within the 30-second function limit.
+
+Each macro series independently falls back to its last real observations in memory or `backend/app/data/fred_snapshot.json`, preserving dates and fetch times; failed refreshes cool down for 15 minutes. A failed CPI request does not remove DFF, unemployment or Yahoo prices. A missing/corrupt series shows Unavailable only on its card. `macro_delivery` exposes per-series mode/cache and upstream timing/status diagnostics without keys. `?cached_only=true` also returns macro snapshots without contacting FRED. `MARKET_REGIME_FORCE_FRED_FAILURE=1` provides a local kill-test. CDN caching is shared with the summary response.
+
+`.github/workflows/refresh-market-data.yml` refreshes both committed snapshots on weekdays at 22:35 UTC, after the US close in both EST and EDT. It can also be dispatched manually. It commits as `github-actions[bot]` only if observations changed, rejects regressing dates, and retains prior data for any failed provider/series. It can commit successful provider updates even when the other fails; the failed workflow remains visible. The optional repository secret `FRED_API_KEY` selects JSON on the runner; otherwise it uses CSV. GitHub schedules may be delayed and Yahoo may rate-limit or change its undocumented endpoint. An unchanged holiday dataset does not produce a timestamp-only commit. The snapshot is bundled in the Vercel Python function. `MARKET_REGIME_SNAPSHOT_ONLY=1` can explicitly select snapshots if a hosting network cannot reach Yahoo.
 
 ## Deployment verification
 
@@ -39,7 +53,7 @@ On 2026-09-29, the production Vercel function successfully fetched Yahoo directl
 
 ## Loading and refresh behavior
 
-The initial layout is a responsive skeleton with a polite loading announcement; after four seconds it acknowledges the delay. Motion respects `prefers-reduced-motion`. The client immediately displays its last verified real response (one bounded localStorage entry matching date/window), or asks `?cached_only=true` for the bundled/instance snapshot. That bootstrap path never contacts Yahoo or waits for a refresh lock. A normal request runs alongside it; data stays visible with an Updating indicator until it completes. Failure retains the last real values, dates and fetch time, and offers Refresh. Without real data, the error page contains no example values. Retries use 5, 10, 20, … seconds, capped at 15 minutes, respecting the API snapshot cooldown; successful pages check again after 15 minutes. The default date stays “latest” internally so a new trading session is picked up automatically.
+The initial layout is a responsive skeleton with a polite loading announcement; after four seconds it acknowledges the delay. Motion respects `prefers-reduced-motion`. The client immediately displays its last verified real response (one bounded localStorage entry matching date/window), or asks `?cached_only=true` for the bundled/instance snapshot. That bootstrap path never contacts Yahoo/FRED or waits for a refresh lock. A normal request runs alongside it; data stays visible with an Updating indicator until it completes. Failure retains the last real values, dates and fetch time, and offers Refresh. Without real data, the error page contains no example values. Retries use 5, 10, 20, … seconds, capped at 15 minutes, respecting the API snapshot cooldown; successful pages check again after 15 minutes. The default date stays “latest” internally so a new trading session is picked up automatically.
 
 `fetch_ms`, `cache` (`hit`, `miss`, `stale`), `fetched_at`, `retry_after_seconds` and `fetch_diagnostics` are additive summary fields. `fetched_at` is the successful upstream fetch time, never the render time. Logs include each ticker's elapsed time/attempts/retries and 429/401/5xx totals. `Server-Timing` reports app, import and Yahoo time. On instance hits, `fetch_ms=0`; diagnostics describe the last refresh. A CDN hit replays the original JSON/headers: use `X-Vercel-Cache`/`Age` to distinguish it from a new function execution. `X-Market-Revision`, `X-Market-Instance` and `X-Market-Request` make cold/warm measurements auditable.
 
@@ -76,7 +90,7 @@ npm run build --prefix frontend
 python scripts/verify_live_data.py --base-url https://market-regime-dashboard-mu.vercel.app
 ```
 
-Unit tests block network access and use recorded Yahoo chart responses in `backend/tests/fixtures`. They cover raw/adjusted prices, calendar return anchors, missing data, units, holidays, production demo guards, caching, retries, snapshot fallback and 503 failure. The separate verification script fetches Yahoo independently, calculates the 1M return without importing application analytics, compares SPY/QQQ prices and all five yields with production, checks dates/provenance, prints a table and exits nonzero on mismatch. Tolerances are 0.00011 price/yield units and 0.000051 percentage points for returns.
+Unit tests block network access and use recorded Yahoo chart responses and FRED CSV responses in `backend/tests/fixtures`. They cover raw/adjusted prices, calendar return anchors, missing data, units, holidays, production demo guards, caching, retries, snapshot fallback and 503 failure. The separate verification script fetches Yahoo independently, calculates the 1M return without importing application analytics, compares SPY/QQQ prices, all five yields, and all five macro measurements with production, checks dates/provenance, prints a table and exits nonzero on mismatch. Tolerances are 0.00011 price/yield units and 0.000051 percentage points for returns and macro values. FRED YoY is independently calculated from exact year-ago months.
 
 Refresh the committed fallback manually:
 
@@ -92,7 +106,7 @@ Synthetic fixtures are restricted to tests and opt-in local demos. Set `MARKET_R
 
 ## Known limits
 
-Yahoo is unofficial, may rate-limit, revise adjusted history or omit bars, and offers no availability guarantee. The UI labels stale observations and unsupported breadth/macro coverage. ETF proxies, futures and yield indices have different economic meanings. The rule-based regime is an explanation of these inputs, not a predictive guarantee. Historical regime backfills are request-local on serverless hosting; they are not persistently stored. The interface shows unavailable measurements as `n/a`.
+Yahoo is unofficial, may rate-limit, revise adjusted history or omit bars, and offers no availability guarantee. The UI labels stale observations and unsupported breadth coverage. FRED may delay releases, rate-limit downloads, and revise historical values. Monthly observation dates are not release dates; historical views use the latest revised vintage and are not point-in-time backtests. ETF proxies, futures and yield indices have different economic meanings. The rule-based regime is an explanation of these inputs, not a predictive guarantee. Historical regime backfills are request-local on serverless hosting; they are not persistently stored. The interface shows unavailable measurements as `n/a`.
 
 ## License
 
