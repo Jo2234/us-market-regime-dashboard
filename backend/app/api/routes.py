@@ -5,7 +5,7 @@ import io
 from datetime import date, datetime, timezone
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, Request
 
 from app.core.config import get_settings
 from app.api.schemas import (
@@ -70,6 +70,9 @@ def dashboard_summary(
         "as_of": snapshot["date"],
         "data_mode": delivery_metadata(conn)["mode"],
         "fetched_at": delivery_metadata(conn)["fetched_at"],
+        "fetch_ms": delivery_metadata(conn).get("fetch_ms", 0),
+        "cache": delivery_metadata(conn).get("cache", "stale"),
+        "fetch_diagnostics": {key: value for key, value in delivery_metadata(conn).items() if key not in {"mode", "fetched_at", "telemetry", "symbols"}},
         "currency_summary": analytics.instrument_snapshot(history, "DXY", observed_date),
         "regime": snapshot,
         "major_indices": blocks["indices"],
@@ -225,3 +228,28 @@ def data_freshness(conn) -> dict:
         ],
         "instruments": instruments,
     }
+
+
+@router.post("/diagnostics/benchmark", include_in_schema=False)
+def benchmark(request: Request, kind: str = "hit"):
+    """Opt-in operator measurement; disabled without a deployment-specific secret."""
+    import hmac
+    import os
+    import time
+    from app.services import market_data
+    secret = os.getenv("MARKET_REGIME_BENCHMARK_TOKEN", "")
+    expiry = float(os.getenv("MARKET_REGIME_BENCHMARK_EXPIRES", "0"))
+    if not secret or time.time() > expiry or not hmac.compare_digest(request.headers.get("authorization", ""), f"Bearer {secret}"):
+        raise HTTPException(404)
+    if kind not in {"hit", "miss", "short"}:
+        raise HTTPException(422)
+    if kind == "short":
+        import asyncio
+        snapshot = asyncio.run(market_data.fetch_snapshot(history_range="5d"))
+        return snapshot["_telemetry"]
+    if kind == "miss":
+        with market_data._lock:
+            market_data._expires = 0
+    connection = get_db()
+    with __import__("contextlib").closing(connection):
+        return dashboard_summary(None, next(connection), "1m")
