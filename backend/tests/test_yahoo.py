@@ -237,3 +237,31 @@ def test_401_fails_without_retry_and_reports_status():
     assert stats["attempts"] == 1
     assert stats["http_401"] == 1
     assert stats["retries"] == 0
+
+
+def test_parallel_batch_uses_one_client_and_eight_connections(monkeypatch):
+    from app.ingestion import yahoo
+    active, peak, clients, seen = 0, 0, [], []
+    async def handle(request):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        seen.append(request)
+        await asyncio.sleep(.005)
+        ticker = request.url.path.rsplit("/", 1)[-1]
+        symbol = next(s for s, t in YAHOO_TICKERS.items() if t == ticker)
+        active -= 1
+        return httpx.Response(200, json=json.loads((FIXTURES / f"{symbol}.json").read_text()))
+    original = httpx.AsyncClient
+    def client(**kwargs):
+        clients.append(kwargs)
+        return original(**kwargs, transport=httpx.MockTransport(handle))
+    monkeypatch.setattr(yahoo.httpx, "AsyncClient", client)
+    result = asyncio.run(yahoo.fetch_snapshot())
+    assert len(clients) == 1
+    assert peak == 8
+    assert len(seen) == len(YAHOO_TICKERS)
+    assert all(r.url.params["range"] == "2y" for r in seen)
+    assert result["_telemetry"]["responses"] == 25
+    assert result["_telemetry"]["http_429"] == 0
+    assert set(result["_telemetry"]["symbols"]) == set(YAHOO_TICKERS)
