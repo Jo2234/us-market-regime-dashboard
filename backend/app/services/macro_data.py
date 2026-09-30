@@ -171,3 +171,20 @@ def summary(conn, history, as_of):
             value["observation_label"] = day.isoformat() if symbol == "FEDFUNDS" else day.strftime("%b %Y")
         result[symbol] = value
     return result
+
+
+def available_on(symbol, observed):
+    """Approximate release date, using revised vintage; not a point-in-time feed."""
+    from datetime import timedelta
+    from app.services.calendar import session_close
+    if symbol == "FEDFUNDS":
+        day = observed + timedelta(days=1)
+        while session_close(day) is None:
+            day += timedelta(days=1)
+        return day
+    month = date(observed.year + (observed.month == 12), observed.month % 12 + 1, 1)
+    if symbol.endswith("CPI_YOY"):
+        return month.replace(day=15)
+    if symbol == "UNRATE":
+        return month + timedelta(days=(4 - month.weekday()) % 7)
+    return month + timedelta(days=6)  # Monthly average: conservative first-week proxy.
