@@ -62,7 +62,9 @@ def test_parser_skips_incomplete_session_nulls_and_checks_ticker():
     original = normalize_chart("SPY", payload, date(2026, 9, 28))
     assert original[-1]["date"] == "2026-09-28"
     payload["chart"]["result"][0]["indicators"]["quote"][0]["close"][-1] = None
-    assert len(normalize_chart("SPY", payload, date(2026, 9, 28))) == len(original) - 1
+    repaired = normalize_chart("SPY", payload, date(2026, 9, 28))
+    assert repaired[-1]["close_source"] == "yahoo_meta"
+    assert len(repaired) == len(original)
     with pytest.raises(YahooUnavailable):
         normalize_chart("QQQ", payload, date(2026, 9, 28))
     payload["chart"]["result"][0]["indicators"]["adjclose"][0]["adjclose"][0] = None
@@ -265,3 +267,30 @@ def test_parallel_batch_uses_one_client_and_eight_connections(monkeypatch):
     assert result["_telemetry"]["responses"] == 25
     assert result["_telemetry"]["http_429"] == 0
     assert set(result["_telemetry"]["symbols"]) == set(YAHOO_TICKERS)
+
+
+def test_september_29_null_close_uses_same_session_official_quote():
+    payload = json.loads((FIXTURES / "SPY_sep29_null.json").read_text())
+    chart = payload["chart"]["result"][0]
+    assert chart["indicators"]["quote"][0]["close"][-1] is None
+    bars = normalize_chart("SPY", payload, date(2026, 9, 29))
+    assert bars[-1]["date"] == "2026-09-29"
+    assert bars[-1]["close"] == bars[-1]["adjusted_close"] == 764.20
+    assert bars[-1]["close_source"] == "yahoo_meta"
+    assert bars[-1]["adjusted_close_source"] == "same_as_unadjusted_close_pending_yahoo_bar"
+    chart["meta"]["regularMarketTime"] -= 1  # 15:59:59 ET is not a close.
+    assert normalize_chart("SPY", payload, date(2026, 9, 29))[-1]["date"] == "2026-09-28"
+    chart["meta"]["regularMarketTime"] += 86401  # Future session cannot repair yesterday.
+    assert normalize_chart("SPY", payload, date(2026, 9, 29))[-1]["date"] == "2026-09-28"
+    chart["indicators"]["quote"][0]["close"][-1] = 764.19
+    chart["indicators"]["adjclose"][0]["adjclose"][-1] = 764.18
+    preferred = normalize_chart("SPY", payload, date(2026, 9, 29))[-1]
+    assert preferred["close"] == 764.19
+    assert preferred["adjusted_close"] == 764.18
+    assert "close_source" not in preferred
+
+
+def test_official_close_respects_early_close_and_holiday():
+    from app.services.calendar import session_close
+    assert session_close(date(2026, 11, 27)) == datetime(2026, 11, 27, 18, tzinfo=timezone.utc)
+    assert session_close(date(2026, 9, 7)) is None
