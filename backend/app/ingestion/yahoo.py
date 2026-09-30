@@ -16,6 +16,7 @@ import httpx
 
 from app.data.instruments import YAHOO_TICKERS, PRICE_SYMBOLS
 from app.services.calendar import latest_completed_session, session_close
+from app.services.futures_calendar import latest_completed_settlement, settlement_time
 
 # Keep the minimal browser User-Agent verified against Yahoo from Vercel.
 USER_AGENT = "Mozilla/5.0"
@@ -51,8 +52,8 @@ def normalize_chart(symbol: str, payload: dict, cutoff: date) -> list[dict]:
         # Yahoo may leave the latest completed daily bar empty for hours. Only
         # the same session's post-close regular-market quote can repair it.
         if close is None and i == len(result.get("timestamp", [])) - 1 and observed <= cutoff:
-            official_close = session_close(observed)
             meta = result["meta"]
+            official_close = settlement_time(observed, meta) if symbol == "DGS2" else session_close(observed)
             quote_time = meta.get("regularMarketTime")
             meta_price = meta.get("regularMarketPrice")
             if (official_close and isinstance(quote_time, (int, float))
@@ -119,7 +120,7 @@ async def fetch_snapshot(*, fixture_dir=None, history_range="2y") -> dict:
                     symbol_started = time.perf_counter()
                     try:
                         payload = await fetch_chart(client, ticker, stats=stats, history_range=history_range)
-                        bars = normalize_chart(symbol, payload, cutoff)
+                        bars = normalize_chart(symbol, payload, latest_completed_settlement(now) if symbol == "DGS2" else cutoff)
                         stats["ok"] = True
                     finally:
                         stats["ms"] = round((time.perf_counter() - symbol_started) * 1000, 2)
