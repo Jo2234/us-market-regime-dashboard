@@ -320,9 +320,9 @@ function SectionHeading({
 
 function Masthead() {
   return (
-    <div className="masthead" aria-label="Vaz Research publication">
+    <div className="masthead" aria-label="Johan's Dashboard">
       <a href="#overview" className="publication-brand">
-        <Activity size={22} strokeWidth={1.8} /> Vaz Research
+        <Activity size={22} strokeWidth={1.8} /> Johan's Dashboard
       </a>
       <span className="masthead-note">Market research / United States</span>
     </div>
