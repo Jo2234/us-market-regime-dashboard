@@ -103,6 +103,8 @@ export interface RiskAssetMetric {
 }
 
 export interface RegimeSignal {
+  displayValue?: string;
+  rawUnit?: string;
   name: string;
   category: "risk" | "growth" | "inflation" | "rates" | "volatility";
   value: string;
