@@ -14,7 +14,6 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from app.services.calendar import latest_completed_session
-from app.services.futures_calendar import latest_completed_settlement, settlement_time
 from app.data.instruments import YAHOO_TICKERS
 
 
@@ -34,7 +33,7 @@ def main():
         assert "demo_seed" not in json.dumps([payload, curve]), "Synthetic provenance in production"
         rows = []
         price_history = {}
-        for symbol in ["SPY", "QQQ", "DGS3MO", "DGS2", "DGS5", "DGS10", "DGS30"]:
+        for symbol in ["SPY", "QQQ"]:
             ticker = YAHOO_TICKERS[symbol]
             response = client.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}",
                                   params={"range": "2y", "interval": "1d"})
@@ -46,8 +45,8 @@ def main():
             meta = chart["meta"]
             last_day = datetime.fromtimestamp(chart["timestamp"][-1], tz).date()
             from app.services.calendar import session_close
-            symbol_cutoff = latest_completed_settlement() if symbol == "DGS2" else cutoff
-            official_close = settlement_time(last_day, meta) if symbol == "DGS2" else session_close(last_day)
+            symbol_cutoff = cutoff
+            official_close = session_close(last_day)
             meta_time = meta.get("regularMarketTime", 0)
             repaired = (closes[-1] is None and last_day <= symbol_cutoff and official_close
                         and meta_time >= official_close.timestamp()
@@ -105,12 +104,38 @@ def main():
             print("Intraday comparisons use the exact quote timestamp; TIME-DIFF means a newer market tick, not verified equality.")
         else:
             print("Market closed: live polling is paused; comparing completed-session prices and returns.")
+        fred_cache = {}
+        def fred_values(series_id):
+            if series_id not in fred_cache:
+                response = client.get("https://fred.stlouisfed.org/graph/fredgraph.csv", params={"id": series_id}, headers={"User-Agent": "Python-urllib/3.11"})
+                response.raise_for_status()
+                fred_cache[series_id] = {r.get("observation_date", r.get("DATE")): float(r[series_id])
+                    for r in csv.DictReader(io.StringIO(response.text)) if r[series_id] not in {"", "."}}
+            return fred_cache[series_id]
+        # Independently select the common curve date, allowing next-business-day publication.
+        from datetime import timedelta
+        from app.services.calendar import session_close
+        def eligible(day):
+            release = date.fromisoformat(day) + timedelta(days=1)
+            while session_close(release) is None:
+                release += timedelta(days=1)
+            return release <= date.fromisoformat(payload["as_of"])
+        rate_ids = ["DGS3MO", "DGS2", "DGS5", "DGS10", "DGS30"]
+        common = set.intersection(*(set(fred_values(s)) for s in rate_ids))
+        curve_day = max(day for day in common if eligible(day))
+        for series_id in rate_ids:
+            expected = fred_values(series_id)[curve_day]
+            item = next(r for r in curve["maturities"] if r["symbol"] == series_id)
+            ok = item["source"] == "fred" and item["fred_series_id"] == series_id and item["date"] == curve_day and abs(item["value"] - expected) < .000051
+            rows.append((series_id, "yield %", curve_day, item["date"], item["value"], expected, "PASS" if ok else "FAIL"))
+        for series_id, key in [("T10Y2Y", "10y_2y"), ("T10Y3M", "10y_3m")]:
+            expected = fred_values(series_id)[curve_day]
+            meta = curve["spread_metadata"][key]
+            actual = curve["spreads"][key]
+            ok = meta["date"] == curve_day and meta["fred_series_id"] == series_id and abs(actual - expected) < .000051
+            rows.append((series_id, "spread pp", curve_day, meta["date"], actual, expected, "PASS" if ok else "FAIL"))
         for symbol, fred_id in {"FEDFUNDS": "DFF", "CPI_YOY": "CPIAUCSL", "CORE_CPI_YOY": "CPILFESL", "UNRATE": "UNRATE", "FEDFUNDS_MONTHLY": "FEDFUNDS"}.items():
-            response = client.get("https://fred.stlouisfed.org/graph/fredgraph.csv", params={"id": fred_id},
-                                  headers={"User-Agent": "Python-urllib/3.11"})
-            response.raise_for_status()
-            observations = {r.get("observation_date", r.get("DATE")): float(r[fred_id])
-                            for r in csv.DictReader(io.StringIO(response.text)) if r[fred_id] not in {"", "."}}
+            observations = fred_values(fred_id)
             observed = max(d for d in observations if d <= payload["as_of"])
             expected = observations[observed]
             if symbol.endswith("CPI_YOY"):
