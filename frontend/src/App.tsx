@@ -1,3 +1,4 @@
+import { BottomLine } from "./regimeV2";
 import {
   Activity,
   ArrowDown,
@@ -219,6 +220,7 @@ export default function App() {
           Source details <ArrowUpRight size={14} />
         </a>
       </div>
+      {data.regimeV2 && <BottomLine model={data.regimeV2} />}
       <section
         id="overview"
         className="dashboard-grid first-row"
@@ -553,7 +555,7 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
         <p>{provenance.description}</p>
         <p>During NYSE hours, price is the regular-market quote and 1D is its change from the previous close. Otherwise price is the completed daily close. Longer returns and indexed charts use Yahoo adjusted historical closes (splits and distributions), with the live price as the endpoint intraday; 1W, 1M, 3M and 1Y use the close on or before the same calendar date earlier (7 days, 1 month, 3 months, 1 year). YTD starts at the last close of the prior year. Month-end dates clamp to the last day of the target month. Missing history displays n/a.</p>
         <p>Yahoo is an unofficial data service and may rate-limit. Live quotes refresh every 60 seconds during NYSE hours, only while this tab is visible. Daily history and research calculations are precomputed at 14:00, 20:45 and 22:30 UTC on weekdays; closed-market responses cache for up to 15 minutes. CDN revalidation may add 15 seconds during market hours or 60 seconds when closed. Rate limits extend quote refresh intervals up to 15 minutes. The versioned daily artifact is the primary research source. Visitor requests only refresh live quotes; overdue artifacts retain their true dates. Observation dates are preserved.</p>
-        <p>Macro indicators come from FRED, in the same scheduled artifact with per-series observation dates. Fed funds uses daily DFF; the monthly FEDFUNDS average is secondary context. Headline and core CPI YoY equal 100 × (this month’s seasonally adjusted index / the same month one year earlier − 1), using CPIAUCSL and CPILFESL. Monthly dates identify observation months, not release dates. Historical CPI uses an approximate release date on the 15th of the following month; unemployment uses the first Friday, and DFF the next business day. Values use the latest revised vintage, not point-in-time releases.</p>
+        <p>Macro indicators come from FRED, in the same scheduled artifact with per-series observation dates. Fed funds uses daily DFF; the monthly FEDFUNDS average is secondary context. Headline and core CPI YoY equal 100 × (this month’s seasonally adjusted index / the same month one year earlier − 1), using CPIAUCSL and CPILFESL. Monthly dates identify observation months, not release dates. Historical CPI uses the next business day on or after the 15th of the following month; unemployment uses the first Friday; daily rates use the next business day. Claims use a five-day publication lag after the observation Saturday; NFCI uses five days after its observation Friday. Values use the latest revised vintage, not point-in-time releases.</p>
       </div>
       <div>
         <span>Selected {formatDate(provenance.selectedDate)}</span>
@@ -576,10 +578,10 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
 
 function RegimeCard({ data }: { data: DashboardData }) {
   const scores = [
-    ["Risk", data.regime.riskScore],
+    [data.regimeV2 ? "Stress" : "Risk", data.regime.riskScore],
     ["Growth", data.regime.growthScore],
     ["Inflation", data.regime.inflationScore],
-    ["Rates", data.regime.ratesPressureScore],
+    [data.regimeV2 ? "Rates context" : "Rates", data.regime.ratesPressureScore],
   ] as const;
 
   return (
@@ -606,7 +608,7 @@ function RegimeCard({ data }: { data: DashboardData }) {
           >
             <div className="score-top">
               <span>{label}</span>
-              <strong>{value}</strong>
+              <strong>{typeof value === "number" ? formatNumber(value, 1) : value}</strong>
             </div>
             <div className="score-track">
               <span
@@ -618,8 +620,8 @@ function RegimeCard({ data }: { data: DashboardData }) {
         ))}
       </div>
       <div className="signal-split">
-        <SignalList title="Support" items={data.regime.positiveSignals} signals={data.signals} />
-        <SignalList title="Pressure" items={data.regime.negativeSignals} signals={data.signals} />
+        <SignalList title={data.regimeV2 ? "Above neutral" : "Support"} items={data.regime.positiveSignals} signals={data.signals} />
+        <SignalList title={data.regimeV2 ? "Below neutral" : "Pressure"} items={data.regime.negativeSignals} signals={data.signals} />
       </div>
     </article>
   );
@@ -719,7 +721,7 @@ function IndexCards({ data }: { data: DashboardData }) {
         <article className="index-card" key={item.symbol}>
           <div className="index-card-top">
             <div>
-              <strong>{item.symbol}</strong>
+              <strong>{item.symbol === "BREADTH" ? "Sector breadth" : item.symbol}</strong>
               <span>{item.name}</span>
             </div>
             <span className={performanceClass(item.dayReturn)}>
@@ -1186,7 +1188,7 @@ function RiskPanel({
         {items.map((item) => (
           <div className="asset-row" key={item.symbol}>
             <div>
-              <strong>{item.symbol}</strong>
+              <strong>{item.symbol === "BREADTH" ? "Sector breadth" : item.symbol}</strong>
               <span>{item.name}</span>
             </div>
             <div>
@@ -1194,14 +1196,14 @@ function RiskPanel({
                 {formatNumber(
                   item.value,
                   item.value !== null && item.value > 50 ? 2 : 1,
-                )}
+                )}{item.symbol === "BREADTH" ? "%" : ""}
               </strong>
-              <span className={performanceClass(item.dayChange)}>
+              {item.symbol !== "BREADTH" && <><span className={performanceClass(item.dayChange)}>
                 {formatPercent(item.dayChange, 1)} 1D
               </span>
               <span className={performanceClass(item.monthReturn)}>
                 {formatPercent(item.monthReturn, 1)} 1M
-              </span>
+              </span></>}
             </div>
             <p>{item.signal}</p>
           </div>
@@ -1252,10 +1254,10 @@ function SignalTable({ signals }: { signals: RegimeSignal[] }) {
       </div>
       <p className="chart-caption">
         {filteredSignals.length} of {signals.length} signals · Values formatted by unit;
-        hover for raw values. Rule weights as supplied by the model.
+        hover for raw values. Percentiles use the preceding 756 trading observations; weights apply within one axis only.
       </p>
       <p className="table-scroll-hint">
-        Scroll sideways to read every rule’s evidence →
+        Scroll sideways to read every signal’s evidence →
       </p>
       <div
         className="table-wrap"
@@ -1269,6 +1271,7 @@ function SignalTable({ signals }: { signals: RegimeSignal[] }) {
               <th>Signal</th>
               <th>Category</th>
               <th>Value</th>
+              {signals.some(s=>s.percentile!==undefined) && <th>Percentile</th>}
               <th>Read</th>
               <th>Weight</th>
               <th>Evidence</th>
@@ -1280,9 +1283,10 @@ function SignalTable({ signals }: { signals: RegimeSignal[] }) {
                 <th>{signal.name}</th>
                 <td>{sentenceCase(signal.category)}</td>
                 <td title={`Raw: ${signal.value}${signal.rawUnit ? ` ${signal.rawUnit}` : ""}`} className="signal-value">{signal.displayValue ?? signal.value}</td>
+                {signals.some(s=>s.percentile!==undefined) && <td>{signal.percentile?.toFixed(1) ?? "—"}/100</td>}
                 <td>
                   <span className={`direction ${signal.direction}`}>
-                    {sentenceCase(signal.direction)}
+                    {signal.directionText ?? sentenceCase(signal.direction)}
                   </span>
                 </td>
                 <td>{formatNumber(signal.weight * 100, 0)}%</td>
@@ -1311,7 +1315,7 @@ function AnalystNote({ data }: { data: DashboardData }) {
         ))}
       </ul>
       <div className="watch-list">
-        <h3>Watch</h3>
+        <h3>{data.regimeV2 ? "Arithmetic scenarios" : "Watch"}</h3>
         {data.analystNote.watchItems.map((item) => (
           <span key={item}>{item}</span>
         ))}
@@ -1340,6 +1344,7 @@ function LoadingState({ slow }: { slow: boolean }) {
         {slow ? "Still fetching, Yahoo can be slow at times…" : "Fetching the latest market data from Yahoo Finance…"}
       </p>
       <div className="skeleton-dashboard" aria-busy="true" aria-label="Loading market dashboard">
+        <article className="panel skeleton-card" aria-hidden="true"><span className="eyebrow">Bottom line · Daily research model</span><span className="skeleton-title" />{lines(3)}</article>
         <div className="dashboard-grid first-row" aria-hidden="true">
           <article className="panel skeleton-card"><span className="eyebrow">Market regime</span><span className="skeleton-title" />{lines(3)}<span className="skeleton-chart short" /></article>
           <article className="panel skeleton-card"><span className="eyebrow">The market at a glance</span>{lines(5)}</article>

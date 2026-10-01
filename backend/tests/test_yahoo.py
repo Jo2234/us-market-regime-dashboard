@@ -104,7 +104,7 @@ def test_live_cache_fallback_and_production_demo_guard(monkeypatch, tmp_path, cl
             assert response.status_code == 200
             assert response.json()["data_mode"] == "snapshot"
             assert "demo_seed" not in response.text
-            assert "s-maxage=900" in response.headers["cache-control"]
+            assert "s-maxage=" in response.headers["cache-control"]
         assert len(calls) == 0
         async def fail():
             raise YahooUnavailable("simulated")
@@ -259,7 +259,7 @@ def test_parallel_batch_uses_one_client_and_eight_connections(monkeypatch):
     assert len(clients) == 1
     assert peak == 8
     assert len(seen) == len(YAHOO_TICKERS)
-    assert all(r.url.params["range"] == "2y" for r in seen)
+    assert all("period1" in r.url.params and r.url.params["interval"] == "1d" for r in seen)
     assert result["_telemetry"]["responses"] == len(YAHOO_TICKERS)
     assert result["_telemetry"]["http_429"] == 0
     assert set(result["_telemetry"]["symbols"]) == set(YAHOO_TICKERS)

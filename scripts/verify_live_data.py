@@ -134,7 +134,7 @@ def main():
             actual = curve["spreads"][key]
             ok = meta["date"] == curve_day and meta["fred_series_id"] == series_id and abs(actual - expected) < .000051
             rows.append((series_id, "spread pp", curve_day, meta["date"], actual, expected, "PASS" if ok else "FAIL"))
-        for symbol, fred_id in {"FEDFUNDS": "DFF", "CPI_YOY": "CPIAUCSL", "CORE_CPI_YOY": "CPILFESL", "UNRATE": "UNRATE", "FEDFUNDS_MONTHLY": "FEDFUNDS"}.items():
+        for symbol, fred_id in {"FEDFUNDS": "DFF", "CPI_YOY": "CPIAUCSL", "CORE_CPI_YOY": "CPILFESL", "UNRATE": "UNRATE", "FEDFUNDS_MONTHLY": "FEDFUNDS", "ICSA":"ICSA", "NFCI":"NFCI", "T10YIE":"T10YIE", "DFII10":"DFII10"}.items():
             observations = fred_values(fred_id)
             observed = max(d for d in observations if d <= payload["as_of"])
             expected = observations[observed]
@@ -146,7 +146,7 @@ def main():
             api_date = item["date"] if item else "unavailable"
             ok = bool(item and abs(actual - expected) <= .000051 and api_date == observed
                       and item["source"] == "fred" and item["fred_series_id"] == fred_id)
-            rows.append((fred_id, "YoY %" if symbol.endswith("CPI_YOY") else "rate %", observed,
+            rows.append((fred_id, "YoY %" if symbol.endswith("CPI_YOY") else "claims" if symbol=="ICSA" else "index" if symbol=="NFCI" else "rate %", observed,
                          api_date, actual, expected, "PASS" if ok else "FAIL"))
         print("Macro delivery: " + ", ".join(f"{s}={v['mode']}" for s, v in payload.get("macro_delivery", {}).get("series", {}).items()))
         print(f"API mode: {payload.get('data_mode')} | as of {payload['as_of']} | completed-session cutoff {cutoff}")
