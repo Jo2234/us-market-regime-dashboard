@@ -108,6 +108,14 @@ def series(bundle, symbol, start=None, end=None):
             if (not start or r['date'] >= start.isoformat()) and (not end or r['date'] <= end.isoformat())]
 
 
+def sectors(bundle, windows, requested=None):
+    rows = bundle.selected(requested)['sectors']
+    primary = '1m' if '1m' in windows else windows[0]
+    ordered = sorted(rows, key=lambda row: row['returns'].get(primary) if row['returns'].get(primary) is not None else -999, reverse=True)
+    return [{**row, 'returns': {w:row['returns'].get(w) for w in windows},
+             'relative_to_spy': {w:row['relative_to_spy'].get(w) for w in windows}} for row in ordered]
+
+
 def quote_returns(quotes, bundle):
     from app.services.analytics import calendar_anchor
     result = {}
