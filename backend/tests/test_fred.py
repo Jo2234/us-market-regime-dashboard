@@ -167,13 +167,13 @@ def test_kill_test_macro_only_and_regime_impact(monkeypatch, tmp_path, empty_con
     from app.main import create_app
     with TestClient(create_app()) as client:
         result = client.get("/api/dashboard/summary").json()
-        assert result["data_mode"] == "live"
+        assert result["data_mode"] == "snapshot"
         assert result["macro_summary"]["FEDFUNDS"]["mode"] == "snapshot"
         assert "demo_seed" not in json.dumps(result)
         monkeypatch.setattr(macro_data, "_cached", {})
         monkeypatch.setattr(macro_data, "SNAPSHOT_PATH", tmp_path / "missing.json")
         result = client.get("/api/dashboard/summary").json()
-        assert result["macro_summary"]["FEDFUNDS"] is None
+        assert result["macro_summary"]["FEDFUNDS"]["source"] == "fred"  # Bundled artifact survives provider/file failure.
         assert result["major_indices"][0]["source"] == "yahoo_finance"
 
 

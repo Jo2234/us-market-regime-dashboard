@@ -44,6 +44,7 @@ class FreshnessResponse(BaseModel):
 
 
 class DashboardSummaryResponse(BaseModel):
+    artifact_delivery: dict[str, Any] = {}
     market_status: dict[str, Any] = {}
     live_quotes: dict[str, Any] = {}
     quote_delivery: dict[str, Any] = {}
