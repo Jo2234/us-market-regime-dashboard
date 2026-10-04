@@ -108,12 +108,12 @@ export default function App() {
     };
     fetchDashboardData(selectedDate, range, {
       signal: controller.signal,
-      onCached: cached => { if (!controller.signal.aborted) setData(cached); },
+      onCached: cached => { if (!controller.signal.aborted) setData({ ...cached, cachedSnapshot: true }); },
     }).then(nextData => {
       if (controller.signal.aborted) return;
       setData(nextData);
       setError(null);
-      if (nextData.provenance?.mode === "snapshot" && !nextData.scheduledFresh) {
+      if (nextData.provenance?.mode === "snapshot" && !nextData.scheduledFresh && !nextData.artifactDelivery) {
         failures.current += 1;
         schedule(Math.max(nextData.retryAfterSeconds ?? 0, Math.min(900, 5 * 2 ** Math.min(failures.current - 1, 8))) * 1000);
       } else {
@@ -183,12 +183,19 @@ export default function App() {
       </nav>
       <div className="refresh-status" role="status" aria-live="polite" aria-atomic="true">
         <span><UpdatedAge timestamp={data.fetchedAt} /> · Yahoo Finance · as of <time className="observation-date" dateTime={data.intraday ? data.marketStatus!.session_date : data.selectedDate}>{formatDate(data.intraday ? data.marketStatus!.session_date : data.selectedDate)}</time></span>
-        <span className={error || (data.provenance?.mode === "snapshot" && !data.scheduledFresh) ? "refresh-warning" : ""}>
-          {loading ? "Updating with the latest numbers…" : error || (data.provenance?.mode === "snapshot" && !data.scheduledFresh)
+        <span className={error || (data.provenance?.mode === "snapshot" && !data.scheduledFresh && !data.artifactDelivery) ? "refresh-warning" : ""}>
+          {loading ? "Updating with the latest numbers…" : error || (data.provenance?.mode === "snapshot" && !data.scheduledFresh && !data.artifactDelivery)
             ? `Showing close of ${formatDate(data.selectedDate)}; live refresh unavailable, retrying automatically.`
-            : data.marketStatus?.is_open ? data.quoteStatus?.cache === "stale" ? "Live quote refresh unavailable; retaining the last real observations and retrying." : "Live intraday prices · regime based on completed daily closes" : "Latest completed daily close"}
+            : data.marketStatus?.is_open
+              ? data.quoteStatus?.cache === "stale" ? "Live quote refresh unavailable; retaining the last real observations and retrying."
+                : data.intraday ? "Live intraday prices · regime based on completed daily closes" : "Awaiting current-session quotes · research uses saved daily closes"
+              : data.artifactDelivery?.view !== "historical" && data.artifactDelivery?.status === "pending"
+                ? "Previous completed daily close · awaiting research delivery"
+                : data.artifactDelivery?.view !== "historical" && data.artifactDelivery?.status === "overdue"
+                  ? "Saved completed daily close · research update overdue" : "Latest completed daily close"}
         </span>
       </div>
+      <ResearchDelivery data={data} />
       <p className="market-status" role="status">{selectedDate ? `Historical snapshot · Close of ${formatDate(data.selectedDate)}` : data.marketStatus?.is_open
         ? "Market open · Live intraday"
         : `Market closed · Close of ${formatDate(data.selectedDate)}`}
@@ -386,7 +393,7 @@ function TopBar({
   onRefresh: () => void;
   onExport: () => void;
 }) {
-  const freshnessLabel = summarizeFreshness(data.freshness);
+  const freshnessLabel = data.cachedSnapshot ? { text: "Saved snapshot", className: "warn" } : summarizeFreshness(data.freshness, data.artifactDelivery);
 
   return (
     <header className="top-bar">
@@ -437,6 +444,23 @@ function TopBar({
   );
 }
 
+function ResearchDelivery({ data }: { data: DashboardData }) {
+  const delivery = data.artifactDelivery;
+  if (!delivery || delivery.view === "historical") return null;
+  const deadlineAt = delivery.status === "overdue" ? delivery.overdue_since ?? delivery.delivery_deadline : delivery.delivery_deadline;
+  const deadline = deadlineAt
+    ? `${new Date(deadlineAt).toLocaleString("en-US", { timeZone: "UTC", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} UTC`
+    : "the scheduled delivery deadline";
+  return <p className="market-status" role="status">
+    {data.cachedSnapshot ? "Saved research snapshot; checking current delivery status."
+      : delivery.status === "pending"
+        ? `Awaiting scheduled research snapshot for ${formatDate(delivery.expected_session ?? null)}. Showing ${formatDate(delivery.as_of ?? data.selectedDate)} observations; delivery due by ${deadline}.`
+        : delivery.status === "overdue"
+          ? `Research update overdue. Latest completed session: ${formatDate(delivery.expected_session ?? null)}. Showing ${formatDate(delivery.as_of ?? data.selectedDate)} observations; first missed deadline was ${deadline}. Live quotes have their own source dates.`
+          : `Research snapshot covers ${formatDate(delivery.as_of ?? data.selectedDate)}. Source observation dates are shown below.`}
+  </p>;
+}
+
 function StatusStrip({
   data,
   error,
@@ -444,10 +468,12 @@ function StatusStrip({
   data: DashboardData;
   error: string | null;
 }) {
+  const onlyAwaiting = data.artifactDelivery?.status === "pending" && data.freshness.length > 0
+    && data.freshness.every(source => source.status === "fresh" || source.deliveryState === "pending");
   const items = [
     ...data.errors.map((message) => ({ kind: "error", message })),
     ...(error ? [{ kind: "error", message: error }] : []),
-    ...(data.stale
+    ...(data.stale && !onlyAwaiting
       ? [
           {
             kind: "stale",
@@ -456,7 +482,7 @@ function StatusStrip({
           },
         ]
       : []),
-    ...(data.partial
+    ...(data.partial && !onlyAwaiting
       ? [
           {
             kind: "partial",
@@ -473,6 +499,7 @@ function StatusStrip({
 
   return (
     <section className="status-strip" aria-label="Dashboard data status">
+      {data.artifactDelivery?.view === "historical" && <p>Latest stored artifact source dates · Historical prices use the selected snapshot.</p>}
       <div className="source-grid">
         {data.freshness.length > 0 ? (
           data.freshness.map((source) => (
@@ -517,7 +544,7 @@ function FreshnessBadge({ source }: { source: FreshnessSource }) {
     <div className={`source-badge ${source.status}`} title={source.note}>
       <span>{source.name}</span>
       <strong>{formatDate(source.latestDate)}</strong>
-      <span className="source-status">{sentenceCase(source.status)}</span>
+      <span className="source-status">{source.deliveryState === "pending" ? "Stale · Awaiting scheduled delivery" : source.deliveryState === "overdue" ? "Stale · Update overdue" : sentenceCase(source.status)}</span>
     </div>
   );
 }
@@ -554,7 +581,7 @@ function ProvenancePanel({ data }: { data: DashboardData }) {
         </p>
         <p>{provenance.description}</p>
         <p>During NYSE hours, price is the regular-market quote and 1D is its change from the previous close. Otherwise price is the completed daily close. Longer returns and indexed charts use Yahoo adjusted historical closes (splits and distributions), with the live price as the endpoint intraday; 1W, 1M, 3M and 1Y use the close on or before the same calendar date earlier (7 days, 1 month, 3 months, 1 year). YTD starts at the last close of the prior year. Month-end dates clamp to the last day of the target month. Missing history displays n/a.</p>
-        <p>Yahoo is an unofficial data service and may rate-limit. Live quotes refresh every 60 seconds during NYSE hours, only while this tab is visible. Daily history and research calculations are precomputed at 14:00, 20:45 and 22:30 UTC on weekdays; closed-market responses cache for up to 15 minutes. CDN revalidation may add 15 seconds during market hours or 60 seconds when closed. Rate limits extend quote refresh intervals up to 15 minutes. The versioned daily artifact is the primary research source. Visitor requests only refresh live quotes; overdue artifacts retain their true dates. Observation dates are preserved.</p>
+        <p>Yahoo is an unofficial data service and may rate-limit. Live quotes refresh every 60 seconds during NYSE hours, only while this tab is visible. Daily history and research calculations use scheduled snapshots. An independent dispatcher, when installed and awake, requests builds 30 and 90 minutes after the official NYSE close and at 14:07 UTC on weekdays. GitHub schedules remain a best effort fallback; timing is not guaranteed. Closed-market responses cache for up to 15 minutes. CDN revalidation may add 15 seconds during market hours or 60 seconds when closed. Rate limits extend quote refresh intervals up to 15 minutes. The versioned daily artifact is the primary research source. Visitor requests refresh bounded live quotes and may adopt a validated newer published artifact; they do not recompute daily research. Research awaits delivery for two hours after the official close, then becomes overdue; source stale flags and dates are preserved. Observation dates are preserved.</p>
         <p>Macro indicators come from FRED, in the same scheduled artifact with per-series observation dates. Fed funds uses daily DFF; the monthly FEDFUNDS average is secondary context. Headline and core CPI YoY equal 100 × (this month’s seasonally adjusted index / the same month one year earlier − 1), using CPIAUCSL and CPILFESL. Monthly dates identify observation months, not release dates. Historical CPI uses the next business day on or after the 15th of the following month; unemployment uses the first Friday; daily rates use the next business day. Claims use a five-day publication lag after the observation Saturday; NFCI uses five days after its observation Friday. Values use the latest revised vintage, not point-in-time releases.</p>
       </div>
       <div>
@@ -1005,7 +1032,7 @@ function MacroPanel({ data, loading, onRefresh }: { data: DashboardData; loading
         <h3>{label}</h3><strong className="macro-value">{item ? `${formatNumber(item.value, 2)}%` : "Unavailable"}</strong>
         <p>{item ? observationLabel(item.observation_label ?? item.observation_date) : "No observation available"}</p>
         <a href={`https://fred.stlouisfed.org/series/${series}`} target="_blank" rel="noreferrer">FRED: {series}</a><span className="macro-frequency">{frequency}</span>
-        <p className="macro-notice">{!item ? "Live refresh unavailable; retrying." : item.mode === "snapshot" && !item.scheduled ? `Snapshot · ${observationLabel(item.observation_label ?? item.observation_date)}; live refresh unavailable, retrying.` : item.is_stale ? "Observation is behind its publication window." : "Latest supplied observation"}</p>
+        <p className="macro-notice">{!item ? "Live refresh unavailable; retrying." : item.mode === "snapshot" && !item.scheduled ? `Snapshot · ${observationLabel(item.observation_label ?? item.observation_date)}; live refresh unavailable, retrying.` : item.delivery_state === "pending" ? "Observation is stale; awaiting scheduled delivery." : item.delivery_state === "overdue" ? "Observation update is overdue; retaining its true source date." : item.is_stale ? "Observation is behind its publication window." : "Latest supplied observation"}</p>
         {symbol === "FEDFUNDS" && monthly && <p className="macro-secondary">Monthly average: {formatNumber(monthly.value, 2)}% · {monthly.observation_label} · <a href="https://fred.stlouisfed.org/series/FEDFUNDS" target="_blank" rel="noreferrer">FEDFUNDS</a>{monthly.mode === "snapshot" ? " · Snapshot" : ""}</p>}
       </section>;
     })}</div>
@@ -1405,10 +1432,15 @@ function EmptyState({
   );
 }
 
-function summarizeFreshness(sources: FreshnessSource[]) {
+function summarizeFreshness(sources: FreshnessSource[], delivery?: DashboardData["artifactDelivery"]) {
   if (sources.some((source) => source.status === "error")) {
     return { text: "Source error", className: "bad" };
   }
+  if (!sources.length) return { text: "No source dates", className: "warn" };
+  if (delivery?.view === "historical") return { text: "Historical snapshot", className: "warn" };
+  if (delivery?.status === "overdue") return { text: "Research overdue", className: "warn" };
+  if (sources.some(source => source.deliveryState === "overdue")) return { text: "Source update overdue", className: "warn" };
+  if (delivery?.status === "pending" || sources.some(source => source.deliveryState === "pending")) return { text: "Awaiting scheduled delivery", className: "warn" };
   if (
     sources.some(
       (source) => source.status === "stale" || source.status === "partial",
