@@ -177,7 +177,8 @@ def test_kill_test_macro_only_and_regime_impact(monkeypatch, tmp_path, empty_con
         assert result["major_indices"][0]["source"] == "yahoo_finance"
 
 
-def test_overall_deadline_cancels_slow_requests(monkeypatch):
+@pytest.mark.parametrize("explicit_budget", [False, True])
+def test_overall_deadline_cancels_slow_requests(monkeypatch, explicit_budget):
     cancelled = []
     async def slow(client, series_id, **kwargs):
         try:
@@ -186,11 +187,34 @@ def test_overall_deadline_cancels_slow_requests(monkeypatch):
             cancelled.append(series_id)
     monkeypatch.delenv("MARKET_REGIME_FORCE_FRED_FAILURE", raising=False)
     monkeypatch.setattr(fred, "fetch_series", slow)
-    monkeypatch.setattr(fred, "BUDGET_SECONDS", .01)
-    results, stats = asyncio.run(fred.fetch_batch(["DFF", "UNRATE"]))
+    monkeypatch.setattr(fred, "BUDGET_SECONDS", 60 if explicit_budget else .01)
+    kwargs = {"budget_seconds": .01} if explicit_budget else {}
+    results, stats = asyncio.run(fred.fetch_batch(["DFF", "UNRATE"], **kwargs))
     assert results == {}
     assert set(cancelled) == {"DFF", "UNRATE"}
     assert all(s["error"] == "Timeout" for s in stats["symbols"].values())
+
+
+def test_offline_refresh_allows_slow_series_beyond_interactive_deadline(monkeypatch, fred_series, tmp_path):
+    from scripts import refresh_snapshot
+
+    # Scale the deadlines down: model a provider that responds after the short
+    # website deadline but comfortably within the offline refresh allowance.
+    monkeypatch.delenv("MARKET_REGIME_FORCE_FRED_FAILURE", raising=False)
+    monkeypatch.setattr(fred, "BUDGET_SECONDS", .01)
+    monkeypatch.setattr(refresh_snapshot, "FRED_REFRESH_BUDGET_SECONDS", 1)
+    async def delayed(client, series_id, **kwargs):
+        await asyncio.sleep(.05)
+        return copy.deepcopy(fred_series[series_id])
+    monkeypatch.setattr(fred, "fetch_series", delayed)
+    monkeypatch.setattr(macro_data, "SNAPSHOT_PATH", tmp_path / "fred.json")
+
+    # Interactive callers still stop waiting instead of inheriting the offline
+    # allowance. The refresh must then persist every delayed, valid series.
+    results, _ = asyncio.run(fred.fetch_batch(list(fred_series)))
+    assert results == {}
+    refresh_snapshot.refresh_fred()
+    assert macro_data.read_snapshot() == fred_series
 
 
 def test_malformed_snapshot_and_incomplete_latest_yoy(monkeypatch, tmp_path, fred_series):

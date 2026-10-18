@@ -13,6 +13,10 @@ from app.services import macro_data
 from app.data.instruments import FRED_SERIES
 from app.ingestion.fred import fetch_batch
 
+# Offline builds can wait for queued requests and retries across all 16 series.
+# Interactive callers retain the client's short default deadline.
+FRED_REFRESH_BUDGET_SECONDS = 60
+
 
 def refresh_yahoo(fixture_dir=None):
     snapshot = validate_snapshot(asyncio.run(fetch_snapshot(fixture_dir=fixture_dir)))
@@ -36,7 +40,9 @@ def refresh_yahoo(fixture_dir=None):
 
 def refresh_fred(fixture_dir=None):
     previous = macro_data.read_snapshot()
-    results, stats = asyncio.run(fetch_batch(list(FRED_SERIES.values()), fixture_dir=fixture_dir))
+    results, stats = asyncio.run(fetch_batch(
+        list(FRED_SERIES.values()), fixture_dir=fixture_dir,
+        budget_seconds=FRED_REFRESH_BUDGET_SECONDS))
     merged = dict(previous)
     failures = []
     for series_id in FRED_SERIES.values():

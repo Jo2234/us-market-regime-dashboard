@@ -71,7 +71,7 @@ async def fetch_series(client, series_id, *, api_key=None, fixture_dir=None, sta
         stats["fetch_ms"] = round((time.perf_counter() - started) * 1000, 2)
 
 
-async def fetch_batch(series_ids, *, fixture_dir=None):
+async def fetch_batch(series_ids, *, fixture_dir=None, budget_seconds=None):
     started = time.perf_counter()
     stats = {"transport": "json" if os.getenv("FRED_API_KEY") else "csv", "symbols": {}}
     results = {}
@@ -89,7 +89,8 @@ async def fetch_batch(series_ids, *, fixture_dir=None):
             except Exception as exc:
                 detail["error"] = type(exc).__name__  # Never log response URLs/keys.
         tasks = [asyncio.create_task(one(s)) for s in dict.fromkeys(series_ids)]
-        done, pending = await asyncio.wait(tasks, timeout=BUDGET_SECONDS)
+        done, pending = await asyncio.wait(
+            tasks, timeout=BUDGET_SECONDS if budget_seconds is None else budget_seconds)
         for task in pending:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
