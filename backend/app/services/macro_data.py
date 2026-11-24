@@ -44,8 +44,6 @@ def validate_series(series_id: str, series: dict) -> dict:
             raise ValueError("Invalid CPI index")
     if series_id in {"CPIAUCSL", "CPILFESL"} and not yoy_observations(observations):
         raise ValueError("CPI requires a matching year-ago month")
-    if series_id in {"CPIAUCSL", "CPILFESL"} and yoy_observations(observations)[-1]["date"] != observations[-1]["date"]:
-        raise ValueError("Latest CPI index has no matching year-ago month")
     return series
 
 
