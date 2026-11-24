@@ -217,15 +217,38 @@ def test_offline_refresh_allows_slow_series_beyond_interactive_deadline(monkeypa
     assert macro_data.read_snapshot() == fred_series
 
 
-def test_malformed_snapshot_and_incomplete_latest_yoy(monkeypatch, tmp_path, fred_series):
+def test_malformed_snapshot(monkeypatch, tmp_path):
     path = tmp_path / "fred.json"
     path.write_text("[]")
     monkeypatch.setattr(macro_data, "SNAPSHOT_PATH", path)
     assert macro_data.read_snapshot() == {}
-    series = fred_series["CPIAUCSL"]
-    series["observations"] = [r for r in series["observations"] if r["date"] != "2025-08-01"]
-    with pytest.raises(ValueError, match="Latest CPI"):
-        macro_data.validate_series("CPIAUCSL", series)
+
+
+def test_refresh_keeps_cpi_levels_when_latest_yoy_baselines_are_missing(
+    monkeypatch, tmp_path, fred_series, empty_conn
+):
+    from scripts import refresh_snapshot
+
+    for series_id in ("CPIAUCSL", "CPILFESL"):
+        series = fred_series[series_id]
+        series["observations"] = [
+            row for row in series["observations"] if row["date"] != "2025-08-01"
+        ]
+
+    async def fetch(*args, **kwargs):
+        return fred_series, {}
+
+    monkeypatch.setattr(refresh_snapshot, "fetch_batch", fetch)
+    monkeypatch.setattr(macro_data, "SNAPSHOT_PATH", tmp_path / "fred.json")
+    refresh_snapshot.refresh_fred()
+    saved = macro_data.read_snapshot()
+    assert saved == fred_series
+
+    macro_data.populate_database(empty_conn, saved, {})
+    summary = macro_data.summary(empty_conn, analytics.MarketHistory(empty_conn), date(2026, 9, 28))
+    assert summary["CPI_INDEX"]["date"] == "2026-08-01"
+    assert summary["CPI_YOY"]["date"] == "2026-07-01"
+    assert summary["CORE_CPI_YOY"]["date"] == "2026-07-01"
 
 
 def test_official_curve_uses_common_date_and_daily_publication_lag(empty_conn, fred_series, monkeypatch):
